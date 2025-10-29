@@ -11,11 +11,16 @@ CONFIG += c++17
 SOURCES += \
     src/ui/main.cpp \
     src/ui/mainwindow.cpp \
-    src/ui/PlotWidget.cpp
+    src/ui/PlotWidget.cpp \
+    src/ui/form.cpp
 
 HEADERS += \
     src/ui/mainwindow.h \
-    src/ui/PlotWidget.h
+    src/ui/PlotWidget.h \
+    src/ui/form.h
+
+FORMS += \
+    src/ui/form.ui
 
 INCLUDEPATH += $$PWD/src/ui
 

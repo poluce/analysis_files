@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "PlotWidget.h"
+#include "form.h" // Include the Form header
 #include <QTreeView>
 #include <QDockWidget>
 #include <QStatusBar>
@@ -14,8 +15,11 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QStyle>
+#include <QTreeWidgetItem> // Added for QTreeWidgetItem
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
+    , form(nullptr) // Initialize form pointer
+{
   qDebug() << "MainWindow constructor called.";
   resize(1600, 900);
   setWindowTitle("Thermal Analysis Software");
@@ -31,6 +35,89 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
 MainWindow::~MainWindow()
 {
     // Destructor body
+}
+
+void MainWindow::on_toolButtonOpen_clicked()
+{
+    if (!form) {
+        form = new Form;
+        connect(form, &Form::dataReady, this, &MainWindow::onDataReady);
+    }
+    form->show();
+}
+
+void MainWindow::onDataReady(const QVariantMap& data)
+{
+    int index = dataList.size() + 1;
+
+    QVariantMap newData;
+    temperatureKey = QString("温度%1").arg(index);
+    timeKey = QString("时间%1").arg(index);
+    customColumnKey = QString("%1%2").arg(form->lineEdit_5()).arg(index);
+    velocityKey = QString("速率%1").arg(index);
+
+    // 优化: 使用 const 引用避免复制,并预分配内存
+    const QVariantList& tempList = data.value("温度").toList();
+    const QVariantList& timeList = data.value("时间").toList();
+    const QVariantList& customList = data.value(form->lineEdit_5()).toList();
+
+    QList<double> temperatureData;
+    QList<double> timeData;
+    QList<double> customData;
+    QList<double> velocityData;
+
+    temperatureData.reserve(tempList.size());
+    timeData.reserve(timeList.size());
+    customData.reserve(customList.size());
+
+    for (const QVariant& v : tempList) {
+        temperatureData << v.toDouble();
+    }
+    for (const QVariant& v : timeList) {
+        timeData << v.toDouble();
+    }
+    for (const QVariant& v : customList) {
+        customData << v.toDouble();
+    }
+
+    if (data.contains("速率")) {
+        const QVariantList& velocityList = data.value("速率").toList();
+        velocityData.reserve(velocityList.size());
+        for (const QVariant& v : velocityList) {
+            velocityData << v.toDouble();
+        }
+    }
+
+    newData[temperatureKey] = QVariant::fromValue(temperatureData);
+    newData[timeKey] = QVariant::fromValue(timeData);
+    newData[customColumnKey] = QVariant::fromValue(customData);
+    if (!velocityData.isEmpty()) {
+        newData[velocityKey] = QVariant::fromValue(velocityData);
+    }
+
+    this->dataList.append(newData);
+
+    QString textFromLineEdit = form->textEdit();
+
+    QStandardItem* textEditItem = new QStandardItem(textFromLineEdit);
+    textEditItem->setToolTip(textFromLineEdit);
+    textEditItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+    treeModel_->invisibleRootItem()->appendRow(textEditItem);
+
+    QStandardItem* temperatureItem = new QStandardItem(temperatureKey);
+    temperatureItem->setFlags(temperatureItem->flags() | Qt::ItemIsUserCheckable);
+    temperatureItem->setCheckState(Qt::Unchecked);
+    textEditItem->appendRow(temperatureItem);
+
+    QStandardItem* timeItem = new QStandardItem(timeKey);
+    timeItem->setFlags(timeItem->flags() | Qt::ItemIsUserCheckable);
+    timeItem->setCheckState(Qt::Unchecked);
+    textEditItem->appendRow(timeItem);
+
+    QStandardItem* customColumnItem = new QStandardItem(customColumnKey);
+    customColumnItem->setFlags(customColumnItem->flags() | Qt::ItemIsUserCheckable);
+    customColumnItem->setCheckState(Qt::Unchecked);
+    textEditItem->appendRow(customColumnItem);
 }
 
 // --- Main Initializers ---
@@ -92,6 +179,8 @@ QToolBar* MainWindow::createFileToolBar() {
     toolbar->addAction(this->style()->standardIcon(QStyle::SP_DialogOpenButton), "Open...");
     toolbar->addAction(this->style()->standardIcon(QStyle::SP_DialogSaveButton), "Save");
     toolbar->addSeparator();
+    QAction* importDataAction = toolbar->addAction(this->style()->standardIcon(QStyle::SP_DirOpenIcon), "Import Data...");
+    connect(importDataAction, &QAction::triggered, this, &MainWindow::on_toolButtonOpen_clicked);
     toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowUp), "Export Chart...");
     return toolbar;
 }
