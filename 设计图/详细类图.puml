@@ -1,0 +1,511 @@
+@startuml DSC_TGA_Layer_Architecture
+
+' 布局设置
+top to bottom direction
+
+skinparam monochrome false
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Microsoft YaHei
+skinparam defaultFontSize 14
+skinparam classAttributeIconSize 0
+skinparam ClassAttributeFontSize 12
+skinparam ClassPadding 8
+skinparam RoundCorner 8
+skinparam nodesep 80
+skinparam ranksep 250
+skinparam linetype ortho
+skinparam ArrowColor #555555
+skinparam ArrowThickness 1.5
+skinparam ClassBorderColor #999999
+skinparam PackageBorderColor #666666
+skinparam PackageBorderThickness 2
+skinparam PackageTitleFontSize 18
+skinparam PackageFontStyle bold
+skinparam NoteBackgroundColor #FFFFF5
+skinparam NoteBorderColor #DDDDCC
+skinparam LegendBackgroundColor #FAFAFA
+skinparam LegendBorderColor #E0E0E0
+
+title DSC/TGA热分析软件 - 四层架构图(类关系详解)\n(基于Qt/C++开发)\n\n<b>执行顺序：第一层(表示层) ▼ 第二层(应用层) ▼ 第三层(领域层) ▼ 第四层(基础设施层)</b>
+
+' ========== 第一层：表示层 ==========
+package "【第一层】🖥️ 表示层 (Presentation Layer)\n负责UI展示和用户交互" #E3F2FD {
+    ' 统领类 - MainWindow
+    class MainWindow {
+        --成员变量--
+        - chartView: ChartView*
+        - toolPanel: ToolPanel*
+        - menuBar: QMenuBar*
+        --方法--
+        + setupUI(): void
+        + updateCurveList(): void
+        --信号--
+        <<signal>> openFileRequested()
+        <<signal>> saveProjectRequested()
+    }
+
+    ' 子组件 - 水平排列
+    together {
+        class ChartView {
+            --成员变量--
+            - chart: QChart*
+            - series: QMap<QString, QLineSeries*>
+            - decimator: DataDecimator*
+            --方法--
+            + addCurve(id, data): void
+            + updateCurve(id): void
+            --信号--
+            <<signal>> regionSelected(id, start, end)
+        }
+
+        class ToolPanel {
+            --成员变量--
+            - paramLayout: QFormLayout*
+            - resultTable: QTableWidget*
+            --方法--
+            + showAlgorithmParams(algo): void
+        }
+    }
+
+    MainWindow *-down- ChartView : 组合(拥有)
+    MainWindow *-down- ToolPanel : 组合(拥有)
+    MainWindow -[hidden]down-> ChartView
+    MainWindow -[hidden]down-> ToolPanel
+}
+
+' ========== 第二层：应用层 ==========
+package "【第二层】⚙️ 应用层 (Application Layer)\n负责业务协调和流程编排" #F3E5F5 {
+    ' 统领类 - Controllers（协调器）
+    together {
+        class MainController {
+            --成员变量(依赖注入)--
+            - projectManager: ProjectManager*
+            - curveManager: CurveManager*
+            - algorithmService: AlgorithmService*
+            - historyManager: HistoryManager*
+            --方法--
+            + handleOpenFile(): void
+            + handleSaveProject(): void
+            + handleUndo(): void
+        }
+
+        class ChartController {
+            --成员变量--
+            - curveManager: CurveManager*
+            - algorithmService: AlgorithmService*
+            - historyManager: HistoryManager*
+            --方法--
+            + handleRegionSelection(id, start, end): void
+            + calculatePeakArea(region): double
+        }
+    }
+
+    ' 服务类 - Managers & Services（被协调的服务）
+    together {
+        class ProjectManager <<Singleton>> {
+        --成员变量--
+        - currentProject: ThermalProject*
+        - recentProjects: QStringList
+        - fileReaderFactory: FileReaderFactory*
+        - fileWriterFactory: FileWriterFactory*
+        --方法--
+        + instance(): ProjectManager*
+        + createProject(): ThermalProject*
+        + openProject(path): bool
+        + saveProject(): bool
+        --信号--
+        <<signal>> projectOpened(project)
+    }
+
+    class CurveManager <<Singleton>> {
+        --成员变量--
+        - curves: QMap<QString, ThermalCurve*>
+        - activeCurveId: QString
+        --方法--
+        + instance(): CurveManager*
+        + addCurve(curve): QString
+        + getCurve(id): ThermalCurve*
+        + getActiveCurve(): ThermalCurve*
+        --信号--
+        <<signal>> curveDataChanged(id)
+    }
+
+    class AlgorithmService <<Singleton>> {
+        --成员变量--
+        - algorithms: QMap<QString, IThermalAlgorithm*>
+        - threadPool: QThreadPool*
+        --方法--
+        + instance(): AlgorithmService*
+        + registerAlgorithm(algo): void
+        + executeAsync(name, data): void
+        --信号--
+        <<signal>> algorithmFinished(result)
+    }
+
+        class HistoryManager <<Singleton>> {
+            --成员变量--
+            - undoStack: QStack<ICommand*>
+            - redoStack: QStack<ICommand*>
+            --方法--
+            + instance(): HistoryManager*
+            + execute(cmd): bool
+            + undo(): void
+            + redo(): void
+        }
+    }
+
+    MainController -down-> ProjectManager : 使用
+    MainController -down-> CurveManager : 使用
+    MainController -down-> AlgorithmService : 使用
+    MainController -down-> HistoryManager : 使用
+    ChartController -down-> CurveManager : 使用
+    ChartController -down-> AlgorithmService : 使用
+    ChartController -down-> HistoryManager : 使用
+
+    ' 层内布局：Controllers 在上，Services 在下
+    MainController -[hidden]down-> ProjectManager
+    MainController -[hidden]down-> CurveManager
+    ChartController -[hidden]down-> AlgorithmService
+    ChartController -[hidden]down-> HistoryManager
+}
+
+' ========== 第三层：领域层 ==========
+package "【第三层】🎯 领域层 (Domain Layer)\n核心业务逻辑和实体模型" #FFF3E0 {
+    ' 统领类 - 聚合根和核心实体
+    together {
+        class ThermalProject <<AggregateRoot>> {
+            --成员变量--
+            - projectId: QString
+            - projectName: QString
+            - curves: QList<QString>  {曲线ID列表}
+            - settings: QVariantMap
+            --方法--
+            + addCurve(curveId): void
+            + removeCurve(curveId): void
+            + getCurves(): QList<QString>
+        }
+
+        class ThermalCurve <<Entity>> {
+            --成员变量--
+            - id: QString
+            - name: QString
+            - rawData: QVector<ThermalDataPoint>  {只读}
+            - processedData: QVector<ThermalDataPoint>
+            - metadata: QVariantMap
+            --方法--
+            + getRawData(): const QVector&
+            + getProcessedData(): QVector&
+            + setProcessedData(data): void
+            + resetToRaw(): void
+        }
+    }
+
+    ' 值对象
+    class ThermalDataPoint <<ValueObject>> {
+        --成员变量(只读)--
+        - temperature: double
+        - value: double
+        - time: double
+        - metadata: QVariantMap
+        --方法--
+        + getTemperature(): double
+        + getValue(): double
+        + getTime(): double
+    }
+
+    ' 领域接口定义
+    together {
+        interface IThermalAlgorithm {
+            --纯虚函数--
+            + {abstract} process(data): QVector<ThermalDataPoint>
+            + {abstract} name(): QString
+            + {abstract} parameters(): QVariantMap
+            + {abstract} setParameters(params): void
+        }
+
+        interface ICommand {
+            --纯虚函数--
+            + {abstract} execute(): bool
+            + {abstract} undo(): void
+            + {abstract} redo(): void
+            + {abstract} description(): QString
+        }
+    }
+
+    ThermalCurve *-down- "many" ThermalDataPoint : 包含(组合)
+    ThermalProject o-down- "many" ThermalCurve : 引用(聚合)
+
+    ' 层内布局：聚合根/实体 在上，值对象 在中，接口 在下
+    ThermalProject -[hidden]down-> ThermalDataPoint
+    ThermalCurve -[hidden]down-> ThermalDataPoint
+    ThermalDataPoint -[hidden]down-> IThermalAlgorithm
+    ThermalDataPoint -[hidden]down-> ICommand
+}
+
+' ========== 第四层：基础设施层 ==========
+package "【第四层】🔧 基础设施层 (Infrastructure Layer)\n技术实现和底层支持" #E8F5E9 {
+    ' 统领类 - 工厂（Factory）
+    together {
+        class FileReaderFactory <<Singleton>> {
+            --成员变量--
+            - readers: QList<IFileReader*>
+            --方法--
+            + instance(): FileReaderFactory*
+            + registerReader(reader): void
+            + getReader(path): IFileReader*
+        }
+
+        class FileWriterFactory <<Singleton>> {
+            --成员变量--
+            - writers: QList<IFileWriter*>
+            --方法--
+            + instance(): FileWriterFactory*
+            + registerWriter(writer): void
+            + getWriter(path): IFileWriter*
+        }
+    }
+
+    ' 接口定义
+    together {
+        interface IFileReader {
+            + {abstract} canRead(path): bool
+            + {abstract} read(path): ThermalCurve*
+            + {abstract} supportedFormats(): QStringList
+        }
+
+        interface IFileWriter {
+            + {abstract} canWrite(path): bool
+            + {abstract} write(path, curve): bool
+            + {abstract} supportedFormats(): QStringList
+        }
+    }
+
+    ' 具体实现类
+    together {
+        class TAInstrumentsReader {
+            + canRead(path): bool
+            + read(path): ThermalCurve*
+        }
+
+        class MettlerToledoReader {
+            + canRead(path): bool
+            + read(path): ThermalCurve*
+        }
+
+        class ProjectFileWriter {
+            + canWrite(path): bool
+            + write(path, project): bool
+        }
+    }
+
+    ' Algorithm组
+    together {
+        class BaselineCorrector {
+            --成员变量--
+            - method: BaselineType
+            - degree: int
+            --方法--
+            + process(data): QVector<ThermalDataPoint>
+            + linearBaseline(data): QVector
+            + polynomialFit(data): QVector
+        }
+
+        class SmoothingAlgorithm {
+            --成员变量--
+            - windowSize: int
+            - method: SmoothType
+            --方法--
+            + process(data): QVector<ThermalDataPoint>
+            + movingAverage(data): QVector
+            + savitzkyGolay(data): QVector
+        }
+
+        class PeakDetector {
+            --成员变量--
+            - threshold: double
+            - minPeakDistance: int
+            --方法--
+            + process(data): QVector<ThermalDataPoint>
+            + detectPeaks(data): QVector<Peak>
+            + calculatePeakArea(peak): double
+        }
+
+        class KineticsAnalyzer {
+            --成员变量--
+            - model: KineticModel
+            - heatingRate: double
+            --方法--
+            + process(data): QVector<ThermalDataPoint>
+            + calculateActivationEnergy(): double
+        }
+    }
+
+    ' Command组 (命令模式具体实现)
+    together {
+        class AlgorithmCommand {
+            --成员变量--
+            - curveId: QString
+            - algorithm: IThermalAlgorithm*
+            - originalData: QVector<ThermalDataPoint>
+            - processedData: QVector<ThermalDataPoint>
+            --方法--
+            + execute(): bool
+            + undo(): void
+            + redo(): void
+            + description(): QString
+        }
+
+        class BaselineCorrectionCommand {
+            + execute(): bool
+            + undo(): void
+            + redo(): void
+        }
+
+        class SmoothingCommand {
+            + execute(): bool
+            + undo(): void
+            + redo(): void
+        }
+    }
+
+    ' Utility组
+    together {
+        class DataDecimator {
+            --方法--
+            + {static} decimate(data, maxPoints): QVector
+            + {static} douglasPeucker(data, epsilon): QVector
+            + {static} adaptiveDecimate(data, zoom): QVector
+        }
+
+        class DataInterpolator {
+            --方法--
+            + {static} interpolate(data, x): double
+            + {static} linearInterpolation(data, x): double
+            + {static} splineInterpolation(data, x): double
+        }
+    }
+
+    IFileReader <|-down- TAInstrumentsReader : 实现
+    IFileReader <|-down- MettlerToledoReader : 实现
+    FileReaderFactory o-down- IFileReader : 聚合(注册多个)
+
+    IFileWriter <|-down- ProjectFileWriter : 实现
+    FileWriterFactory o-down- IFileWriter : 聚合(注册多个)
+
+    IThermalAlgorithm <|-down- BaselineCorrector : 实现
+    IThermalAlgorithm <|-down- SmoothingAlgorithm : 实现
+    IThermalAlgorithm <|-down- PeakDetector : 实现
+    IThermalAlgorithm <|-down- KineticsAnalyzer : 实现
+
+    ICommand <|-down- AlgorithmCommand : 实现
+    AlgorithmCommand <|-down- BaselineCorrectionCommand : 继承
+    AlgorithmCommand <|-down- SmoothingCommand : 继承
+
+    ' 层内布局：工厂 在最上，接口 在中，具体实现 在下
+    FileReaderFactory -[hidden]down-> IFileReader
+    FileWriterFactory -[hidden]down-> IFileWriter
+    IFileReader -[hidden]down-> TAInstrumentsReader
+    IFileWriter -[hidden]down-> ProjectFileWriter
+    TAInstrumentsReader -[hidden]right-> MettlerToledoReader
+}
+
+' ========== 布局控制(隐藏线) ==========
+' 强制四层从上到下排列 - 使用每层的代表类
+' 第一层在最上方
+ToolPanel -[hidden]down-> MainController
+ToolPanel -[hidden]down-> ProjectManager
+ToolPanel -[hidden]down-> CurveManager
+ToolPanel -[hidden]down-> AlgorithmService
+ChartView -[hidden]down-> ChartController
+ChartView -[hidden]down-> MainController
+MainWindow -[hidden]down-> CurveManager
+MainWindow -[hidden]down-> ProjectManager
+MainWindow -[hidden]down-> AlgorithmService
+
+' 第二层在第一层下方（增加更多连接）
+MainController -[hidden]down-> ThermalProject
+MainController -[hidden]down-> ThermalCurve
+ProjectManager -[hidden]down-> ThermalCurve
+ProjectManager -[hidden]down-> ThermalDataPoint
+CurveManager -[hidden]down-> ThermalDataPoint
+CurveManager -[hidden]down-> IThermalAlgorithm
+AlgorithmService -[hidden]down-> IThermalAlgorithm
+AlgorithmService -[hidden]down-> ICommand
+ChartController -[hidden]down-> ThermalCurve
+HistoryManager -[hidden]down-> ICommand
+
+' 第三层在第二层下方（增加更多连接）
+ThermalCurve -[hidden]down-> BaselineCorrector
+ThermalCurve -[hidden]down-> SmoothingAlgorithm
+ThermalProject -[hidden]down-> FileReaderFactory
+ThermalProject -[hidden]down-> TAInstrumentsReader
+IThermalAlgorithm -[hidden]down-> SmoothingAlgorithm
+IThermalAlgorithm -[hidden]down-> BaselineCorrector
+IThermalAlgorithm -[hidden]down-> PeakDetector
+ICommand -[hidden]down-> AlgorithmCommand
+ICommand -[hidden]down-> BaselineCorrectionCommand
+ThermalDataPoint -[hidden]down-> DataDecimator
+
+' ========== 跨层依赖关系 ==========
+
+' 表示层 -> 应用层 (信号槽连接)
+MainWindow ..> MainController : <<signal-slot>>
+ChartView ..> ChartController : <<signal-slot>>
+
+' 表示层 <- 应用层 (监听数据变化)
+MainWindow ..> CurveManager : <<监听信号>>
+ChartView ..> CurveManager : <<监听信号>>
+ToolPanel ..> AlgorithmService : <<监听信号>>
+
+' 表示层 -> 基础设施层 (直接使用工具类)
+ChartView --> DataDecimator : 使用(抽稀显示)
+
+' 应用层 -> 领域层
+ProjectManager --> ThermalProject : 管理
+CurveManager --> ThermalCurve : 管理
+AlgorithmService --> IThermalAlgorithm : 使用(多态)
+HistoryManager --> ICommand : 使用(多态)
+
+' 应用层 -> 基础设施层
+ProjectManager --> FileReaderFactory : 使用
+ProjectManager --> FileWriterFactory : 使用
+AlgorithmService o-- IThermalAlgorithm : 聚合(注册多个算法实现)
+
+' 基础设施层 -> 领域层 (依赖领域对象)
+BaselineCorrector ..> ThermalDataPoint : 使用
+SmoothingAlgorithm ..> ThermalDataPoint : 使用
+PeakDetector ..> ThermalDataPoint : 使用
+KineticsAnalyzer ..> ThermalDataPoint : 使用
+AlgorithmCommand ..> ThermalDataPoint : 使用
+TAInstrumentsReader ..> ThermalCurve : 创建
+MettlerToledoReader ..> ThermalCurve : 创建
+ProjectFileWriter ..> ThermalProject : 序列化
+
+' 图例说明
+legend right
+  <b>UML关系符号:</b>
+  <&arrow-right> —→  依赖(uses)
+  <&arrow-right> ..>  依赖(signal/slot)
+  <&arrow-right> *--  组合(强拥有,生命周期一致)
+  <&arrow-right> o--  聚合(弱拥有,可独立存在)
+  <&arrow-right> <|.. 实现接口
+
+  <b>成员变量类型:</b>
+  - member: Type*  (指针成员)
+  - member: Type&  (引用成员)
+  - member: QList<Type*>  (容器)
+
+  <b>层次职责:</b>
+  <#E3F2FD>表示层</> - UI展示,只发信号
+  <#F3E5F5>应用层</> - 业务协调,依赖注入
+  <#FFF3E0>领域层</> - 核心模型,定义接口
+  <#E8F5E9>基础设施层</> - 技术实现,实现接口
+
+  <b>架构原则:</b>
+  · 上层依赖下层
+  · 依赖倒置(DIP): 领域层定义接口,基础设施层实现
+  · 单一职责(SRP): 每个类只有一个变化原因
+endlegend
+
+@enduml
