@@ -8,21 +8,52 @@ CONFIG += c++17
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+# Include path for all source directories
+INCLUDEPATH += $$PWD/src
+
 SOURCES += \
+    # UI Layer
+    src/ui/DataImportWidget.cpp \
     src/ui/main.cpp \
     src/ui/mainwindow.cpp \
     src/ui/PlotWidget.cpp \
-    src/ui/form.cpp
+    src/ui/ProjectExplorer.cpp \
+    src/ui/controller/MainController.cpp \
+    \
+    # Application Layer
+    src/application/curve/CurveManager.cpp \
+    src/application/algorithm/AlgorithmService.cpp \
+    \
+    # Domain Layer
+    src/domain/model/ThermalCurve.cpp \
+    \
+    # Infrastructure Layer
+    src/infrastructure/io/TextFileReader.cpp \
+    src/infrastructure/algorithm/DifferentiationAlgorithm.cpp
 
 HEADERS += \
+    # UI Layer
+    src/ui/DataImportWidget.h \
     src/ui/mainwindow.h \
     src/ui/PlotWidget.h \
-    src/ui/form.h
+    src/ui/ProjectExplorer.h \
+    src/ui/controller/MainController.h \
+    \
+    # Application Layer
+    src/application/curve/CurveManager.h \
+    src/application/algorithm/AlgorithmService.h \
+    \
+    # Domain Layer
+    src/domain/model/ThermalDataPoint.h \
+    src/domain/model/ThermalCurve.h \
+    src/domain/algorithm/IThermalAlgorithm.h \
+    \
+    # Infrastructure Layer
+    src/infrastructure/io/IFileReader.h \
+    src/infrastructure/io/TextFileReader.h \
+    src/infrastructure/algorithm/DifferentiationAlgorithm.h
 
-FORMS += \
-    src/ui/form.ui
-
-INCLUDEPATH += $$PWD/src/ui
+# FORMS section removed as UI is now code-based
 
 TRANSLATIONS += \
     Analysis_zh_CN.ts
@@ -30,6 +61,6 @@ CONFIG += lrelease
 CONFIG += embed_translations
 
 # Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
+qnx: target.path = /tmp/${TARGET}/bin
+else: unix:!android: target.path = /opt/${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target

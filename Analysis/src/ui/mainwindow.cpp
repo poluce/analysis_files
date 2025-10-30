@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 #include "PlotWidget.h"
-#include "form.h" // Include the Form header
-#include <QTreeView>
+#include "application/curve/CurveManager.h"
+#include "ui/controller/MainController.h"
+#include "domain/model/ThermalCurve.h"
+
 #include <QDockWidget>
 #include <QStatusBar>
 #include <QTabWidget>
@@ -15,144 +17,106 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QStyle>
-#include <QTreeWidgetItem> // Added for QTreeWidgetItem
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
-    , form(nullptr) // Initialize form pointer
 {
   qDebug() << "MainWindow constructor called.";
   resize(1600, 900);
-  setWindowTitle("Thermal Analysis Software");
+  setWindowTitle(tr("热分析软件"));
 
   initRibbon();
   initCentral();
   initDockWidgets();
   initStatusBar();
+  initComponents(); // 初始化组件
   
   setUnifiedTitleAndToolBarOnMac(true);
 }
 
 MainWindow::~MainWindow()
 {
-    // Destructor body
+    // 析构函数体。子QObject会被自动删除。
+}
+
+void MainWindow::initComponents()
+{
+    m_curveManager = new CurveManager(this);
+    m_mainController = new MainController(m_curveManager, this);
+
+    // 连接控制器信号到主窗口的槽，用于更新项目浏览器
+    connect(m_mainController, &MainController::curveAvailable, this, &MainWindow::onCurveAvailable);
+
+    // 连接控制器信号到图表视图，用于绘制曲线
+    connect(m_mainController, &MainController::curveAvailable, m_chartView, &PlotWidget::addCurve);
 }
 
 void MainWindow::on_toolButtonOpen_clicked()
 {
-    if (!form) {
-        form = new Form;
-        connect(form, &Form::dataReady, this, &MainWindow::onDataReady);
-    }
-    form->show();
+    // 调用控制器显示导入窗口
+    m_mainController->onShowDataImport();
 }
 
-void MainWindow::onDataReady(const QVariantMap& data)
+void MainWindow::onCurveAvailable(const ThermalCurve& curve)
 {
-    int index = dataList.size() + 1;
-
-    QVariantMap newData;
-    temperatureKey = QString("温度%1").arg(index);
-    timeKey = QString("时间%1").arg(index);
-    customColumnKey = QString("%1%2").arg(form->lineEdit_5()).arg(index);
-    velocityKey = QString("速率%1").arg(index);
-
-    // 优化: 使用 const 引用避免复制,并预分配内存
-    const QVariantList& tempList = data.value("温度").toList();
-    const QVariantList& timeList = data.value("时间").toList();
-    const QVariantList& customList = data.value(form->lineEdit_5()).toList();
-
-    QList<double> temperatureData;
-    QList<double> timeData;
-    QList<double> customData;
-    QList<double> velocityData;
-
-    temperatureData.reserve(tempList.size());
-    timeData.reserve(timeList.size());
-    customData.reserve(customList.size());
-
-    for (const QVariant& v : tempList) {
-        temperatureData << v.toDouble();
-    }
-    for (const QVariant& v : timeList) {
-        timeData << v.toDouble();
-    }
-    for (const QVariant& v : customList) {
-        customData << v.toDouble();
-    }
-
-    if (data.contains("速率")) {
-        const QVariantList& velocityList = data.value("速率").toList();
-        velocityData.reserve(velocityList.size());
-        for (const QVariant& v : velocityList) {
-            velocityData << v.toDouble();
+    qDebug() << "MainWindow: Received curve" << curve.name();
+    // 在树模型中查找“导入文件”项
+    QStandardItem* rootItem = m_projectTreeModel->invisibleRootItem();
+    QStandardItem* importationsItem = nullptr;
+    for (int i = 0; i < rootItem->rowCount(); ++i) {
+        if (rootItem->child(i)->text() == tr("导入文件")) {
+            importationsItem = rootItem->child(i);
+            break;
         }
     }
 
-    newData[temperatureKey] = QVariant::fromValue(temperatureData);
-    newData[timeKey] = QVariant::fromValue(timeData);
-    newData[customColumnKey] = QVariant::fromValue(customData);
-    if (!velocityData.isEmpty()) {
-        newData[velocityKey] = QVariant::fromValue(velocityData);
+    if (!importationsItem) {
+        // 如果该项不存在，则创建它
+        importationsItem = new QStandardItem(tr("导入文件"));
+        rootItem->appendRow(importationsItem);
     }
 
-    this->dataList.append(newData);
-
-    QString textFromLineEdit = form->textEdit();
-
-    QStandardItem* textEditItem = new QStandardItem(textFromLineEdit);
-    textEditItem->setToolTip(textFromLineEdit);
-    textEditItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-    treeModel_->invisibleRootItem()->appendRow(textEditItem);
-
-    QStandardItem* temperatureItem = new QStandardItem(temperatureKey);
-    temperatureItem->setFlags(temperatureItem->flags() | Qt::ItemIsUserCheckable);
-    temperatureItem->setCheckState(Qt::Unchecked);
-    textEditItem->appendRow(temperatureItem);
-
-    QStandardItem* timeItem = new QStandardItem(timeKey);
-    timeItem->setFlags(timeItem->flags() | Qt::ItemIsUserCheckable);
-    timeItem->setCheckState(Qt::Unchecked);
-    textEditItem->appendRow(timeItem);
-
-    QStandardItem* customColumnItem = new QStandardItem(customColumnKey);
-    customColumnItem->setFlags(customColumnItem->flags() | Qt::ItemIsUserCheckable);
-    customColumnItem->setCheckState(Qt::Unchecked);
-    textEditItem->appendRow(customColumnItem);
+    // 将新曲线名称添加到树中
+    QStandardItem* curveItem = new QStandardItem(curve.name());
+    curveItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
+    curveItem->setCheckable(true);
+    curveItem->setCheckState(Qt::Checked);
+    importationsItem->appendRow(curveItem);
 }
 
-// --- Main Initializers ---
+
+// --- 主要初始化函数 ---
 
 void MainWindow::initRibbon() {
   qDebug() << "initRibbon called.";
   
   QTabWidget* tabs = new QTabWidget();
   
-  // Create tabs with their own toolbars
+  // 创建带有独立工具栏的标签页
   QWidget* fileTab = new QWidget();
   fileTab->setLayout(new QVBoxLayout());
   fileTab->layout()->setContentsMargins(0,0,0,0);
   fileTab->layout()->addWidget(createFileToolBar());
-  tabs->addTab(fileTab, "File");
+  tabs->addTab(fileTab, tr("文件"));
 
   QWidget* viewTab = new QWidget();
   viewTab->setLayout(new QVBoxLayout());
   viewTab->layout()->setContentsMargins(0,0,0,0);
   viewTab->layout()->addWidget(createViewToolBar());
-  tabs->addTab(viewTab, "View");
+  tabs->addTab(viewTab, tr("视图"));
 
   QWidget* mathTab = new QWidget();
   mathTab->setLayout(new QVBoxLayout());
   mathTab->layout()->setContentsMargins(0,0,0,0);
   mathTab->layout()->addWidget(createMathToolBar());
-  tabs->addTab(mathTab, "Math Functions");
+  tabs->addTab(mathTab, tr("数学工具"));
 
   setMenuWidget(tabs);
 }
 
 void MainWindow::initCentral() {
   qDebug() << "initCentral called.";
-  plotWidget_ = new PlotWidget;
-  setCentralWidget(plotWidget_);
+  m_chartView = new PlotWidget;
+  setCentralWidget(m_chartView);
 }
 
 void MainWindow::initDockWidgets() {
@@ -162,94 +126,84 @@ void MainWindow::initDockWidgets() {
 }
 
 void MainWindow::initStatusBar() {
-    statusBar()->showMessage("Ready", 3000);
+    statusBar()->showMessage(tr("准备就绪"), 3000);
 
     QLabel *versionLabel = new QLabel("v0.1.0-alpha");
-    QLabel *zoomLabel = new QLabel("Zoom: 100%");
+    QLabel *zoomLabel = new QLabel(tr("缩放: 100%"));
     
     statusBar()->addPermanentWidget(versionLabel);
     statusBar()->addPermanentWidget(zoomLabel);
 }
 
-// --- UI Setup Helpers ---
+// --- UI 设置助手函数 ---
 
 QToolBar* MainWindow::createFileToolBar() {
-    QToolBar* toolbar = new QToolBar("File");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_FileIcon), "New Project");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_DialogOpenButton), "Open...");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_DialogSaveButton), "Save");
+    QToolBar* toolbar = new QToolBar(tr("文件"));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_FileIcon), tr("新建项目"));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_DialogOpenButton), tr("打开..."));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_DialogSaveButton), tr("保存"));
     toolbar->addSeparator();
-    QAction* importDataAction = toolbar->addAction(this->style()->standardIcon(QStyle::SP_DirOpenIcon), "Import Data...");
+    QAction* importDataAction = toolbar->addAction(this->style()->standardIcon(QStyle::SP_DirOpenIcon), tr("导入数据..."));
     connect(importDataAction, &QAction::triggered, this, &MainWindow::on_toolButtonOpen_clicked);
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowUp), "Export Chart...");
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowUp), tr("导出图表..."));
     return toolbar;
 }
 
 QToolBar* MainWindow::createViewToolBar() {
-    QToolBar* toolbar = new QToolBar("View");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton), "Zoom In");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ToolBarVerticalExtensionButton), "Zoom Out");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_BrowserReload), "Fit View");
+    QToolBar* toolbar = new QToolBar(tr("视图"));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton), tr("放大"));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ToolBarVerticalExtensionButton), tr("缩小"));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_BrowserReload), tr("适应视图"));
     toolbar->addSeparator();
-    toolbar->addAction("Pan Tool");
-    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowRight), "Select Tool");
+    toolbar->addAction(tr("平移工具"));
+    toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowRight), tr("选择工具"));
     return toolbar;
 }
 
 QToolBar* MainWindow::createMathToolBar() {
-    QToolBar* toolbar = new QToolBar("Math");
-    toolbar->addAction("Baseline Correction");
-    toolbar->addAction("Normalize");
-    toolbar->addAction("Calculate Kinetics...");
+    QToolBar* toolbar = new QToolBar(tr("数学"));
+    toolbar->addAction(tr("基线校正"));
+    toolbar->addAction(tr("归一化"));
+    QAction* diffAction = toolbar->addAction(tr("微分算法"));
+    toolbar->addAction(tr("动力学计算..."));
+    connect(diffAction, &QAction::triggered, this, &MainWindow::onDifferentialAlgorithmAction);
     return toolbar;
 }
 
 void MainWindow::setupLeftDock() {
-  leftDock_ = new QDockWidget("Project Explorer", this);
-  leftTree_ = new QTreeView;
-  leftTree_->setHeaderHidden(true);
-  
-  treeModel_ = new QStandardItemModel(this);
-  QStandardItem *parentItem = treeModel_->invisibleRootItem();
+  m_projectExplorerDock = new QDockWidget(tr("项目浏览器"), this);
+  m_projectExplorer = new ProjectExplorer(this);
 
-  QStandardItem *importItem = new QStandardItem("Importations");
+  m_projectTreeModel = new QStandardItemModel(this);
+  QStandardItem *parentItem = m_projectTreeModel->invisibleRootItem();
+
+  QStandardItem *importItem = new QStandardItem(tr("导入文件"));
   parentItem->appendRow(importItem);
 
-  QStandardItem *sample1 = new QStandardItem("Sample 1 (DSC)");
-  sample1->setCheckable(true);
-  sample1->setCheckState(Qt::Checked);
-  importItem->appendRow(sample1);
+  m_projectExplorer->setModel(m_projectTreeModel);
 
-  QStandardItem *heatFlow = new QStandardItem("Heat Flow");
-  heatFlow->setCheckable(true);
-  heatFlow->setCheckState(Qt::Checked);
-  sample1->appendRow(heatFlow);
-
-  QStandardItem *temp = new QStandardItem("Temperature");
-  temp->setCheckable(true);
-  sample1->appendRow(temp);
-
-  QStandardItem *kineticsItem = new QStandardItem("Kinetic Results");
-  parentItem->appendRow(kineticsItem);
-  
-  leftTree_->setModel(treeModel_);
-  leftTree_->expandAll();
-
-  leftDock_->setWidget(leftTree_);
-  addDockWidget(Qt::LeftDockWidgetArea, leftDock_);
+  m_projectExplorerDock->setWidget(m_projectExplorer);
+  addDockWidget(Qt::LeftDockWidgetArea, m_projectExplorerDock);
 }
 
 void MainWindow::setupRightDock() {
-  rightDock_ = new QDockWidget("Properties", this);
+  m_propertiesDock = new QDockWidget(tr("属性"), this);
   QWidget* propertiesWidget = new QWidget();
   QFormLayout* formLayout = new QFormLayout(propertiesWidget);
 
-  formLayout->addRow("Name:", new QLineEdit("Sample 1"));
+  formLayout->addRow(tr("名称:"), new QLineEdit("Sample 1"));
   QComboBox* modelCombo = new QComboBox();
   modelCombo->addItems({"Model-Free", "Model-Based", "ASTM E698"});
-  formLayout->addRow("Analysis Model:", modelCombo);
-  formLayout->addRow("Heating Rate:", new QLineEdit("10 K/min"));
+  formLayout->addRow(tr("分析模型:"), modelCombo);
+  formLayout->addRow(tr("升温速率:"), new QLineEdit("10 K/min"));
 
-  rightDock_->setWidget(propertiesWidget);
-  addDockWidget(Qt::RightDockWidgetArea, rightDock_);
+  m_propertiesDock->setWidget(propertiesWidget);
+  addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
 }
+
+void MainWindow::onDifferentialAlgorithmAction()
+{
+    // TODO: 检查是否有激活的曲线
+    m_mainController->onAlgorithmRequested("differentiation");
+}
+

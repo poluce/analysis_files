@@ -1,40 +1,56 @@
 #include "PlotWidget.h"
-#include <QDebug>
-#include <QtCharts/QChart>
-#include <QtCharts/QLineSeries>
-#include <QVBoxLayout>
+#include "domain/model/ThermalCurve.h"
 
-QT_CHARTS_USE_NAMESPACE
+#include <QtCharts/QLineSeries>
+#include <QtCharts/QChart>
+#include <QtCharts/QValueAxis>
+#include <QVBoxLayout>
 
 PlotWidget::PlotWidget(QWidget *parent) : QWidget(parent)
 {
-    qDebug() << "PlotWidget constructor called.";
-
-    // 1. Create Chart and ChartView
+    m_chartView = new QChartView(this);
     QChart *chart = new QChart();
-    chart->setTitle("Simple Line Chart Example");
-
-    m_chartView = new QChartView(chart);
+    chart->setTitle(tr("热分析曲线"));
+    m_chartView->setChart(chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
 
-    // 2. Create a demo series
-    QLineSeries *series = new QLineSeries();
-    series->setName("Demo Series");
-    series->append(0, 10);
-    series->append(1, 5);
-    series->append(2, 8);
-    series->append(3, 12);
-    series->append(4, 7);
-
-    // 3. Add series to chart and create axes
-    chart->addSeries(series);
-    chart->createDefaultAxes();
-    chart->legend()->setVisible(true);
-    chart->legend()->setAlignment(Qt::AlignBottom);
-
-    // 4. Set layout
+    // 使用布局来确保 QChartView 能够缩放
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_chartView);
     setLayout(layout);
+}
+
+void PlotWidget::addCurve(const ThermalCurve &curve)
+{
+    QLineSeries *series = new QLineSeries();
+    series->setName(curve.name());
+
+    const auto& data = curve.getRawData(); // 或者 getProcessedData()
+    for (const auto& point : data)
+    {
+        series->append(point.temperature, point.value);
+    }
+
+    QChart *chart = m_chartView->chart();
+    chart->addSeries(series);
+
+    // 如果是第一次添加曲线，则创建坐标轴
+    if (chart->axes().isEmpty())
+    {
+        QValueAxis *axisX = new QValueAxis;
+        axisX->setTitleText(tr("温度 (°C)"));
+        chart->addAxis(axisX, Qt::AlignBottom);
+
+        QValueAxis *axisY = new QValueAxis;
+        axisY->setTitleText(tr("信号"));
+        chart->addAxis(axisY, Qt::AlignLeft);
+    }
+
+    // 将 series 附加到坐标轴
+    series->attachAxis(chart->axes(Qt::Horizontal).first());
+    series->attachAxis(chart->axes(Qt::Vertical).first());
+
+    // 刷新图表
+    chart->createDefaultAxes(); // 自动调整坐标轴范围
 }
