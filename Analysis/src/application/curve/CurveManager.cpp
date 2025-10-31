@@ -14,12 +14,12 @@ CurveManager::~CurveManager() = default;
 void CurveManager::addCurve(const ThermalCurve& curve)
 {
     if (curve.id().isEmpty() || m_curves.contains(curve.id())) {
-        qWarning() << "Attempted to add a curve with an empty or duplicate ID:" << curve.id();
+        qWarning() << "尝试添加一个ID为空或重复的曲线:" << curve.id();
         return;
     }
     m_curves.insert(curve.id(), curve);
     emit curveAdded(curve.id());
-    qDebug() << "Curve added to manager. ID:" << curve.id();
+    qDebug() << "曲线已添加到管理器。ID:" << curve.id();
 }
 
 void CurveManager::registerDefaultReaders()

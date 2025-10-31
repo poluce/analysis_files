@@ -21,7 +21,7 @@ AlgorithmService::~AlgorithmService()
 void AlgorithmService::registerAlgorithm(IThermalAlgorithm* algorithm)
 {
     if (algorithm) {
-        qDebug() << "Registering algorithm:" << algorithm->name();
+        qDebug() << "注册算法:" << algorithm->name();
         m_algorithms.insert(algorithm->name(), algorithm);
     }
 }
@@ -34,17 +34,17 @@ IThermalAlgorithm* AlgorithmService::getAlgorithm(const QString& name)
 void AlgorithmService::execute(const QString& name, ThermalCurve* curve)
 {
     if (!curve) {
-        qWarning() << "Algorithm execution failed: curve is null.";
+        qWarning() << "算法执行失败：曲线为空。";
         return;
     }
 
     IThermalAlgorithm* algorithm = getAlgorithm(name);
     if (!algorithm) {
-        qWarning() << "Algorithm execution failed: could not find algorithm" << name;
+        qWarning() << "算法执行失败：找不到算法" << name;
         return;
     }
 
-    qDebug() << "Executing algorithm" << name << "on curve" << curve->name();
+    qDebug() << "正在执行算法" << name << "于曲线" << curve->name();
 
     // 获取数据，处理，然后设置回曲线
     const auto inputData = curve->getProcessedData();

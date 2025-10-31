@@ -22,7 +22,7 @@ FilePreviewData TextFileReader::readPreview(const QString& filePath) const
     FilePreviewData previewData;
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "Cannot open file for preview:" << filePath << file.errorString();
+        qWarning() << "无法打开文件进行预览:" << filePath << file.errorString();
         return previewData;
     }
 
@@ -78,7 +78,7 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "Cannot open file:" << filePath << file.errorString();
+        qWarning() << "无法打开文件:" << filePath << file.errorString();
         return curve;
     }
 
@@ -159,6 +159,6 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
         curve.setType(CurveType::DSC); // 默认为 DSC
     }
 
-    qDebug() << "File" << filePath << "read successfully with config.";
+    qDebug() << "文件" << filePath << "已成功读取并应用配置。";
     return curve;
 }

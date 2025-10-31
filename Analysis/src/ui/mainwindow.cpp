@@ -20,7 +20,7 @@
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 {
-  qDebug() << "MainWindow constructor called.";
+  qDebug() << "主窗口构造函数被调用。";
   resize(1600, 900);
   setWindowTitle(tr("热分析软件"));
 
@@ -58,7 +58,7 @@ void MainWindow::on_toolButtonOpen_clicked()
 
 void MainWindow::onCurveAvailable(const ThermalCurve& curve)
 {
-    qDebug() << "MainWindow: Received curve" << curve.name();
+    qDebug() << "主窗口：接收到曲线" << curve.name();
     // 在树模型中查找“导入文件”项
     QStandardItem* rootItem = m_projectTreeModel->invisibleRootItem();
     QStandardItem* importationsItem = nullptr;
@@ -87,8 +87,8 @@ void MainWindow::onCurveAvailable(const ThermalCurve& curve)
 // --- 主要初始化函数 ---
 
 void MainWindow::initRibbon() {
-  qDebug() << "initRibbon called.";
-  
+  qDebug() << "初始化功能区。";
+
   QTabWidget* tabs = new QTabWidget();
   
   // 创建带有独立工具栏的标签页
@@ -114,13 +114,13 @@ void MainWindow::initRibbon() {
 }
 
 void MainWindow::initCentral() {
-  qDebug() << "initCentral called.";
+  qDebug() << "初始化中央部件。";
   m_chartView = new PlotWidget;
   setCentralWidget(m_chartView);
 }
 
 void MainWindow::initDockWidgets() {
-  qDebug() << "initDockWidgets called.";
+  qDebug() << "初始化停靠部件。";
   setupLeftDock();
   setupRightDock();
 }

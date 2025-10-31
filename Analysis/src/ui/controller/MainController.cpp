@@ -82,7 +82,7 @@ void MainController::onAlgorithmRequested(const QString& algorithmName)
     if (activeCurve) {
         m_algorithmService->execute(algorithmName, activeCurve);
     } else {
-        qWarning() << "No active curve to apply algorithm on.";
+        qWarning() << "没有可用的活动曲线来应用算法。";
     }
 }
 
