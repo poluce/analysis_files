@@ -162,19 +162,7 @@ void PlotWidget::mousePressEvent(QMouseEvent *event)
 
     QChart *chart = m_chartView->chart();
 
-    // 计算坐标缩放（将数据单位转换为像素单位），提升命中精度
-    QValueAxis* axisX = qobject_cast<QValueAxis*>(chart->axes(Qt::Horizontal).isEmpty() ? nullptr : chart->axes(Qt::Horizontal).first());
-    QValueAxis* axisY = qobject_cast<QValueAxis*>(chart->axes(Qt::Vertical).isEmpty() ? nullptr : chart->axes(Qt::Vertical).first());
-    const QRectF plotArea = chart->plotArea();
-    const qreal sx = (axisX && axisX->max() > axisX->min()) ? (plotArea.width()  / (axisX->max() - axisX->min())) : 1.0;
-    const qreal sy = (axisY && axisY->max() > axisY->min()) ? (plotArea.height() / (axisY->max() - axisY->min())) : 1.0;
-    const qreal xMin = axisX ? axisX->min() : 0.0;
-    const qreal yMin = axisY ? axisY->min() : 0.0;
-
-    // 将鼠标位置映射到数据坐标，然后按像素缩放，统一用像素距离判定
-    const QPoint viewPos = m_chartView->mapFromGlobal(mapToGlobal(event->pos()));
-    const QPointF mouseData = chart->mapToValue(viewPos, nullptr); // 使用默认映射到主轴
-    const QPointF mouseScaled((mouseData.x() - xMin) * sx, (mouseData.y() - yMin) * sy);
+    const QPointF mousePos = m_chartView->mapFromGlobal(mapToGlobal(event->pos()));
 
     auto pointToSegDist = [](const QPointF& p, const QPointF& a, const QPointF& b) -> qreal {
         const qreal vx = b.x() - a.x();
@@ -195,23 +183,25 @@ void PlotWidget::mousePressEvent(QMouseEvent *event)
 
     for (QAbstractSeries *abstractSeries : chart->series()) {
         QLineSeries *lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
-        if (!lineSeries) continue;
+        if (!lineSeries || !lineSeries->isVisible()) continue;
+
         const auto pts = lineSeries->pointsVector();
         if (pts.size() < 2) continue;
-        // 遍历线段（而不是单个点），提升命中概率
-        for (int i = 0; i < pts.size() - 1; ++i) {
-            const QPointF aScaled((pts[i].x() - xMin) * sx, (pts[i].y() - yMin) * sy);
-            const QPointF bScaled((pts[i+1].x() - xMin) * sx, (pts[i+1].y() - yMin) * sy);
-            const qreal d = pointToSegDist(mouseScaled, aScaled, bScaled);
+
+        QPointF prevPos = chart->mapToPosition(pts[0], lineSeries);
+        for (int i = 1; i < pts.size(); ++i) {
+            const QPointF currPos = chart->mapToPosition(pts[i], lineSeries);
+            const qreal d = pointToSegDist(mousePos, prevPos, currPos);
             if (d < bestDist) {
                 bestDist = d;
                 clickedSeries = lineSeries;
             }
+            prevPos = currPos;
         }
     }
 
-    // 像素级阈值：基础 8px，加上笔宽一半，提升命中容错
-    qreal baseThreshold = m_hitTestBasePx * m_chartView->devicePixelRatioF();
+    const qreal deviceRatio = m_chartView->devicePixelRatioF();
+    qreal baseThreshold = (m_hitTestBasePx + 3.0) * deviceRatio; // 稍微扩大命中范围
     if (clickedSeries && m_hitTestIncludePen) {
         const qreal penWidth = clickedSeries->pen().widthF();
         baseThreshold += penWidth * 0.5;
