@@ -1,39 +1,83 @@
 #include "DifferentiationAlgorithm.h"
 #include "domain/model/ThermalDataPoint.h"
 #include <QDebug>
+#include <cmath>
 
+/**
+ * @brief DTG微分算法 - 大窗口平滑中心差分法
+ * @details 使用前后各halfWin个点的和之差计算导数
+ *          derivative[i] = (Σy[i+j] - Σy[i-j]) / (windowTime × halfWin)
+ */
 QVector<ThermalDataPoint> DifferentiationAlgorithm::process(const QVector<ThermalDataPoint>& inputData)
 {
     QVector<ThermalDataPoint> outputData;
-    if (inputData.size() < 2) {
-        qWarning() << "Differentiation requires at least 2 data points.";
+
+    // 参数验证
+    const int minPoints = 2 * m_halfWin + 1;
+    if (inputData.size() < minPoints) {
+        qWarning() << "微分算法: 数据点不足! 需要至少" << minPoints << "个点，实际只有" << inputData.size() << "个点";
         return outputData;
     }
 
-    outputData.reserve(inputData.size() - 1);
+    if (m_enableDebug) {
+        qDebug() << "========== DTG微分算法开始 ==========";
+        qDebug() << "输入数据点数:" << inputData.size();
+        qDebug() << "半窗口大小:" << m_halfWin;
+        qDebug() << "时间步长:" << m_dt;
+    }
 
-    for (int i = 0; i < inputData.size() - 1; ++i) {
-        const auto& p1 = inputData[i];
-        const auto& p2 = inputData[i+1];
+    // 计算窗口时间
+    const double windowTime = m_halfWin * m_dt;
 
-        double temp_diff = p2.temperature - p1.temperature;
-        if (qFuzzyCompare(temp_diff, 0.0)) {
-            // 避免除以零
-            continue;
+    // 预留空间
+    outputData.reserve(inputData.size() - 2 * m_halfWin);
+
+    int positiveCount = 0;
+    int negativeCount = 0;
+    int zeroCount = 0;
+
+    // 遍历可计算微分的点
+    for (int i = m_halfWin; i < inputData.size() - m_halfWin; ++i) {
+        double sum_before = 0.0;  // 前窗口和
+        double sum_after = 0.0;   // 后窗口和
+
+        // 计算前后窗口的和
+        for (int j = 1; j <= m_halfWin; ++j) {
+            sum_before += inputData[i - j].value;
+            sum_after += inputData[i + j].value;
         }
 
-        double value_diff = p2.value - p1.value;
-        double derivative = value_diff / temp_diff;
+        // 计算差值
+        const double dy = sum_after - sum_before;
 
-        // 导数位于温度区间的中点
-        double new_temp = (p1.temperature + p2.temperature) / 2.0;
-        
-        ThermalDataPoint new_point;
-        new_point.temperature = new_temp;
-        new_point.value = derivative;
-        new_point.time = (p1.time + p2.time) / 2.0;
+        // 归一化得到微分值
+        const double derivative = dy / windowTime / m_halfWin;
 
-        outputData.append(new_point);
+        // 统计正负值
+        if (derivative > 0.0001) {
+            positiveCount++;
+        } else if (derivative < -0.0001) {
+            negativeCount++;
+        } else {
+            zeroCount++;
+        }
+
+        // 保存结果
+        ThermalDataPoint point;
+        point.temperature = inputData[i].temperature;
+        point.value = derivative;
+        point.time = inputData[i].time;
+
+        outputData.append(point);
+    }
+
+    if (m_enableDebug) {
+        qDebug() << "\n========== 微分统计 ==========";
+        qDebug() << "输出数据点数:" << outputData.size();
+        qDebug() << "正值点数:" << positiveCount << "(" << (100.0 * positiveCount / outputData.size()) << "%)";
+        qDebug() << "负值点数:" << negativeCount << "(" << (100.0 * negativeCount / outputData.size()) << "%)";
+        qDebug() << "接近零点数:" << zeroCount << "(" << (100.0 * zeroCount / outputData.size()) << "%)";
+        qDebug() << "========== 微分算法结束 ==========\n";
     }
 
     return outputData;
@@ -51,13 +95,40 @@ QString DifferentiationAlgorithm::category() const
 
 QVariantMap DifferentiationAlgorithm::parameters() const
 {
-    // 暂时没有参数
-    return QVariantMap();
+    QVariantMap params;
+    params.insert("halfWin", m_halfWin);
+    params.insert("dt", m_dt);
+    params.insert("enableDebug", m_enableDebug);
+    return params;
 }
 
 void DifferentiationAlgorithm::setParameter(const QString& key, const QVariant& value)
 {
-    // 暂时没有参数
-    Q_UNUSED(key);
-    Q_UNUSED(value);
+    if (key == "halfWin") {
+        bool ok = false;
+        int v = value.toInt(&ok);
+        if (ok && v >= 1) {
+            m_halfWin = v;
+            qDebug() << "DTG微分: 半窗口大小已设置为" << m_halfWin;
+        }
+    } else if (key == "dt") {
+        bool ok = false;
+        double v = value.toDouble(&ok);
+        if (ok && v > 0.0) {
+            m_dt = v;
+            qDebug() << "DTG微分: 时间步长已设置为" << m_dt;
+        }
+    } else if (key == "enableDebug") {
+        m_enableDebug = value.toBool();
+        qDebug() << "DTG微分: 调试输出已" << (m_enableDebug ? "启用" : "禁用");
+    }
+    // 向后兼容旧参数名
+    else if (key == "smoothWindow") {
+        bool ok = false;
+        int v = value.toInt(&ok);
+        if (ok && v >= 1) {
+            m_halfWin = v / 2;  // 将旧的smoothWindow转换为halfWin
+            qDebug() << "DTG微分: 使用旧参数smoothWindow=" << v << "，已转换为halfWin=" << m_halfWin;
+        }
+    }
 }

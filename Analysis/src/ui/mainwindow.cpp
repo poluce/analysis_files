@@ -17,42 +17,50 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QStyle>
+#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 {
-  qDebug() << "主窗口构造函数被调用。";
+  qDebug() << "主窗口构造函数被调用";
   resize(1600, 900);
   setWindowTitle(tr("热分析软件"));
+
+  // 先创建 CurveManager（需要传递给 PlotWidget）
+  m_curveManager = new CurveManager(this);
 
   initRibbon();
   initCentral();
   initDockWidgets();
   initStatusBar();
-  initComponents(); // 初始化组件
-  
+  initComponents();
   setUnifiedTitleAndToolBarOnMac(true);
 }
 
 MainWindow::~MainWindow()
 {
-    // 析构函数体。子QObject会被自动删除。
 }
 
 void MainWindow::initComponents()
 {
-    m_curveManager = new CurveManager(this);
+    // m_curveManager 已在构造函数中创建
     m_mainController = new MainController(m_curveManager, this);
 
-    // 连接控制器信号到主窗口的槽，用于更新项目浏览器
+    // ========== 信号连接（命令路径：UI → Controller） ==========
+    // 更新项目浏览器
     connect(m_mainController, &MainController::curveAvailable, this, &MainWindow::onCurveAvailable);
 
-    // 连接控制器信号到图表视图，用于绘制曲线
-    connect(m_mainController, &MainController::curveAvailable, m_chartView, &PlotWidget::addCurve);
+    // ========== 信号连接（通知路径：Service → UI） ==========
+    // PlotWidget 已自动监听 CurveManager::curveAdded，无需重复连接
+    // 算法生成新曲线 → 更新项目浏览器
+    connect(m_curveManager, &CurveManager::curveAdded, this, &MainWindow::onCurveAdded);
+
+    // ========== UI 内部信号 ==========
+    // 选中曲线 → 设置活动曲线
+    connect(m_chartView, &PlotWidget::curveSelected, m_curveManager, &CurveManager::setActiveCurve);
 }
 
 void MainWindow::on_toolButtonOpen_clicked()
 {
-    // 调用控制器显示导入窗口
     m_mainController->onShowDataImport();
 }
 
@@ -70,12 +78,10 @@ void MainWindow::onCurveAvailable(const ThermalCurve& curve)
     }
 
     if (!importationsItem) {
-        // 如果该项不存在，则创建它
         importationsItem = new QStandardItem(tr("导入文件"));
         rootItem->appendRow(importationsItem);
     }
 
-    // 将新曲线名称添加到树中
     QStandardItem* curveItem = new QStandardItem(curve.name());
     curveItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
     curveItem->setCheckable(true);
@@ -83,15 +89,24 @@ void MainWindow::onCurveAvailable(const ThermalCurve& curve)
     importationsItem->appendRow(curveItem);
 }
 
+void MainWindow::onCurveAdded(const QString& curveId)
+{
+    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    if (curve) {
+        // 更新项目浏览器
+        onCurveAvailable(*curve);
+        // PlotWidget 已通过监听 CurveManager::curveAdded 自动绘制曲线
+        // 无需手动调用 m_chartView->addCurve(*curve);
+    }
+}
 
 // --- 主要初始化函数 ---
 
 void MainWindow::initRibbon() {
-  qDebug() << "初始化功能区。";
+  qDebug() << "初始化功能区";
 
   QTabWidget* tabs = new QTabWidget();
   
-  // 创建带有独立工具栏的标签页
   QWidget* fileTab = new QWidget();
   fileTab->setLayout(new QVBoxLayout());
   fileTab->layout()->setContentsMargins(0,0,0,0);
@@ -114,13 +129,13 @@ void MainWindow::initRibbon() {
 }
 
 void MainWindow::initCentral() {
-  qDebug() << "初始化中央部件。";
-  m_chartView = new PlotWidget;
+  qDebug() << "初始化中央部件";
+  m_chartView = new PlotWidget(m_curveManager, this);
   setCentralWidget(m_chartView);
 }
 
 void MainWindow::initDockWidgets() {
-  qDebug() << "初始化停靠部件。";
+  qDebug() << "初始化停靠部件";
   setupLeftDock();
   setupRightDock();
 }
@@ -134,8 +149,6 @@ void MainWindow::initStatusBar() {
     statusBar()->addPermanentWidget(versionLabel);
     statusBar()->addPermanentWidget(zoomLabel);
 }
-
-// --- UI 设置助手函数 ---
 
 QToolBar* MainWindow::createFileToolBar() {
     QToolBar* toolbar = new QToolBar(tr("文件"));
@@ -165,8 +178,13 @@ QToolBar* MainWindow::createMathToolBar() {
     toolbar->addAction(tr("基线校正"));
     toolbar->addAction(tr("归一化"));
     QAction* diffAction = toolbar->addAction(tr("微分算法"));
-    toolbar->addAction(tr("动力学计算..."));
+    QAction* movAvgAction = toolbar->addAction(tr("移动平均滤波..."));
+    QAction* integAction = toolbar->addAction(tr("积分"));
+    QAction* kinAction = toolbar->addAction(tr("动力学计算..."));
     connect(diffAction, &QAction::triggered, this, &MainWindow::onDifferentialAlgorithmAction);
+    connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
+    connect(integAction, &QAction::triggered, this, &MainWindow::onIntegrationAction);
+    Q_UNUSED(kinAction);
     return toolbar;
 }
 
@@ -203,7 +221,24 @@ void MainWindow::setupRightDock() {
 
 void MainWindow::onDifferentialAlgorithmAction()
 {
-    // TODO: 检查是否有激活的曲线
     m_mainController->onAlgorithmRequested("differentiation");
+}
+
+void MainWindow::onMovingAverageAction()
+{
+    bool ok = false;
+    int window = QInputDialog::getInt(this,
+                                      tr("移动平均滤波"),
+                                      tr("窗口大小 (点数):"),
+                                      5, 1, 999, 1, &ok);
+    if (!ok) return;
+    QVariantMap params;
+    params.insert("window", window);
+    m_mainController->onAlgorithmRequestedWithParams("moving_average", params);
+}
+
+void MainWindow::onIntegrationAction()
+{
+    m_mainController->onAlgorithmRequested("integration");
 }
 

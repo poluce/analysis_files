@@ -25,7 +25,12 @@ public:
 private slots:
     void on_toolButtonOpen_clicked();
     void onCurveAvailable(const ThermalCurve& curve);
+    void onCurveAdded(const QString& curveId);
+
+    // 算法按钮
     void onDifferentialAlgorithmAction();
+    void onMovingAverageAction();
+    void onIntegrationAction();
 
 private:
     // 初始化函数

@@ -6,6 +6,7 @@
 #include <QDebug>
 
 #include "application/algorithm/AlgorithmService.h"
+#include "domain/algorithm/IThermalAlgorithm.h"
 
 MainController::MainController(CurveManager* curveManager, QObject *parent)
     : QObject(parent),
@@ -17,12 +18,19 @@ MainController::MainController(CurveManager* curveManager, QObject *parent)
     Q_ASSERT(m_curveManager);
     Q_ASSERT(m_algorithmService);
 
-    // 连接UI信号到控制器的槽
-    connect(m_dataImportWidget, &DataImportWidget::previewRequested, this, &MainController::onPreviewRequested);
-    connect(m_dataImportWidget, &DataImportWidget::importRequested, this, &MainController::onImportTriggered);
+    // 将 CurveManager 实例设置到算法服务中，以便能够创建新曲线
+    m_algorithmService->setCurveManager(m_curveManager);
 
-    // 连接算法服务信号
-    connect(m_algorithmService, &AlgorithmService::algorithmFinished, this, &MainController::onAlgorithmFinished);
+    // ========== 信号连接设置 ==========
+    // 命令路径：DataImportWidget → MainController
+    connect(m_dataImportWidget, &DataImportWidget::previewRequested,
+            this, &MainController::onPreviewRequested);
+    connect(m_dataImportWidget, &DataImportWidget::importRequested,
+            this, &MainController::onImportTriggered);
+
+    // 通知路径：AlgorithmService → MainController（可选的转发）
+    connect(m_algorithmService, &AlgorithmService::algorithmFinished,
+            this, &MainController::onAlgorithmFinished);
 }
 
 MainController::~MainController()
@@ -74,16 +82,45 @@ void MainController::onImportTriggered()
     m_dataImportWidget->close();
 }
 
+// ========== 处理命令的槽函数（命令路径：UI → Controller → Service） ==========
 void MainController::onAlgorithmRequested(const QString& algorithmName)
 {
-    // TODO: 实现 CurveManager::getActiveCurve()
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    qDebug() << "MainController: 接收到算法执行请求：" << algorithmName;
 
-    if (activeCurve) {
-        m_algorithmService->execute(algorithmName, activeCurve);
-    } else {
+    // 1. 业务规则检查
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (!activeCurve) {
         qWarning() << "没有可用的活动曲线来应用算法。";
+        return;
     }
+
+    // 2. 调用 Service 执行算法
+    m_algorithmService->execute(algorithmName, activeCurve);
+
+    // 3. Service 会创建新曲线并调用 CurveManager::addCurve()
+    // 4. CurveManager 会发射 curveAdded 信号
+    // 5. PlotWidget 监听该信号并自动显示新曲线
+}
+
+void MainController::onAlgorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params)
+{
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (!activeCurve) {
+        qWarning() << "没有可用的活动曲线来应用算法";
+        return;
+    }
+
+    IThermalAlgorithm* algo = m_algorithmService->getAlgorithm(algorithmName);
+    if (!algo) {
+        qWarning() << "找不到算法" << algorithmName;
+        return;
+    }
+    // 设置参数
+    for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
+        algo->setParameter(it.key(), it.value());
+    }
+    // 执行
+    m_algorithmService->execute(algorithmName, activeCurve);
 }
 
 void MainController::onAlgorithmFinished(const QString& curveId)

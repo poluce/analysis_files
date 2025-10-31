@@ -11,6 +11,10 @@ CONFIG += c++17
 # Include path for all source directories
 INCLUDEPATH += $$PWD/src
 
+# Ensure source files are treated as UTF-8 on Windows toolchains
+win32:msvc: QMAKE_CXXFLAGS += /utf-8
+win32:g++:  QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
+
 SOURCES += \
     # UI Layer
     src/ui/DataImportWidget.cpp \
@@ -29,7 +33,9 @@ SOURCES += \
     \
     # Infrastructure Layer
     src/infrastructure/io/TextFileReader.cpp \
-    src/infrastructure/algorithm/DifferentiationAlgorithm.cpp
+    src/infrastructure/algorithm/DifferentiationAlgorithm.cpp \
+    src/infrastructure/algorithm/MovingAverageFilterAlgorithm.cpp \
+    src/infrastructure/algorithm/IntegrationAlgorithm.cpp
 
 HEADERS += \
     # UI Layer
@@ -51,7 +57,9 @@ HEADERS += \
     # Infrastructure Layer
     src/infrastructure/io/IFileReader.h \
     src/infrastructure/io/TextFileReader.h \
-    src/infrastructure/algorithm/DifferentiationAlgorithm.h
+    src/infrastructure/algorithm/DifferentiationAlgorithm.h \
+    src/infrastructure/algorithm/MovingAverageFilterAlgorithm.h \
+    src/infrastructure/algorithm/IntegrationAlgorithm.h
 
 # FORMS section removed as UI is now code-based
 

@@ -27,6 +27,8 @@ FilePreviewData TextFileReader::readPreview(const QString& filePath) const
     }
 
     QTextStream in(&file);
+    // 强制按 GBK 解码文本，避免受系统本地编码影响
+    in.setCodec("GBK");
     QStringList headerLines;
     QStringList dataLines;
     int lineCount = 0;
@@ -84,6 +86,8 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
 
     // 1. 分离表头和数据行
     QTextStream in(&file);
+    // 强制按 GBK 解码文本，避免受系统本地编码影响
+    in.setCodec("GBK");
     QStringList dataLines;
     while (!in.atEnd()) {
         const QString line = in.readLine().trimmed();
@@ -142,22 +146,30 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
         points.append(point);
     }
 
-    curve.setRawData(points);
-
     // 5. 设置元数据
     CurveMetadata metadata;
     metadata.sampleName = config.value("signalName").toString();
     metadata.sampleMass = config.value("initialMass").toDouble();
     metadata.additional.insert("source_file", filePath);
-    curve.setMetadata(metadata);
 
-    // 6. 设置曲线类型
+    // 6. 设置曲线类型并进行质量百分比转换
     QString typeStr = config.value("signalType").toString();
     if (typeStr == "TGA" || typeStr == "质量") {
         curve.setType(CurveType::TGA);
+
+        // 如果是质量类型且设置了初始质量，转换为质量损失百分比
+        if (metadata.sampleMass > 0.0) {
+            qDebug() << "将质量数据转换为百分比，初始质量:" << metadata.sampleMass;
+            for (ThermalDataPoint& point : points) {
+                // 质量损失百分比 = (当前质量 / 初始质量) * 100
+                point.value = (point.value / metadata.sampleMass) * 100.0;
+            }
+        }
     } else {
         curve.setType(CurveType::DSC); // 默认为 DSC
     }
+
+    curve.setRawData(points);
 
     qDebug() << "文件" << filePath << "已成功读取并应用配置。";
     return curve;
