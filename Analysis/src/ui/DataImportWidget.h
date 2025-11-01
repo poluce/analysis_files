@@ -59,6 +59,7 @@ private:
     // 质量（样品初始质量）
     QDoubleSpinBox* m_initialMassSpin;
     QLabel* m_massUnitLabel; // "g"
+    QComboBox* m_dataTypeCombo;
 
     // 温度分组
     QCheckBox* m_tempHasColumnChk;

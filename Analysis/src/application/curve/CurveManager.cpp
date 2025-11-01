@@ -22,6 +22,39 @@ void CurveManager::addCurve(const ThermalCurve& curve)
     qDebug() << "曲线已添加到管理器。ID:" << curve.id();
 }
 
+void CurveManager::clearCurves()
+{
+    if (m_curves.isEmpty()) {
+        return;
+    }
+
+    m_curves.clear();
+    m_activeCurveId.clear();
+
+    emit curvesCleared();
+    emit activeCurveChanged(m_activeCurveId);
+
+    qDebug() << "CurveManager: 已清空现有曲线";
+}
+
+bool CurveManager::removeCurve(const QString& curveId)
+{
+    if (!m_curves.contains(curveId)) {
+        return false;
+    }
+
+    m_curves.remove(curveId);
+
+    if (m_activeCurveId == curveId) {
+        m_activeCurveId.clear();
+        emit activeCurveChanged(m_activeCurveId);
+    }
+
+    emit curveRemoved(curveId);
+    qDebug() << "CurveManager: 已删除曲线" << curveId;
+    return true;
+}
+
 void CurveManager::registerDefaultReaders()
 {
     m_readers.push_back(std::make_unique<TextFileReader>());

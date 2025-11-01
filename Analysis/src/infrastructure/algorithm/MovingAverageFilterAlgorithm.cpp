@@ -40,6 +40,11 @@ QString MovingAverageFilterAlgorithm::name() const
     return "moving_average";
 }
 
+QString MovingAverageFilterAlgorithm::displayName() const
+{
+    return "滤波";
+}
+
 QString MovingAverageFilterAlgorithm::category() const
 {
     return "Preprocess";
@@ -61,5 +66,12 @@ void MovingAverageFilterAlgorithm::setParameter(const QString& key, const QVaria
             m_window = v;
         }
     }
+}
+
+CurveType MovingAverageFilterAlgorithm::getOutputCurveType(CurveType inputType) const
+{
+    // 移动平均滤波是预处理算法，不改变曲线的物理含义
+    // 输出类型与输入类型相同
+    return inputType;
 }
 

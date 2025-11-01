@@ -10,8 +10,9 @@
  * @brief 定义热分析曲线的类型 (例如, DSC, TGA)。
  */
 enum class CurveType {
-    DSC,
     TGA,
+    ARC,
+    DSC,
     DTG
 };
 
@@ -39,17 +40,21 @@ public:
     // --- 获取器 ---
     QString id() const;
     QString name() const;
+    QString projectName() const;
     CurveType type() const;
     const QVector<ThermalDataPoint>& getRawData() const;
     const QVector<ThermalDataPoint>& getProcessedData() const;
     const CurveMetadata& getMetadata() const;
+    QString parentId() const;
 
     // --- 设置器 ---
     void setName(const QString& name);
+    void setProjectName(const QString& projectName);
     void setType(CurveType type);
     void setRawData(const QVector<ThermalDataPoint>& data);
     void setProcessedData(const QVector<ThermalDataPoint>& data);
     void setMetadata(const CurveMetadata& metadata);
+    void setParentId(const QString& parentId);
 
     /**
      * @brief 将处理后的数据重置为原始数据。
@@ -59,7 +64,9 @@ public:
 private:
     QString m_id;     // 唯一标识
     QString m_name;   // 曲线名称
+    QString m_projectName; // 项目名称（文件名，用于树形结构的根节点）
     CurveType m_type; // 曲线类型
+    QString m_parentId; // 父曲线ID（用于算法生成的曲线）
 
     QVector<ThermalDataPoint> m_rawData;      // 原始数据 (只读)
     QVector<ThermalDataPoint> m_processedData; // 处理后数据

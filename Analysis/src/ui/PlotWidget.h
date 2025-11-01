@@ -32,11 +32,14 @@ public:
 public slots:
     void addCurve(const ThermalCurve& curve);
     void rescaleAxes(); // 重新缩放所有坐标轴以适应当前可见曲线
+    void setCurveVisible(const QString& curveId, bool visible);
 
 private slots:
     // 响应 CurveManager 的信号
     void onCurveAdded(const QString& curveId);
     void onCurveDataChanged(const QString& curveId);
+    void onCurveRemoved(const QString& curveId);
+    void onCurvesCleared();
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -52,6 +55,7 @@ private:
     QChartView *m_chartView;
     QLineSeries *m_selectedSeries;
     QHash<QLineSeries*, QString> m_seriesToId;
+    QHash<QString, QLineSeries*> m_idToSeries;
 
     // 坐标轴
     QValueAxis *m_axisX = nullptr;

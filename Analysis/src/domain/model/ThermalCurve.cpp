@@ -15,6 +15,11 @@ QString ThermalCurve::name() const
     return m_name;
 }
 
+QString ThermalCurve::projectName() const
+{
+    return m_projectName;
+}
+
 CurveType ThermalCurve::type() const
 {
     return m_type;
@@ -35,9 +40,19 @@ const CurveMetadata& ThermalCurve::getMetadata() const
     return m_metadata;
 }
 
+QString ThermalCurve::parentId() const
+{
+    return m_parentId;
+}
+
 void ThermalCurve::setName(const QString& name)
 {
     m_name = name;
+}
+
+void ThermalCurve::setProjectName(const QString& projectName)
+{
+    m_projectName = projectName;
 }
 
 void ThermalCurve::setType(CurveType type)
@@ -59,6 +74,11 @@ void ThermalCurve::setProcessedData(const QVector<ThermalDataPoint>& data)
 void ThermalCurve::setMetadata(const CurveMetadata& metadata)
 {
     m_metadata = metadata;
+}
+
+void ThermalCurve::setParentId(const QString& parentId)
+{
+    m_parentId = parentId;
 }
 
 void ThermalCurve::resetToRaw()

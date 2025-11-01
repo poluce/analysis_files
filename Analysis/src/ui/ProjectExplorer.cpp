@@ -12,6 +12,7 @@ ProjectExplorer::ProjectExplorer(QWidget *parent)
     m_treeView->hideColumn(2);
     m_treeView->hideColumn(3);
     m_treeView->setHeaderHidden(true);
+    m_treeView->setContextMenuPolicy(Qt::CustomContextMenu);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -24,4 +25,9 @@ ProjectExplorer::ProjectExplorer(QWidget *parent)
 void ProjectExplorer::setModel(QAbstractItemModel *model)
 {
     m_treeView->setModel(model);
+}
+
+QTreeView* ProjectExplorer::treeView() const
+{
+    return m_treeView;
 }

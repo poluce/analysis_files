@@ -9,10 +9,12 @@
 class PlotWidget;
 class QDockWidget;
 class QStandardItemModel;
+class QStandardItem;
 class QToolBar;
 class CurveManager;
 class MainController;
 class ThermalCurve;
+class CurveTreeModel;
 
 class MainWindow : public QMainWindow
 {
@@ -24,13 +26,13 @@ public:
 
 private slots:
     void on_toolButtonOpen_clicked();
-    void onCurveAvailable(const ThermalCurve& curve);
+    void onCurveCheckStateChanged(const QString& curveId, bool checked);
+    void onProjectTreeContextMenuRequested(const QPoint& pos);
     void onCurveAdded(const QString& curveId);
 
     // 算法按钮
-    void onDifferentialAlgorithmAction();
+    void onSimpleAlgorithmActionTriggered();
     void onMovingAverageAction();
-    void onIntegrationAction();
 
 private:
     // 初始化函数
@@ -49,7 +51,7 @@ private:
 
     // --- UI 成员 ---
     ProjectExplorer* m_projectExplorer;
-    QStandardItemModel* m_projectTreeModel;
+    CurveTreeModel* m_curveTreeModel;
     PlotWidget* m_chartView;
     QDockWidget* m_projectExplorerDock;
     QDockWidget* m_propertiesDock;

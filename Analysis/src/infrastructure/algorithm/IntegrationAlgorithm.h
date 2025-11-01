@@ -11,9 +11,11 @@ class IntegrationAlgorithm : public IThermalAlgorithm
 public:
     QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
     QString name() const override;
+    QString displayName() const override;
     QString category() const override;
     QVariantMap parameters() const override;
     void setParameter(const QString& key, const QVariant& value) override;
+    CurveType getOutputCurveType(CurveType inputType) const override;
 };
 
 #endif // INTEGRATIONALGORITHM_H

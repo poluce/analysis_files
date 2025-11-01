@@ -13,9 +13,11 @@ class DifferentiationAlgorithm : public IThermalAlgorithm
 public:
     QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
     QString name() const override;
+    QString displayName() const override;
     QString category() const override;
     QVariantMap parameters() const override;
     void setParameter(const QString& key, const QVariant& value) override;
+    CurveType getOutputCurveType(CurveType inputType) const override;
 
 private:
     int m_halfWin = 50;          // DTG半窗口大小，默认50点

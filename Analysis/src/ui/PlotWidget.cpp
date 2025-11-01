@@ -10,6 +10,8 @@
 #include <QDebug>
 #include <QtMath>
 #include <limits>
+#include <QtCharts/QLegend>
+#include <QtCharts/QLegendMarker>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -54,6 +56,7 @@ void PlotWidget::addCurve(const ThermalCurve &curve)
     QChart *chart = m_chartView->chart();
     chart->addSeries(series);
     m_seriesToId.insert(series, curve.id());
+    m_idToSeries.insert(curve.id(), series);
 
     // --- 多Y轴逻辑 ---
     QValueAxis* axisY_target = nullptr;
@@ -263,7 +266,39 @@ void PlotWidget::setupConnections()
                 this, &PlotWidget::onCurveAdded);
         connect(m_curveManager, &CurveManager::curveDataChanged,
                 this, &PlotWidget::onCurveDataChanged);
+        connect(m_curveManager, &CurveManager::curvesCleared,
+                this, &PlotWidget::onCurvesCleared);
+        connect(m_curveManager, &CurveManager::curveRemoved,
+                this, &PlotWidget::onCurveRemoved);
     }
+}
+
+void PlotWidget::setCurveVisible(const QString& curveId, bool visible)
+{
+    auto it = m_idToSeries.find(curveId);
+    if (it == m_idToSeries.end()) {
+        return;
+    }
+
+    QLineSeries *series = it.value();
+    if (!series) {
+        return;
+    }
+
+    if (series->isVisible() == visible) {
+        return;
+    }
+
+    series->setVisible(visible);
+
+    if (QLegend *legend = m_chartView->chart()->legend()) {
+        const auto markers = legend->markers(series);
+        for (QLegendMarker *marker : markers) {
+            marker->setVisible(visible);
+        }
+    }
+
+    rescaleAxes();
 }
 
 // ========== 响应 CurveManager 信号的槽函数 ==========
@@ -274,6 +309,7 @@ void PlotWidget::onCurveAdded(const QString& curveId)
     if (curve) {
         qDebug() << "PlotWidget: 自动添加曲线" << curve->name();
         addCurve(*curve);
+        // 曲线默认可见（默认勾选）
     }
 }
 
@@ -286,4 +322,61 @@ void PlotWidget::onCurveDataChanged(const QString& curveId)
 
     // TODO: 实现曲线数据的更新逻辑
     // 可以找到对应的 series 并更新其数据点
+}
+
+void PlotWidget::onCurveRemoved(const QString& curveId)
+{
+    auto it = m_idToSeries.find(curveId);
+    if (it == m_idToSeries.end()) {
+        return;
+    }
+
+    QLineSeries *series = it.value();
+    if (!series) {
+        m_idToSeries.remove(curveId);
+        return;
+    }
+
+    QChart *chart = m_chartView->chart();
+    chart->removeSeries(series);
+    m_seriesToId.remove(series);
+    m_idToSeries.remove(curveId);
+    if (m_selectedSeries == series) {
+        m_selectedSeries = nullptr;
+    }
+    series->deleteLater();
+
+    rescaleAxes();
+}
+
+void PlotWidget::onCurvesCleared()
+{
+    QChart *chart = m_chartView->chart();
+
+    const auto currentSeries = chart->series();
+    for (QAbstractSeries *series : currentSeries) {
+        chart->removeSeries(series);
+        series->deleteLater();
+    }
+
+    m_seriesToId.clear();
+    m_idToSeries.clear();
+    m_selectedSeries = nullptr;
+
+    if (m_axisY_secondary) {
+        chart->removeAxis(m_axisY_secondary);
+        m_axisY_secondary->deleteLater();
+        m_axisY_secondary = nullptr;
+    }
+
+    if (m_axisY_primary) {
+        m_axisY_primary->setTitleText(tr("质量 (mg)"));
+        m_axisY_primary->setRange(0.0, 1.0);
+    }
+
+    if (m_axisX) {
+        m_axisX->setRange(0.0, 1.0);
+    }
+
+    emit curveSelected(QString());
 }

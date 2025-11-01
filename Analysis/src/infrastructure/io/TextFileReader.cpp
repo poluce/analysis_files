@@ -1,6 +1,7 @@
 #include "TextFileReader.h"
 #include "domain/model/ThermalCurve.h"
 #include <QFile>
+#include <QFileInfo>
 #include <QTextStream>
 #include <QDebug>
 #include <QUuid>
@@ -75,8 +76,11 @@ FilePreviewData TextFileReader::readPreview(const QString& filePath) const
 ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& config) const
 {
     QString id = QUuid::createUuid().toString();
-    QString name = config.value("signalName", "Unnamed Curve").toString();
-    ThermalCurve curve(id, name);
+    // 曲线名称设置为"[源]"，项目名称使用文件名
+    QFileInfo fileInfo(filePath);
+    QString projectName = fileInfo.fileName();
+    ThermalCurve curve(id, "[源]");
+    curve.setProjectName(projectName);
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -153,8 +157,13 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
     metadata.additional.insert("source_file", filePath);
 
     // 6. 设置曲线类型并进行质量百分比转换
-    QString typeStr = config.value("signalType").toString();
-    if (typeStr == "TGA" || typeStr == "质量") {
+    QString typeStr = config.value("curveType").toString();
+    if (typeStr.isEmpty()) {
+        typeStr = config.value("signalType").toString();
+    }
+    const QString normalizedType = typeStr.trimmed().toUpper();
+
+    if (normalizedType == "TGA" || typeStr == "质量") {
         curve.setType(CurveType::TGA);
 
         // 如果是质量类型且设置了初始质量，转换为质量损失百分比
@@ -165,11 +174,16 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
                 point.value = (point.value / metadata.sampleMass) * 100.0;
             }
         }
+    } else if (normalizedType == "ARC") {
+        curve.setType(CurveType::ARC);
+    } else if (normalizedType == "DTG") {
+        curve.setType(CurveType::DTG);
     } else {
         curve.setType(CurveType::DSC); // 默认为 DSC
     }
 
     curve.setRawData(points);
+    curve.setMetadata(metadata);
 
     qDebug() << "文件" << filePath << "已成功读取并应用配置。";
     return curve;

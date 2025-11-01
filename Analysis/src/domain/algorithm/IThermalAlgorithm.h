@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QString>
 #include <QVariantMap>
+#include "domain/model/ThermalCurve.h"
 
 // 前置声明
 class ThermalDataPoint;
@@ -33,6 +34,12 @@ public:
     virtual QString name() const = 0;
 
     /**
+     * @brief 返回算法的中文显示名称。
+     * @return 算法的中文名称。
+     */
+    virtual QString displayName() const = 0;
+
+    /**
      * @brief 返回算法的分类（如 "预处理", "分析"）。
      * @return 算法分类。
      */
@@ -50,6 +57,13 @@ public:
      * @param value 参数值。
      */
     virtual void setParameter(const QString& key, const QVariant& value) = 0;
+
+    /**
+     * @brief 根据输入曲线类型获取输出曲线类型。
+     * @param inputType 输入曲线的类型。
+     * @return 输出曲线的类型。
+     */
+    virtual CurveType getOutputCurveType(CurveType inputType) const = 0;
 };
 
 #endif // ITHERMALALGORITHM_H

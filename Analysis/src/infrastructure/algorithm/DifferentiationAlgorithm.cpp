@@ -88,6 +88,11 @@ QString DifferentiationAlgorithm::name() const
     return "differentiation";
 }
 
+QString DifferentiationAlgorithm::displayName() const
+{
+    return "微分";
+}
+
 QString DifferentiationAlgorithm::category() const
 {
     return "Analysis";
@@ -131,4 +136,12 @@ void DifferentiationAlgorithm::setParameter(const QString& key, const QVariant& 
             qDebug() << "DTG微分: 使用旧参数smoothWindow=" << v << "，已转换为halfWin=" << m_halfWin;
         }
     }
+}
+
+CurveType DifferentiationAlgorithm::getOutputCurveType(CurveType inputType) const
+{
+    if (inputType == CurveType::TGA) {
+        return CurveType::DTG;
+    }
+    return inputType;
 }

@@ -72,13 +72,19 @@ void MainController::onImportTriggered()
         return;
     }
 
-    // 3. 调用 m_curveManager->addCurve() 添加新曲线
+    // 3. 清空已有曲线，确保只保留最新导入
+    m_curveManager->clearCurves();
+
+    // 4. 调用 m_curveManager->addCurve() 添加新曲线
     m_curveManager->addCurve(curve);
 
-    // 4. 发射信号，通知UI更新
+    // 5. 设置新导入的曲线为活动曲线（默认选中）
+    m_curveManager->setActiveCurve(curve.id());
+
+    // 6. 发射信号，通知UI更新
     emit curveAvailable(curve);
 
-    // 5. 关闭导入窗口
+    // 7. 关闭导入窗口
     m_dataImportWidget->close();
 }
 

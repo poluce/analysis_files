@@ -69,22 +69,23 @@ void AlgorithmService::execute(const QString& name, ThermalCurve* curve)
 
     // 2. 创建新曲线
     QString newId = QUuid::createUuid().toString();
-    QString newName = QString("%1 (%2)").arg(curve->name()).arg(algorithm->name());
+    QString newName = algorithm->displayName(); // 使用中文显示名称
     ThermalCurve newCurve(newId, newName);
 
     // 3. 填充新曲线数据和元数据
     newCurve.setProcessedData(outputData);
     newCurve.setMetadata(curve->getMetadata()); // 复制元数据
+    newCurve.setParentId(curve->id()); // 设置父曲线ID
+    newCurve.setProjectName(curve->projectName()); // 继承项目名称
 
     // 根据算法和原曲线类型，设置新曲线的类型
-    if (algorithm->name() == "differentiation" && curve->type() == CurveType::TGA) {
-        newCurve.setType(CurveType::DTG);
-    } else {
-        newCurve.setType(curve->type()); // 默认复制原类型
-    }
+    newCurve.setType(algorithm->getOutputCurveType(curve->type()));
 
     // 4. 通过 CurveManager 添加新曲线
     m_curveManager->addCurve(newCurve);
+
+    // 5. 设置新生成的曲线为活动曲线（默认选中）
+    m_curveManager->setActiveCurve(newId);
 
     // curveAdded 信号将由 CurveManager 发出，UI应响应那个信号
     // emit algorithmFinished(curve->id()); // 旧信号不再适用

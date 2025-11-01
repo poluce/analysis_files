@@ -35,6 +35,11 @@ QString IntegrationAlgorithm::name() const
     return "integration";
 }
 
+QString IntegrationAlgorithm::displayName() const
+{
+    return "积分";
+}
+
 QString IntegrationAlgorithm::category() const
 {
     return "Analysis";
@@ -50,5 +55,15 @@ void IntegrationAlgorithm::setParameter(const QString& key, const QVariant& valu
 {
     Q_UNUSED(key);
     Q_UNUSED(value);
+}
+
+CurveType IntegrationAlgorithm::getOutputCurveType(CurveType inputType) const
+{
+    // 积分算法：DTG (TGA的导数) 积分后得到 TGA
+    // 对于其他类型，保持原类型
+    if (inputType == CurveType::DTG) {
+        return CurveType::TGA;
+    }
+    return inputType;
 }
 

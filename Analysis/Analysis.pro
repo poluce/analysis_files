@@ -22,6 +22,7 @@ SOURCES += \
     src/ui/mainwindow.cpp \
     src/ui/PlotWidget.cpp \
     src/ui/ProjectExplorer.cpp \
+    src/ui/CurveTreeModel.cpp \
     src/ui/controller/MainController.cpp \
     \
     # Application Layer
@@ -43,6 +44,7 @@ HEADERS += \
     src/ui/mainwindow.h \
     src/ui/PlotWidget.h \
     src/ui/ProjectExplorer.h \
+    src/ui/CurveTreeModel.h \
     src/ui/controller/MainController.h \
     \
     # Application Layer

@@ -23,6 +23,8 @@ public:
     void processRawData(const QString& curveId, const QMap<QString, int>& columnMapping);
     ThermalCurve* getCurve(const QString& curveId);
     const QMap<QString, ThermalCurve>& getAllCurves() const;
+    void clearCurves();
+    bool removeCurve(const QString& curveId);
 
     // 活动曲线管理
     void setActiveCurve(const QString& curveId);
@@ -32,6 +34,8 @@ signals:
     void curveAdded(const QString& curveId);
     void activeCurveChanged(const QString& curveId);
     void curveDataChanged(const QString& curveId);  // 曲线数据被修改时发射
+    void curvesCleared();
+    void curveRemoved(const QString& curveId);
 
 private:
     void registerDefaultReaders();

@@ -12,9 +12,11 @@ class MovingAverageFilterAlgorithm : public IThermalAlgorithm
 public:
     QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
     QString name() const override;
+    QString displayName() const override;
     QString category() const override;
     QVariantMap parameters() const override;
     void setParameter(const QString& key, const QVariant& value) override;
+    CurveType getOutputCurveType(CurveType inputType) const override;
 
 private:
     int m_window = 5; // 滤波窗口大小（点数）

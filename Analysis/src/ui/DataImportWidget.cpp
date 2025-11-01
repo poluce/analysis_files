@@ -36,11 +36,19 @@ DataImportWidget::DataImportWidget(QWidget* parent)
     m_initialMassSpin->setRange(0.0, 1e6);
     m_initialMassSpin->setValue(0.0);
     m_massUnitLabel = new QLabel(tr("g"), this);
+    QLabel* dataTypeLabel = new QLabel(tr("数据类型"), this);
+    m_dataTypeCombo = new QComboBox(this);
+    m_dataTypeCombo->addItem("TGA", QStringLiteral("TGA"));
+    m_dataTypeCombo->addItem("ARC", QStringLiteral("ARC"));
+    m_dataTypeCombo->addItem("DSC", QStringLiteral("DSC"));
 
     QHBoxLayout* massLayout = new QHBoxLayout;
     massLayout->addWidget(massLabel);
     massLayout->addWidget(m_initialMassSpin);
     massLayout->addWidget(m_massUnitLabel);
+    massLayout->addSpacing(12);
+    massLayout->addWidget(dataTypeLabel);
+    massLayout->addWidget(m_dataTypeCombo);
     massLayout->addStretch();
 
     // 四个参数分组：温度、时间、信号、速率
@@ -221,6 +229,11 @@ QVariantMap DataImportWidget::getImportConfig() const
 
     config.insert("filePath", m_filePathEdit->text());
     config.insert("initialMass", m_initialMassSpin->value());
+    QString curveType = m_dataTypeCombo->currentData().toString();
+    if (curveType.isEmpty()) {
+        curveType = m_dataTypeCombo->currentText();
+    }
+    config.insert("curveType", curveType);
 
     // 温度配置
     config.insert("tempFromColumn", m_tempHasColumnChk->isChecked());

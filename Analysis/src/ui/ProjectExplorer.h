@@ -13,6 +13,7 @@ class ProjectExplorer : public QWidget
 public:
     explicit ProjectExplorer(QWidget *parent = nullptr);
     void setModel(QAbstractItemModel *model);
+    QTreeView* treeView() const;
 
 signals:
     void fileDoubleClicked(const QModelIndex &index);
