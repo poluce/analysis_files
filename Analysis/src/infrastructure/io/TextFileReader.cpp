@@ -156,7 +156,7 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
     metadata.sampleMass = config.value("initialMass").toDouble();
     metadata.additional.insert("source_file", filePath);
 
-    // 6. 设置曲线类型并进行质量百分比转换
+    // 6. 设置曲线类型（仪器类型 + 信号类型）并进行质量百分比转换
     QString typeStr = config.value("curveType").toString();
     if (typeStr.isEmpty()) {
         typeStr = config.value("signalType").toString();
@@ -164,7 +164,8 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
     const QString normalizedType = typeStr.trimmed().toUpper();
 
     if (normalizedType == "TGA" || typeStr == "质量") {
-        curve.setType(CurveType::TGA);
+        curve.setInstrumentType(InstrumentType::TGA);
+        curve.setSignalType(SignalType::Raw);
 
         // 如果是质量类型且设置了初始质量，转换为质量损失百分比
         if (metadata.sampleMass > 0.0) {
@@ -175,11 +176,20 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
             }
         }
     } else if (normalizedType == "ARC") {
-        curve.setType(CurveType::ARC);
+        curve.setInstrumentType(InstrumentType::ARC);
+        curve.setSignalType(SignalType::Raw);
     } else if (normalizedType == "DTG") {
-        curve.setType(CurveType::DTG);
+        // DTG 是 TGA 的微分信号
+        curve.setInstrumentType(InstrumentType::TGA);
+        curve.setSignalType(SignalType::Derivative);
+    } else if (normalizedType == "DSCDERIV" || normalizedType == "DDSC") {
+        // DSC 的微分信号（如果文件中有的话）
+        curve.setInstrumentType(InstrumentType::DSC);
+        curve.setSignalType(SignalType::Derivative);
     } else {
-        curve.setType(CurveType::DSC); // 默认为 DSC
+        // 默认为 DSC 原始信号
+        curve.setInstrumentType(InstrumentType::DSC);
+        curve.setSignalType(SignalType::Raw);
     }
 
     curve.setRawData(points);

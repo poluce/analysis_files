@@ -59,11 +59,18 @@ public:
     virtual void setParameter(const QString& key, const QVariant& value) = 0;
 
     /**
-     * @brief 根据输入曲线类型获取输出曲线类型。
-     * @param inputType 输入曲线的类型。
-     * @return 输出曲线的类型。
+     * @brief 根据输入信号类型获取输出信号类型。
+     *
+     * 算法只影响信号类型（Raw <-> Derivative），不改变仪器类型。
+     * 例如：
+     * - 微分算法：Raw → Derivative
+     * - 积分算法：Derivative → Raw
+     * - 滤波算法：保持不变
+     *
+     * @param inputType 输入信号的类型。
+     * @return 输出信号的类型。
      */
-    virtual CurveType getOutputCurveType(CurveType inputType) const = 0;
+    virtual SignalType getOutputSignalType(SignalType inputType) const = 0;
 };
 
 #endif // ITHERMALALGORITHM_H

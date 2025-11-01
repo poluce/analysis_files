@@ -15,7 +15,7 @@ public:
     QString category() const override;
     QVariantMap parameters() const override;
     void setParameter(const QString& key, const QVariant& value) override;
-    CurveType getOutputCurveType(CurveType inputType) const override;
+    SignalType getOutputSignalType(SignalType inputType) const override;
 };
 
 #endif // INTEGRATIONALGORITHM_H

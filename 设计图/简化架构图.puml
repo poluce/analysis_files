@@ -185,6 +185,17 @@ package "⚙️ 应用层" <<应用层>> {
 package "🎯 领域层" <<领域层>> {
     
     package "Data Models" {
+        enum InstrumentType <<领域层>> {
+            TGA
+            DSC
+            ARC
+        }
+
+        enum SignalType <<领域层>> {
+            Raw
+            Derivative
+        }
+
         class ThermalDataPoint <<领域层>> {
             - temperature: double
             - value: double
@@ -196,13 +207,16 @@ package "🎯 领域层" <<领域层>> {
             + getTime(): double
             + getMetadata(key): QVariant
         }
-        
+
         class ThermalCurve <<领域层>> {
             - id: QString
             - name: QString
+            - instrumentType: InstrumentType
+            - signalType: SignalType
             - rawData: QVector<ThermalDataPoint>
             - processedData: QVector<ThermalDataPoint>
-            - metadata: QVariantMap
+            - metadata: CurveMetadata
+            - parentId: QString
             --
             + getRawData(): const QVector<ThermalDataPoint>&
             + getProcessedData(): QVector<ThermalDataPoint>&
@@ -210,8 +224,17 @@ package "🎯 领域层" <<领域层>> {
             + resetToRaw(): void
             + getName(): QString
             + setName(name): void
-            + getMetadata(): QVariantMap
+            + instrumentType(): InstrumentType
+            + signalType(): SignalType
+            + setInstrumentType(type): void
+            + setSignalType(type): void
+            + getYAxisLabel(): QString
+            + getPhysicalQuantityName(): QString
+            + getMetadata(): CurveMetadata
         }
+
+        ThermalCurve --> InstrumentType
+        ThermalCurve --> SignalType
         
         class ThermalProject <<领域层>> {
             - name: QString
@@ -235,9 +258,11 @@ package "🎯 领域层" <<领域层>> {
         interface IThermalAlgorithm <<领域层>> {
             {abstract} + process(data): QVector<ThermalDataPoint>
             {abstract} + name(): QString
+            {abstract} + displayName(): QString
             {abstract} + category(): QString
             {abstract} + parameters(): QVariantMap
-            {abstract} + setParameters(params): void
+            {abstract} + setParameter(key, value): void
+            {abstract} + getOutputSignalType(input: SignalType): SignalType
         }
         
         interface ICommand <<领域层>> {
@@ -296,49 +321,59 @@ package "🔧 基础设施层" <<基础设施层>> {
     }
     
     package "Algorithm" {
+        class DifferentiationAlgorithm <<基础设施层>> {
+            - halfWin: int
+            - dt: double
+            - enableDebug: bool
+            --
+            + process(data): QVector<ThermalDataPoint>
+            + getOutputSignalType(input): SignalType
+            + name(): QString
+            + displayName(): QString
+        }
+
+        class IntegrationAlgorithm <<基础设施层>> {
+            --
+            + process(data): QVector<ThermalDataPoint>
+            + getOutputSignalType(input): SignalType
+            + name(): QString
+            + displayName(): QString
+        }
+
+        class MovingAverageFilterAlgorithm <<基础设施层>> {
+            - window: int
+            --
+            + process(data): QVector<ThermalDataPoint>
+            + getOutputSignalType(input): SignalType
+            + name(): QString
+            + displayName(): QString
+        }
+
         class BaselineCorrector <<基础设施层>> {
             - method: QString
             - degree: int
             --
             + process(data): QVector<ThermalDataPoint>
+            + getOutputSignalType(input): SignalType
             + linearBaseline(data): QVector
             + polynomialFit(data, degree): QVector
-            + splineInterpolation(data): QVector
         }
-        
-        class SmoothingAlgorithm <<基础设施层>> {
-            - windowSize: int
-            - method: QString
-            --
-            + process(data): QVector<ThermalDataPoint>
-            + movingAverage(data): QVector
-            + savitzkyGolay(data): QVector
-        }
-        
+
         class PeakDetector <<基础设施层>> {
             - threshold: double
             - minPeakDistance: int
             --
             + process(data): QVector<ThermalDataPoint>
+            + getOutputSignalType(input): SignalType
             + detectPeaks(data): QVector<Peak>
             + calculatePeakArea(peak): double
-            + findPeakBoundaries(peak): QPair
         }
-        
-        class KineticsAnalyzer <<基础设施层>> {
-            - model: QString
-            - heatingRate: double
-            --
-            + process(data): QVector<ThermalDataPoint>
-            + calculateActivationEnergy(data): double
-            + calculatePreExponentialFactor(data): double
-            + fitKineticModel(data): Result
-        }
-        
+
+        IThermalAlgorithm <|.. DifferentiationAlgorithm
+        IThermalAlgorithm <|.. IntegrationAlgorithm
+        IThermalAlgorithm <|.. MovingAverageFilterAlgorithm
         IThermalAlgorithm <|.. BaselineCorrector
-        IThermalAlgorithm <|.. SmoothingAlgorithm
         IThermalAlgorithm <|.. PeakDetector
-        IThermalAlgorithm <|.. KineticsAnalyzer
     }
     
     package "Utility" {
@@ -385,10 +420,11 @@ CurveManager ..> ThermalCurve : 管理
 AlgorithmService ..> IThermalAlgorithm : 使用
 HistoryManager ..> ICommand : 执行
 
+AlgorithmService ..> DifferentiationAlgorithm : 调用
+AlgorithmService ..> IntegrationAlgorithm : 调用
+AlgorithmService ..> MovingAverageFilterAlgorithm : 调用
 AlgorithmService ..> BaselineCorrector : 调用
-AlgorithmService ..> SmoothingAlgorithm : 调用
 AlgorithmService ..> PeakDetector : 调用
-AlgorithmService ..> KineticsAnalyzer : 调用
 
 ProjectManager ..> FileReaderFactory : 使用
 ProjectManager ..> FileWriterFactory : 使用
@@ -421,19 +457,33 @@ note right of ThermalCurve
   · 业务规则定义
   · 算法接口抽象
   · 领域概念体现
-  
+
+  <b>双枚举设计:</b>
+  InstrumentType - 仪器类型(TGA/DSC/ARC)
+  SignalType - 信号类型(Raw/Derivative)
+  分离概念，清晰语义
+
   <b>数据不可变性:</b>
   rawData - 只读原始数据
   processedData - 可修改工作数据
+
+  <b>动态单位推断:</b>
+  getYAxisLabel() - 根据类型自动生成单位
 end note
 
-note right of BaselineCorrector
+note right of DifferentiationAlgorithm
   <b>基础设施层职责:</b>
   · 技术实现细节
   · 算法具体代码
   · 文件I/O操作
   · 工具类支持
   · 无业务逻辑
+
+  <b>算法通用化:</b>
+  · 微分: Raw → Derivative
+  · 积分: Derivative → Raw
+  · 滤波: 信号类型不变
+  · 所有算法适用所有仪器类型
 end note
 
 legend right

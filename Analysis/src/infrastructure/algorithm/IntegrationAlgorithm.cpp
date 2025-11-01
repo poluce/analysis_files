@@ -57,13 +57,13 @@ void IntegrationAlgorithm::setParameter(const QString& key, const QVariant& valu
     Q_UNUSED(value);
 }
 
-CurveType IntegrationAlgorithm::getOutputCurveType(CurveType inputType) const
+SignalType IntegrationAlgorithm::getOutputSignalType(SignalType inputType) const
 {
-    // 积分算法：DTG (TGA的导数) 积分后得到 TGA
-    // 对于其他类型，保持原类型
-    if (inputType == CurveType::DTG) {
-        return CurveType::TGA;
+    // 积分算法将微分信号转换回原始信号（适用所有仪器类型）
+    if (inputType == SignalType::Derivative) {
+        return SignalType::Raw;
     }
+    // 如果输入已经是原始信号，则保持不变
     return inputType;
 }
 

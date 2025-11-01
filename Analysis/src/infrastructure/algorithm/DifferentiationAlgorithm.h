@@ -17,7 +17,7 @@ public:
     QString category() const override;
     QVariantMap parameters() const override;
     void setParameter(const QString& key, const QVariant& value) override;
-    CurveType getOutputCurveType(CurveType inputType) const override;
+    SignalType getOutputSignalType(SignalType inputType) const override;
 
 private:
     int m_halfWin = 50;          // DTG半窗口大小，默认50点

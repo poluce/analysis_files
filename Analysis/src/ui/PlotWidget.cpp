@@ -60,10 +60,10 @@ void PlotWidget::addCurve(const ThermalCurve &curve)
 
     // --- 多Y轴逻辑 ---
     QValueAxis* axisY_target = nullptr;
-    if (curve.type() == CurveType::DTG) {
+    if (curve.signalType() == SignalType::Derivative) {
+        // 微分信号使用次坐标轴（右侧，红色）
         if (!m_axisY_secondary) {
             m_axisY_secondary = new QValueAxis();
-            m_axisY_secondary->setTitleText(tr("质量变化率 (%/°C)"));
             // 可以为次坐标轴设置不同颜色以区分
             QPen pen = m_axisY_secondary->linePen();
             pen.setColor(Qt::red);
@@ -73,21 +73,14 @@ void PlotWidget::addCurve(const ThermalCurve &curve)
 
             chart->addAxis(m_axisY_secondary, Qt::AlignRight);
         }
+        // 动态设置次坐标轴标签（根据仪器类型自动推断）
+        m_axisY_secondary->setTitleText(curve.getYAxisLabel());
         axisY_target = m_axisY_secondary;
     } else {
+        // 原始信号使用主坐标轴（左侧）
         axisY_target = m_axisY_primary;
-
-        // 如果是TGA曲线，根据初始质量判断是百分比还是绝对质量
-        if (curve.type() == CurveType::TGA) {
-            const auto& metadata = curve.getMetadata();
-            if (metadata.sampleMass > 0.0) {
-                // 有初始质量，说明已转换为百分比
-                m_axisY_primary->setTitleText(tr("质量 (%)"));
-            } else {
-                // 没有初始质量，使用绝对质量
-                m_axisY_primary->setTitleText(tr("质量 (mg)"));
-            }
-        }
+        // 动态设置主坐标轴标签（根据仪器类型和初始质量自动推断）
+        m_axisY_primary->setTitleText(curve.getYAxisLabel());
     }
 
     series->attachAxis(m_axisX);

@@ -68,10 +68,10 @@ void MovingAverageFilterAlgorithm::setParameter(const QString& key, const QVaria
     }
 }
 
-CurveType MovingAverageFilterAlgorithm::getOutputCurveType(CurveType inputType) const
+SignalType MovingAverageFilterAlgorithm::getOutputSignalType(SignalType inputType) const
 {
-    // 移动平均滤波是预处理算法，不改变曲线的物理含义
-    // 输出类型与输入类型相同
+    // 移动平均滤波是预处理算法，不改变信号类型
+    // 输出信号类型与输入信号类型相同
     return inputType;
 }
 

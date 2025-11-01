@@ -138,10 +138,12 @@ void DifferentiationAlgorithm::setParameter(const QString& key, const QVariant& 
     }
 }
 
-CurveType DifferentiationAlgorithm::getOutputCurveType(CurveType inputType) const
+SignalType DifferentiationAlgorithm::getOutputSignalType(SignalType inputType) const
 {
-    if (inputType == CurveType::TGA) {
-        return CurveType::DTG;
+    // 微分算法将原始信号转换为微分信号（适用所有仪器类型）
+    if (inputType == SignalType::Raw) {
+        return SignalType::Derivative;
     }
+    // 如果输入已经是微分信号，则保持不变
     return inputType;
 }

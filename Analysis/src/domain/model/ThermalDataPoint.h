@@ -4,7 +4,7 @@
 #include <QVariantMap>
 
 /**
- * @brief ThermalDataPoint 结构体代表热分析曲线中的单个数据点。
+ * @brief ThermalDataPoint 结构体代表TGA热分析曲线中的单个数据点。
  *
  * 它存储温度、时间以及测量值（例如热流或质量）的核心值，
  * 以及任何附加的元数据。

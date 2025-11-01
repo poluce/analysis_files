@@ -7,13 +7,29 @@
 #include <QVariantMap>
 
 /**
- * @brief 定义热分析曲线的类型 (例如, DSC, TGA)。
+ * @brief 定义热分析仪器类型
+ *
+ * 表示数据来源的仪器类型，不同仪器测量不同的物理量：
+ * - TGA: 测量质量 vs 温度
+ * - DSC: 测量热流 vs 温度
+ * - ARC: 测量压力 vs 温度
  */
-enum class CurveType {
-    TGA,
-    ARC,
-    DSC,
-    DTG
+enum class InstrumentType {
+    TGA,  // 热重分析仪
+    DSC,  // 差示扫描量热仪
+    ARC,  // 加速量热仪
+};
+
+/**
+ * @brief 定义信号处理类型
+ *
+ * 表示数据的处理状态：
+ * - Raw: 原始信号（直接从仪器获得）
+ * - Derivative: 微分信号（通过算法派生）
+ */
+enum class SignalType {
+    Raw,        // 原始信号
+    Derivative, // 微分信号
 };
 
 /**
@@ -41,7 +57,8 @@ public:
     QString id() const;
     QString name() const;
     QString projectName() const;
-    CurveType type() const;
+    InstrumentType instrumentType() const;
+    SignalType signalType() const;
     const QVector<ThermalDataPoint>& getRawData() const;
     const QVector<ThermalDataPoint>& getProcessedData() const;
     const CurveMetadata& getMetadata() const;
@@ -50,11 +67,25 @@ public:
     // --- 设置器 ---
     void setName(const QString& name);
     void setProjectName(const QString& projectName);
-    void setType(CurveType type);
+    void setInstrumentType(InstrumentType type);
+    void setSignalType(SignalType type);
     void setRawData(const QVector<ThermalDataPoint>& data);
     void setProcessedData(const QVector<ThermalDataPoint>& data);
     void setMetadata(const CurveMetadata& metadata);
     void setParentId(const QString& parentId);
+
+    // --- 辅助方法 ---
+    /**
+     * @brief 获取 Y 轴标签（包含物理量名称和单位）
+     * @return Y 轴标签字符串，例如 "质量 (%)" 或 "热流 (W/g)"
+     */
+    QString getYAxisLabel() const;
+
+    /**
+     * @brief 获取物理量名称（不含单位）
+     * @return 物理量名称，例如 "质量" 或 "热流"
+     */
+    QString getPhysicalQuantityName() const;
 
     /**
      * @brief 将处理后的数据重置为原始数据。
@@ -65,7 +96,8 @@ private:
     QString m_id;     // 唯一标识
     QString m_name;   // 曲线名称
     QString m_projectName; // 项目名称（文件名，用于树形结构的根节点）
-    CurveType m_type; // 曲线类型
+    InstrumentType m_instrumentType; // 仪器类型
+    SignalType m_signalType;         // 信号处理类型
     QString m_parentId; // 父曲线ID（用于算法生成的曲线）
 
     QVector<ThermalDataPoint> m_rawData;      // 原始数据 (只读)

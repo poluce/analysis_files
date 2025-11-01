@@ -78,13 +78,16 @@ void AlgorithmService::execute(const QString& name, ThermalCurve* curve)
     newCurve.setParentId(curve->id()); // 设置父曲线ID
     newCurve.setProjectName(curve->projectName()); // 继承项目名称
 
-    // 根据算法和原曲线类型，设置新曲线的类型
-    newCurve.setType(algorithm->getOutputCurveType(curve->type()));
+    // 4. 设置新曲线的类型
+    // 仪器类型继承自父曲线（算法不改变仪器类型）
+    newCurve.setInstrumentType(curve->instrumentType());
+    // 信号类型由算法决定（Raw -> Derivative 或 Derivative -> Raw）
+    newCurve.setSignalType(algorithm->getOutputSignalType(curve->signalType()));
 
-    // 4. 通过 CurveManager 添加新曲线
+    // 5. 通过 CurveManager 添加新曲线
     m_curveManager->addCurve(newCurve);
 
-    // 5. 设置新生成的曲线为活动曲线（默认选中）
+    // 6. 设置新生成的曲线为活动曲线（默认选中）
     m_curveManager->setActiveCurve(newId);
 
     // curveAdded 信号将由 CurveManager 发出，UI应响应那个信号
