@@ -23,11 +23,15 @@ SOURCES += \
     src/ui/PlotWidget.cpp \
     src/ui/ProjectExplorer.cpp \
     src/ui/CurveTreeModel.cpp \
+    src/ui/PeakAreaDialog.cpp \
     src/ui/controller/MainController.cpp \
     \
     # Application Layer
     src/application/curve/CurveManager.cpp \
     src/application/algorithm/AlgorithmService.cpp \
+    src/application/history/HistoryManager.cpp \
+    src/application/history/AlgorithmCommand.cpp \
+    src/application/history/BaselineCommand.cpp \
     \
     # Domain Layer
     src/domain/model/ThermalCurve.cpp \
@@ -45,16 +49,21 @@ HEADERS += \
     src/ui/PlotWidget.h \
     src/ui/ProjectExplorer.h \
     src/ui/CurveTreeModel.h \
+    src/ui/PeakAreaDialog.h \
     src/ui/controller/MainController.h \
     \
     # Application Layer
     src/application/curve/CurveManager.h \
     src/application/algorithm/AlgorithmService.h \
+    src/application/history/HistoryManager.h \
+    src/application/history/AlgorithmCommand.h \
+    src/application/history/BaselineCommand.h \
     \
     # Domain Layer
     src/domain/model/ThermalDataPoint.h \
     src/domain/model/ThermalCurve.h \
     src/domain/algorithm/IThermalAlgorithm.h \
+    src/domain/algorithm/ICommand.h \
     \
     # Infrastructure Layer
     src/infrastructure/io/IFileReader.h \

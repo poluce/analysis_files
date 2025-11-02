@@ -1,9 +1,11 @@
 #include "mainwindow.h"
 #include "PlotWidget.h"
 #include "CurveTreeModel.h"
+#include "PeakAreaDialog.h"
 #include "application/curve/CurveManager.h"
 #include "ui/controller/MainController.h"
 #include "domain/model/ThermalCurve.h"
+#include "application/history/HistoryManager.h"
 
 #include <QDockWidget>
 #include <QStatusBar>
@@ -47,6 +49,9 @@ void MainWindow::initComponents()
     // m_curveManager 已在构造函数中创建
     m_mainController = new MainController(m_curveManager, this);
 
+    // 设置 PlotWidget（用于基线绘制）
+    m_mainController->setPlotWidget(m_chartView);
+
     // ========== 信号连接（通知路径：Service → UI） ==========
     // CurveTreeModel 会自动响应 CurveManager 的信号，无需在此连接
 
@@ -66,6 +71,58 @@ void MainWindow::initComponents()
         connect(m_projectExplorer->treeView(), &QTreeView::customContextMenuRequested,
                 this, &MainWindow::onProjectTreeContextMenuRequested);
     }
+
+    // ========== 撤销/重做信号连接 ==========
+    // 连接撤销和重做按钮到控制器
+    connect(m_undoAction, &QAction::triggered, m_mainController, &MainController::onUndo);
+    connect(m_redoAction, &QAction::triggered, m_mainController, &MainController::onRedo);
+
+    // 监听历史状态变化，更新按钮的启用/禁用状态
+    connect(&HistoryManager::instance(), &HistoryManager::historyChanged, this, [this]() {
+        HistoryManager& historyManager = HistoryManager::instance();
+        m_undoAction->setEnabled(historyManager.canUndo());
+        m_redoAction->setEnabled(historyManager.canRedo());
+        qDebug() << "历史状态更新: 可撤销=" << historyManager.canUndo()
+                 << ", 可重做=" << historyManager.canRedo();
+    });
+
+    // ========== 峰面积和基线功能信号连接 ==========
+    qDebug() << "MainWindow::initComponents - 连接峰面积和基线功能信号";
+
+    // 按钮点击 → Controller
+    connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
+        qDebug() << "MainWindow: 峰面积按钮被点击";
+        m_mainController->onPeakAreaRequested();
+    });
+    connect(m_baselineAction, &QAction::triggered, this, [this]() {
+        qDebug() << "MainWindow: 基线按钮被点击";
+        m_mainController->onBaselineRequested();
+    });
+
+    // Controller → PlotWidget (点拾取请求)
+    connect(m_mainController, &MainController::requestStartPointPicking,
+            m_chartView, &PlotWidget::startPointPicking);
+    connect(m_mainController, &MainController::requestCancelPointPicking,
+            m_chartView, &PlotWidget::cancelPointPicking);
+
+    // PlotWidget → Controller (点拾取完成 - 峰面积)
+    connect(m_chartView, &PlotWidget::pointsPickedOnCurve,
+            m_mainController, &MainController::onPointsPickedForPeakArea);
+
+    // PlotWidget → Controller (点拾取完成 - 基线)
+    connect(m_chartView, &PlotWidget::pointsPickedOnCurve,
+            m_mainController, &MainController::onPointsPickedForBaseline);
+
+    // PlotWidget → PeakAreaDialog (进度更新)
+    connect(m_chartView, &PlotWidget::pointPickingProgress,
+            this, [this](int picked, int total) {
+        qDebug() << "MainWindow: 点拾取进度 -" << picked << "/" << total;
+        if (m_mainController->peakAreaDialog()) {
+            m_mainController->peakAreaDialog()->updateProgress(picked, total);
+        }
+    });
+
+    qDebug() << "MainWindow::initComponents - 信号连接完成";
 }
 
 void MainWindow::on_toolButtonOpen_clicked()
@@ -150,7 +207,7 @@ void MainWindow::initRibbon()
     mathTab->setLayout(new QVBoxLayout());
     mathTab->layout()->setContentsMargins(0, 0, 0, 0);
     mathTab->layout()->addWidget(createMathToolBar());
-    tabs->addTab(mathTab, tr("数学工具"));
+    tabs->addTab(mathTab, tr("热力学"));
 
     setMenuWidget(tabs);
 }
@@ -190,6 +247,22 @@ QToolBar *MainWindow::createFileToolBar()
     QAction *importDataAction = toolbar->addAction(this->style()->standardIcon(QStyle::SP_DirOpenIcon), tr("导入数据..."));
     connect(importDataAction, &QAction::triggered, this, &MainWindow::on_toolButtonOpen_clicked);
     toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowUp), tr("导出图表..."));
+
+    toolbar->addSeparator();
+
+    // 添加撤销和重做按钮
+    m_undoAction = toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowBack), tr("撤销"));
+    m_undoAction->setShortcut(QKeySequence::Undo);
+    m_undoAction->setShortcutContext(Qt::ApplicationShortcut);  // 设置为应用程序级别快捷键
+    m_undoAction->setEnabled(false);  // 初始状态禁用
+    this->addAction(m_undoAction);  // 添加到 MainWindow 以确保快捷键全局可用
+
+    m_redoAction = toolbar->addAction(this->style()->standardIcon(QStyle::SP_ArrowForward), tr("重做"));
+    m_redoAction->setShortcut(QKeySequence::Redo);
+    m_redoAction->setShortcutContext(Qt::ApplicationShortcut);  // 设置为应用程序级别快捷键
+    m_redoAction->setEnabled(false);  // 初始状态禁用
+    this->addAction(m_redoAction);  // 添加到 MainWindow 以确保快捷键全局可用
+
     return toolbar;
 }
 
@@ -220,6 +293,18 @@ QToolBar *MainWindow::createMathToolBar()
     integAction->setData("integration");
 
     QAction *kinAction = toolbar->addAction(tr("动力学计算..."));
+
+    toolbar->addSeparator();
+
+    // 添加峰面积计算按钮
+    m_peakAreaAction = toolbar->addAction(
+        this->style()->standardIcon(QStyle::SP_FileDialogContentsView),
+        tr("峰面积计算..."));
+
+    // 添加基线绘制按钮
+    m_baselineAction = toolbar->addAction(
+        this->style()->standardIcon(QStyle::SP_FileDialogDetailedView),
+        tr("绘制基线..."));
 
     connect(diffAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);

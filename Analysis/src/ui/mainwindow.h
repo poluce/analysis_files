@@ -56,6 +56,12 @@ private:
     QDockWidget* m_projectExplorerDock;
     QDockWidget* m_propertiesDock;
 
+    // --- 操作 ---
+    QAction* m_undoAction;
+    QAction* m_redoAction;
+    QAction* m_peakAreaAction;
+    QAction* m_baselineAction;
+
     // --- 服务与控制器 ---
     CurveManager* m_curveManager;
     MainController* m_mainController;

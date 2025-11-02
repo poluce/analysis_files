@@ -12,6 +12,8 @@
 #include <limits>
 #include <QtCharts/QLegend>
 #include <QtCharts/QLegendMarker>
+#include <QPainter>
+#include <QMessageBox>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -25,6 +27,9 @@ PlotWidget::PlotWidget(CurveManager* curveManager, QWidget *parent)
     chart->setTitle(tr("热分析曲线"));
     m_chartView->setChart(chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
+
+    // 安装事件过滤器以在 chartView 上绘制
+    m_chartView->viewport()->installEventFilter(this);
 
     // 创建并设置主坐标轴
     m_axisX = new QValueAxis();
@@ -156,6 +161,60 @@ void PlotWidget::mousePressEvent(QMouseEvent *event)
         return;
     }
 
+    // ========== 点拾取模式 ==========
+    if (m_interactionMode == InteractionMode::PickPoints && m_isPickingPoints) {
+        qDebug() << "PlotWidget::mousePressEvent - 点拾取模式，鼠标位置:" << event->pos();
+        const QPointF mousePos = m_chartView->mapFromGlobal(mapToGlobal(event->pos()));
+        qDebug() << "  转换后的视口坐标:" << mousePos;
+
+        // 找到最近的曲线上的点
+        auto [curveId, dataPoint] = findNearestPointOnCurves(mousePos);
+
+        if (curveId.isEmpty()) {
+            // 没有找到有效的点
+            qWarning() << "  未找到有效的点（距离过远或无曲线）";
+            QWidget::mousePressEvent(event);
+            return;
+        }
+
+        qDebug() << "  找到点: 曲线ID=" << curveId << ", 数据坐标=" << dataPoint;
+
+        // 确保在同一条曲线上拾取
+        if (m_pickedPoints.isEmpty()) {
+            m_targetCurveId = curveId;
+            qDebug() << "  设置目标曲线为:" << m_targetCurveId;
+        } else if (curveId != m_targetCurveId) {
+            // 警告用户必须在同一条曲线上选点
+            qWarning() << "  错误: 点击的曲线" << curveId << "与目标曲线" << m_targetCurveId << "不同";
+            QMessageBox::warning(this, tr("提示"),
+                tr("请在同一条曲线上选择点"));
+            QWidget::mousePressEvent(event);
+            return;
+        }
+
+        // 添加点
+        m_pickedPoints.append(dataPoint);
+        qDebug() << "  已添加点，当前已选" << m_pickedPoints.size() << "/" << m_numPointsNeeded << "个点";
+        emit pointPickingProgress(m_pickedPoints.size(), m_numPointsNeeded);
+
+        m_chartView->viewport()->update();  // 重绘以显示标记
+        qDebug() << "  已触发 viewport 重绘";
+
+        // 检查是否完成
+        if (m_pickedPoints.size() >= m_numPointsNeeded) {
+            // 完成拾取
+            qDebug() << "  点拾取完成，发射信号 pointsPickedOnCurve";
+            emit pointsPickedOnCurve(m_targetCurveId, m_pickedPoints);
+
+            // 恢复正常模式
+            cancelPointPicking();
+        }
+
+        QWidget::mousePressEvent(event);
+        return;
+    }
+
+    // ========== 正常模式：曲线选择 ==========
     QChart *chart = m_chartView->chart();
 
     const QPointF mousePos = m_chartView->mapFromGlobal(mapToGlobal(event->pos()));
@@ -372,4 +431,241 @@ void PlotWidget::onCurvesCleared()
     }
 
     emit curveSelected(QString());
+}
+
+// ========== 点拾取模式相关方法 ==========
+void PlotWidget::startPointPicking(int numPoints)
+{
+    m_interactionMode = InteractionMode::PickPoints;
+    m_isPickingPoints = true;
+    m_numPointsNeeded = numPoints;
+    m_pickedPoints.clear();
+    m_targetCurveId.clear();
+
+    // 改变鼠标光标为十字
+    setCursor(Qt::CrossCursor);
+
+    qDebug() << "PlotWidget: 开始点拾取模式，需要" << numPoints << "个点";
+
+    emit pointPickingProgress(0, numPoints);
+}
+
+void PlotWidget::cancelPointPicking()
+{
+    m_interactionMode = InteractionMode::Normal;
+    m_isPickingPoints = false;
+    m_pickedPoints.clear();
+    m_targetCurveId.clear();
+
+    // 恢复鼠标光标
+    setCursor(Qt::ArrowCursor);
+
+    qDebug() << "PlotWidget: 取消点拾取模式";
+
+    m_chartView->viewport()->update();  // 重绘以清除标记
+
+    emit pointPickingCancelled();
+}
+
+InteractionMode PlotWidget::interactionMode() const
+{
+    return m_interactionMode;
+}
+
+QPair<QString, QPointF> PlotWidget::findNearestPointOnCurves(const QPointF& screenPos)
+{
+    qDebug() << "PlotWidget::findNearestPointOnCurves - 查找最近点，屏幕坐标:" << screenPos;
+    QChart *chart = m_chartView->chart();
+
+    QString nearestCurveId;
+    QPointF nearestDataPoint;
+    qreal minDist = 1e18;
+
+    int seriesCount = 0;
+    for (QAbstractSeries *abstractSeries : chart->series()) {
+        QLineSeries *lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
+        if (!lineSeries || !lineSeries->isVisible()) continue;
+
+        seriesCount++;
+        const auto pts = lineSeries->pointsVector();
+        qDebug() << "  检查曲线:" << m_seriesToId.value(lineSeries) << ", 点数:" << pts.size();
+
+        // 遍历所有数据点，找到屏幕距离最近的点
+        for (const QPointF& dataPoint : pts) {
+            QPointF screenPoint = chart->mapToPosition(dataPoint, lineSeries);
+            qreal dist = QLineF(screenPos, screenPoint).length();
+
+            if (dist < minDist) {
+                minDist = dist;
+                nearestDataPoint = dataPoint;
+                nearestCurveId = m_seriesToId.value(lineSeries);
+            }
+        }
+    }
+
+    qDebug() << "  检查了" << seriesCount << "条曲线";
+    qDebug() << "  最小距离:" << minDist << "像素";
+
+    // 设置一个阈值（例如20像素）
+    const qreal threshold = 20.0 * m_chartView->devicePixelRatioF();
+    qDebug() << "  距离阈值:" << threshold << "像素 (devicePixelRatio=" << m_chartView->devicePixelRatioF() << ")";
+
+    if (minDist > threshold) {
+        qDebug() << "  距离超过阈值，返回空";
+        return {QString(), QPointF()};
+    }
+
+    qDebug() << "  找到最近点: 曲线=" << nearestCurveId << ", 数据坐标=" << nearestDataPoint;
+    return {nearestCurveId, nearestDataPoint};
+}
+
+bool PlotWidget::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_chartView->viewport() && event->type() == QEvent::Paint) {
+        // 先让 chartView 自己绘制
+        // paintEvent 会在这里之后自动处理
+
+        qDebug() << "PlotWidget::eventFilter - Paint 事件，开始绘制覆盖层";
+        qDebug() << "  当前拾取点数:" << m_pickedPoints.size();
+        qDebug() << "  当前注释线数:" << m_annotations.size();
+
+        // 在 chartView 绘制完成后，在其上面绘制我们的内容
+        QPainter painter(m_chartView->viewport());
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        // 绘制注释线
+        drawAnnotationLines(painter);
+
+        // 在点拾取模式下绘制标记
+        if (m_isPickingPoints && !m_pickedPoints.isEmpty()) {
+            qDebug() << "  绘制点标记...";
+            drawPointMarkers(painter);
+        }
+
+        qDebug() << "  绘制覆盖层完成";
+        return false;  // 继续传递事件
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void PlotWidget::drawPointMarkers(QPainter& painter)
+{
+    qDebug() << "PlotWidget::drawPointMarkers - 绘制" << m_pickedPoints.size() << "个点标记";
+    QChart *chart = m_chartView->chart();
+    QLineSeries *series = m_idToSeries.value(m_targetCurveId);
+    if (!series) {
+        qWarning() << "  错误: 无法找到目标曲线的系列对象，ID=" << m_targetCurveId;
+        return;
+    }
+
+    qDebug() << "  目标曲线:" << m_targetCurveId;
+
+    // 绘制已拾取的点
+    int pointIndex = 0;
+    for (const QPointF& dataPoint : m_pickedPoints) {
+        // chart->mapToPosition 返回场景坐标
+        QPointF scenePoint = chart->mapToPosition(dataPoint, series);
+
+        // 将场景坐标转换为视口坐标
+        QPointF viewportPoint = m_chartView->mapFromScene(scenePoint);
+
+        qDebug() << "  点" << pointIndex << ": 数据坐标" << dataPoint
+                 << "-> 场景坐标" << scenePoint
+                 << "-> 视口坐标" << viewportPoint;
+
+        // 绘制圆圈标记
+        painter.setPen(QPen(Qt::red, 3));
+        painter.setBrush(QBrush(QColor(255, 0, 0, 100)));  // 半透明红色
+        painter.drawEllipse(viewportPoint, 8, 8);
+
+        // 绘制十字
+        painter.setPen(QPen(Qt::red, 2));
+        painter.drawLine(viewportPoint - QPointF(10, 0),
+                        viewportPoint + QPointF(10, 0));
+        painter.drawLine(viewportPoint - QPointF(0, 10),
+                        viewportPoint + QPointF(0, 10));
+
+        pointIndex++;
+    }
+
+    qDebug() << "  点标记绘制完成";
+}
+
+void PlotWidget::drawAnnotationLines(QPainter& painter)
+{
+    if (m_annotations.isEmpty()) {
+        return;
+    }
+
+    qDebug() << "PlotWidget::drawAnnotationLines - 绘制" << m_annotations.size() << "条注释线";
+    QChart *chart = m_chartView->chart();
+
+    int lineIndex = 0;
+    for (const auto& annotation : m_annotations) {
+        qDebug() << "  注释线" << lineIndex << ": ID=" << annotation.id
+                 << ", 曲线ID=" << annotation.curveId
+                 << ", 起点=" << annotation.start
+                 << ", 终点=" << annotation.end;
+
+        QLineSeries *series = m_idToSeries.value(annotation.curveId);
+        if (!series) {
+            qWarning() << "    错误: 无法找到曲线" << annotation.curveId << "的系列对象";
+            lineIndex++;
+            continue;
+        }
+
+        // 将数据坐标转换为场景坐标
+        QPointF sceneStart = chart->mapToPosition(annotation.start, series);
+        QPointF sceneEnd = chart->mapToPosition(annotation.end, series);
+
+        // 将场景坐标转换为视口坐标
+        QPointF viewportStart = m_chartView->mapFromScene(sceneStart);
+        QPointF viewportEnd = m_chartView->mapFromScene(sceneEnd);
+
+        qDebug() << "    数据坐标" << annotation.start << annotation.end
+                 << "-> 场景坐标" << sceneStart << sceneEnd
+                 << "-> 视口坐标" << viewportStart << viewportEnd;
+
+        painter.setPen(annotation.pen);
+        painter.drawLine(viewportStart, viewportEnd);
+
+        qDebug() << "    线条绘制完成";
+        lineIndex++;
+    }
+
+    qDebug() << "  注释线绘制完成";
+}
+
+// ========== 注释线管理方法 ==========
+void PlotWidget::addAnnotationLine(const QString& id,
+                                   const QString& curveId,
+                                   const QPointF& start,
+                                   const QPointF& end,
+                                   const QPen& pen)
+{
+    m_annotations.append({id, curveId, start, end, pen});
+    qDebug() << "PlotWidget: 添加注释线" << id << "在曲线" << curveId
+             << "数据点:" << start << end;
+    m_chartView->viewport()->update();  // 触发 viewport 重绘
+}
+
+void PlotWidget::removeAnnotation(const QString& id)
+{
+    for (int i = 0; i < m_annotations.size(); ++i) {
+        if (m_annotations[i].id == id) {
+            m_annotations.removeAt(i);
+            qDebug() << "PlotWidget: 移除注释线" << id;
+            m_chartView->viewport()->update();  // 触发 viewport 重绘
+            return;
+        }
+    }
+}
+
+void PlotWidget::clearAllAnnotations()
+{
+    if (!m_annotations.isEmpty()) {
+        m_annotations.clear();
+        qDebug() << "PlotWidget: 清除所有注释线";
+        m_chartView->viewport()->update();  // 触发 viewport 重绘
+    }
 }
