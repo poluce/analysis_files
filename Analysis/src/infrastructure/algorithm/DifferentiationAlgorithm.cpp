@@ -147,3 +147,17 @@ SignalType DifferentiationAlgorithm::getOutputSignalType(SignalType inputType) c
     // 如果输入已经是微分信号，则保持不变
     return inputType;
 }
+
+// ==================== 新接口方法实现 ====================
+
+IThermalAlgorithm::InputType DifferentiationAlgorithm::inputType() const
+{
+    // A类算法：单曲线，无需用户交互
+    return InputType::None;
+}
+
+IThermalAlgorithm::OutputType DifferentiationAlgorithm::outputType() const
+{
+    // 输出新曲线（微分曲线）
+    return OutputType::Curve;
+}

@@ -67,3 +67,17 @@ SignalType IntegrationAlgorithm::getOutputSignalType(SignalType inputType) const
     return inputType;
 }
 
+// ==================== 新接口方法实现 ====================
+
+IThermalAlgorithm::InputType IntegrationAlgorithm::inputType() const
+{
+    // A类算法：单曲线，无需用户交互
+    return InputType::None;
+}
+
+IThermalAlgorithm::OutputType IntegrationAlgorithm::outputType() const
+{
+    // 输出新曲线（积分曲线）
+    return OutputType::Curve;
+}
+

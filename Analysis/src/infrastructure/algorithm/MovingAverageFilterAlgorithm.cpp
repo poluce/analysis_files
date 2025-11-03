@@ -75,3 +75,17 @@ SignalType MovingAverageFilterAlgorithm::getOutputSignalType(SignalType inputTyp
     return inputType;
 }
 
+// ==================== 新接口方法实现 ====================
+
+IThermalAlgorithm::InputType MovingAverageFilterAlgorithm::inputType() const
+{
+    // A类算法：单曲线，无需用户交互
+    return InputType::None;
+}
+
+IThermalAlgorithm::OutputType MovingAverageFilterAlgorithm::outputType() const
+{
+    // 输出新曲线（滤波后的曲线）
+    return OutputType::Curve;
+}
+

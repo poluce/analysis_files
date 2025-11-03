@@ -26,6 +26,7 @@ SOURCES += \
     src/ui/PeakAreaDialog.cpp \
     src/ui/controller/MainController.cpp \
     src/ui/controller/CurveViewController.cpp \
+    src/ui/interaction/InteractionController.cpp \
     \
     # Application Layer
     src/application/curve/CurveManager.cpp \
@@ -41,7 +42,8 @@ SOURCES += \
     src/infrastructure/io/TextFileReader.cpp \
     src/infrastructure/algorithm/DifferentiationAlgorithm.cpp \
     src/infrastructure/algorithm/MovingAverageFilterAlgorithm.cpp \
-    src/infrastructure/algorithm/IntegrationAlgorithm.cpp
+    src/infrastructure/algorithm/IntegrationAlgorithm.cpp \
+    src/infrastructure/algorithm/BaselineCorrectionAlgorithm.cpp
 
 HEADERS += \
     # UI Layer
@@ -53,6 +55,7 @@ HEADERS += \
     src/ui/PeakAreaDialog.h \
     src/ui/controller/MainController.h \
     src/ui/controller/CurveViewController.h \
+    src/ui/interaction/InteractionController.h \
     \
     # Application Layer
     src/application/curve/CurveManager.h \
@@ -72,7 +75,8 @@ HEADERS += \
     src/infrastructure/io/TextFileReader.h \
     src/infrastructure/algorithm/DifferentiationAlgorithm.h \
     src/infrastructure/algorithm/MovingAverageFilterAlgorithm.h \
-    src/infrastructure/algorithm/IntegrationAlgorithm.h
+    src/infrastructure/algorithm/IntegrationAlgorithm.h \
+    src/infrastructure/algorithm/BaselineCorrectionAlgorithm.h
 
 # FORMS section removed as UI is now code-based
 

@@ -2,6 +2,9 @@
 #define THERMALDATAPOINT_H
 
 #include <QVariantMap>
+#include <QVector>
+#include <QMetaType>
+#include <QPointF>
 
 /**
  * @brief ThermalDataPoint 结构体代表TGA热分析曲线中的单个数据点。
@@ -17,5 +20,10 @@ struct ThermalDataPoint
 
     QVariantMap metadata;     // 扩展元数据
 };
+
+// 注册类型到 Qt 元对象系统，用于 QVariant
+Q_DECLARE_METATYPE(ThermalDataPoint)
+Q_DECLARE_METATYPE(QVector<ThermalDataPoint>)
+Q_DECLARE_METATYPE(QVector<QPointF>)
 
 #endif // THERMALDATAPOINT_H

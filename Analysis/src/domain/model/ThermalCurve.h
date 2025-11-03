@@ -110,4 +110,7 @@ private:
     CurveMetadata m_metadata; // 实验参数
 };
 
+// 注册类型到 Qt 元对象系统，用于 QVariant
+Q_DECLARE_METATYPE(ThermalCurve*)
+
 #endif // THERMALCURVE_H

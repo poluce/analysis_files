@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mingw32-make:*)",
       "Bash(\"/c/Program Files/Microsoft/jdk-21.0.6.7-hotspot/bin/java.exe\" -version)",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(./rebuild.bat)"
     ],
     "deny": [],
     "ask": []

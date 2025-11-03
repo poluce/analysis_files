@@ -9,6 +9,7 @@
 class IntegrationAlgorithm : public IThermalAlgorithm
 {
 public:
+    // 旧接口方法
     QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
     QString name() const override;
     QString displayName() const override;
@@ -16,6 +17,10 @@ public:
     QVariantMap parameters() const override;
     void setParameter(const QString& key, const QVariant& value) override;
     SignalType getOutputSignalType(SignalType inputType) const override;
+
+    // 新接口方法（A类算法：单曲线，无交互）
+    InputType inputType() const override;
+    OutputType outputType() const override;
 };
 
 #endif // INTEGRATIONALGORITHM_H
