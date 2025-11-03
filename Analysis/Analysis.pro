@@ -25,6 +25,7 @@ SOURCES += \
     src/ui/CurveTreeModel.cpp \
     src/ui/PeakAreaDialog.cpp \
     src/ui/controller/MainController.cpp \
+    src/ui/controller/CurveViewController.cpp \
     \
     # Application Layer
     src/application/curve/CurveManager.cpp \
@@ -51,6 +52,7 @@ HEADERS += \
     src/ui/CurveTreeModel.h \
     src/ui/PeakAreaDialog.h \
     src/ui/controller/MainController.h \
+    src/ui/controller/CurveViewController.h \
     \
     # Application Layer
     src/application/curve/CurveManager.h \
