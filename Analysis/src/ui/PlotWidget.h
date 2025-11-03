@@ -10,6 +10,7 @@
 #include <QHash>
 #include <QVector>
 #include <QPair>
+#include <functional>
 
 class ThermalCurve;
 class CurveManager;
@@ -38,7 +39,15 @@ public:
     bool hitTestIncludePenWidth() const;
 
     // 点拾取模式接口
+    // 回调函数类型定义
+    using PointPickingCallback = std::function<void(const QString& curveId, const QVector<QPointF>& points)>;
+
+    // 新接口：使用回调函数
+    void startPointPicking(int numPoints, PointPickingCallback callback);
+
+    // 旧接口：使用信号（保留兼容性）
     void startPointPicking(int numPoints);
+
     void cancelPointPicking();
     InteractionMode interactionMode() const;
 
@@ -106,6 +115,7 @@ private:
     int m_numPointsNeeded = 0;
     QVector<QPointF> m_pickedPoints;
     QString m_targetCurveId;  // 在哪条曲线上拾取
+    PointPickingCallback m_pickingCallback;  // 回调函数（如果使用回调模式）
 
     // 注释线数据结构
     struct AnnotationLine {

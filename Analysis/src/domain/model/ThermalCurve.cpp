@@ -101,6 +101,14 @@ void ThermalCurve::resetToRaw()
 
 QString ThermalCurve::getYAxisLabel() const
 {
+    // 特殊信号类型
+    if (m_signalType == SignalType::Baseline) {
+        return getPhysicalQuantityName() + QStringLiteral(" (基线)");
+    }
+    if (m_signalType == SignalType::PeakArea) {
+        return getPhysicalQuantityName() + QStringLiteral(" (峰面积)");
+    }
+
     // 根据仪器类型和信号类型动态生成 Y 轴标签
     switch (m_instrumentType) {
         case InstrumentType::TGA:
@@ -111,24 +119,27 @@ QString ThermalCurve::getYAxisLabel() const
                 } else {
                     return QStringLiteral("质量 (mg)");
                 }
-            } else {
+            } else if (m_signalType == SignalType::Derivative) {
                 // TGA 微分数据
                 return QStringLiteral("质量变化率 (%/°C)");
             }
+            break;
 
         case InstrumentType::DSC:
             if (m_signalType == SignalType::Raw) {
                 return QStringLiteral("热流 (W/g)");
-            } else {
+            } else if (m_signalType == SignalType::Derivative) {
                 return QStringLiteral("热流变化率 (W/g/°C)");
             }
+            break;
 
         case InstrumentType::ARC:
             if (m_signalType == SignalType::Raw) {
                 return QStringLiteral("压力 (Pa)");
-            } else {
+            } else if (m_signalType == SignalType::Derivative) {
                 return QStringLiteral("压力变化率 (Pa/°C)");
             }
+            break;
     }
 
     // 默认返回（理论上不应该到达这里）
@@ -137,28 +148,44 @@ QString ThermalCurve::getYAxisLabel() const
 
 QString ThermalCurve::getPhysicalQuantityName() const
 {
+    // 特殊信号类型
+    if (m_signalType == SignalType::Baseline || m_signalType == SignalType::PeakArea) {
+        // 基线和峰面积继承原始信号的物理量名称
+        switch (m_instrumentType) {
+            case InstrumentType::TGA:
+                return QStringLiteral("质量");
+            case InstrumentType::DSC:
+                return QStringLiteral("热流");
+            case InstrumentType::ARC:
+                return QStringLiteral("压力");
+        }
+    }
+
     // 根据仪器类型返回物理量名称（不含单位）
     switch (m_instrumentType) {
         case InstrumentType::TGA:
             if (m_signalType == SignalType::Raw) {
                 return QStringLiteral("质量");
-            } else {
+            } else if (m_signalType == SignalType::Derivative) {
                 return QStringLiteral("质量变化率");
             }
+            break;
 
         case InstrumentType::DSC:
             if (m_signalType == SignalType::Raw) {
                 return QStringLiteral("热流");
-            } else {
+            } else if (m_signalType == SignalType::Derivative) {
                 return QStringLiteral("热流变化率");
             }
+            break;
 
         case InstrumentType::ARC:
             if (m_signalType == SignalType::Raw) {
                 return QStringLiteral("压力");
-            } else {
+            } else if (m_signalType == SignalType::Derivative) {
                 return QStringLiteral("压力变化率");
             }
+            break;
     }
 
     // 默认返回

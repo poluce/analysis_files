@@ -125,7 +125,7 @@ QVariant CurveTreeModel::data(const QModelIndex& index, int role) const
 
     return QVariant();
 }
-
+//提供显示的数据
 bool CurveTreeModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
     if (!index.isValid())
@@ -148,7 +148,7 @@ bool CurveTreeModel::setData(const QModelIndex& index, const QVariant& value, in
 
     return false;
 }
-
+// 定义节点的属性
 Qt::ItemFlags CurveTreeModel::flags(const QModelIndex& index) const
 {
     if (!index.isValid())
@@ -172,7 +172,7 @@ QVariant CurveTreeModel::headerData(int section, Qt::Orientation orientation, in
     }
     return QVariant();
 }
-
+// /创建模型索引
 QModelIndex CurveTreeModel::index(int row, int column, const QModelIndex& parent) const
 {
     if (!hasIndex(row, column, parent))
@@ -190,7 +190,7 @@ QModelIndex CurveTreeModel::index(int row, int column, const QModelIndex& parent
         return createIndex(row, column, childItem);
     return QModelIndex();
 }
-
+//返回父节点索引
 QModelIndex CurveTreeModel::parent(const QModelIndex& index) const
 {
     if (!index.isValid())
@@ -204,7 +204,7 @@ QModelIndex CurveTreeModel::parent(const QModelIndex& index) const
 
     return createIndex(parentItem->row(), 0, parentItem);
 }
-
+// 告诉 View 有多少行
 int CurveTreeModel::rowCount(const QModelIndex& parent) const
 {
     TreeItem* parentItem;
@@ -218,7 +218,7 @@ int CurveTreeModel::rowCount(const QModelIndex& parent) const
 
     return parentItem->childCount();
 }
-
+//告诉 View 有多少列
 int CurveTreeModel::columnCount(const QModelIndex& parent) const
 {
     Q_UNUSED(parent);
@@ -285,7 +285,7 @@ void CurveTreeModel::refresh()
     buildTree();
     endResetModel();
 }
-
+//TODO:现在是整体先清除 然后获取曲线的信息再依次写入
 void CurveTreeModel::buildTree()
 {
     // 清理旧树
@@ -297,7 +297,7 @@ void CurveTreeModel::buildTree()
 
     // 创建所有曲线ID到TreeItem的映射
     QMap<QString, TreeItem*> itemMap;
-    // 创建项目名称到项目节点的映射
+    // 创建项目名称到项目节点的映射 
     QMap<QString, TreeItem*> projectNodeMap;
 
     // 第一步：为每个项目创建项目节点（虚拟根节点）

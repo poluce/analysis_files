@@ -203,8 +203,16 @@ void PlotWidget::mousePressEvent(QMouseEvent *event)
         // 检查是否完成
         if (m_pickedPoints.size() >= m_numPointsNeeded) {
             // 完成拾取
-            qDebug() << "  点拾取完成，发射信号 pointsPickedOnCurve";
-            emit pointsPickedOnCurve(m_targetCurveId, m_pickedPoints);
+            qDebug() << "  点拾取完成";
+
+            // 如果有回调函数，使用回调；否则发射信号
+            if (m_pickingCallback) {
+                qDebug() << "  使用回调函数模式";
+                m_pickingCallback(m_targetCurveId, m_pickedPoints);
+            } else {
+                qDebug() << "  使用信号模式，发射 pointsPickedOnCurve";
+                emit pointsPickedOnCurve(m_targetCurveId, m_pickedPoints);
+            }
 
             // 恢复正常模式
             cancelPointPicking();
@@ -434,18 +442,38 @@ void PlotWidget::onCurvesCleared()
 }
 
 // ========== 点拾取模式相关方法 ==========
-void PlotWidget::startPointPicking(int numPoints)
+void PlotWidget::startPointPicking(int numPoints, PointPickingCallback callback)
 {
+    // 使用回调函数的新版本
     m_interactionMode = InteractionMode::PickPoints;
     m_isPickingPoints = true;
     m_numPointsNeeded = numPoints;
     m_pickedPoints.clear();
     m_targetCurveId.clear();
+    m_pickingCallback = callback;  // 保存回调函数
 
     // 改变鼠标光标为十字
     setCursor(Qt::CrossCursor);
 
-    qDebug() << "PlotWidget: 开始点拾取模式，需要" << numPoints << "个点";
+    qDebug() << "PlotWidget: 开始点拾取模式（回调版本），需要" << numPoints << "个点";
+
+    emit pointPickingProgress(0, numPoints);
+}
+
+void PlotWidget::startPointPicking(int numPoints)
+{
+    // 旧版本：使用信号（保留兼容性）
+    m_interactionMode = InteractionMode::PickPoints;
+    m_isPickingPoints = true;
+    m_numPointsNeeded = numPoints;
+    m_pickedPoints.clear();
+    m_targetCurveId.clear();
+    m_pickingCallback = nullptr;  // 清空回调函数，使用信号模式
+
+    // 改变鼠标光标为十字
+    setCursor(Qt::CrossCursor);
+
+    qDebug() << "PlotWidget: 开始点拾取模式（信号版本），需要" << numPoints << "个点";
 
     emit pointPickingProgress(0, numPoints);
 }
@@ -456,6 +484,7 @@ void PlotWidget::cancelPointPicking()
     m_isPickingPoints = false;
     m_pickedPoints.clear();
     m_targetCurveId.clear();
+    m_pickingCallback = nullptr;  // 清空回调函数
 
     // 恢复鼠标光标
     setCursor(Qt::ArrowCursor);

@@ -13,6 +13,7 @@ class QStandardItem;
 class QToolBar;
 class CurveManager;
 class MainController;
+class CurveViewController;
 class ThermalCurve;
 class CurveTreeModel;
 
@@ -65,5 +66,6 @@ private:
     // --- 服务与控制器 ---
     CurveManager* m_curveManager;
     MainController* m_mainController;
+    CurveViewController* m_curveViewController;  // 新增：曲线视图控制器
 };
 #endif // MAINWINDOW_H

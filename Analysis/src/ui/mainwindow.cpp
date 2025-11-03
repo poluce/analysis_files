@@ -4,6 +4,7 @@
 #include "PeakAreaDialog.h"
 #include "application/curve/CurveManager.h"
 #include "ui/controller/MainController.h"
+#include "ui/controller/CurveViewController.h"
 #include "domain/model/ThermalCurve.h"
 #include "application/history/HistoryManager.h"
 
@@ -47,25 +48,36 @@ MainWindow::~MainWindow() = default;
 void MainWindow::initComponents()
 {
     // m_curveManager 已在构造函数中创建
+
+    // 创建 CurveViewController（负责视图协调）
+    m_curveViewController = new CurveViewController(
+        m_curveManager,
+        m_chartView,
+        m_curveTreeModel,
+        this
+    );
+
+    // 创建 MainController（负责命令协调）
     m_mainController = new MainController(m_curveManager, this);
 
-    // 设置 PlotWidget（用于基线绘制）
+    // 设置 PlotWidget（用于基线绘制等功能）
     m_mainController->setPlotWidget(m_chartView);
 
     // ========== 信号连接（通知路径：Service → UI） ==========
-    // CurveTreeModel 会自动响应 CurveManager 的信号，无需在此连接
+    // CurveTreeModel 和 PlotWidget 会自动通过 CurveViewController 响应 CurveManager 的信号
 
     // 连接curveAdded信号以自动展开树形结构
     connect(m_curveManager, &CurveManager::curveAdded,
             this, &MainWindow::onCurveAdded);
 
     // ========== UI 内部信号 ==========
-    connect(m_chartView, &PlotWidget::curveSelected, m_curveManager, &CurveManager::setActiveCurve);
+    // 注意：PlotWidget 的 curveSelected 信号已经由 CurveViewController 处理
+    // 不再需要重复连接到 CurveManager::setActiveCurve
 
-    if (m_curveTreeModel) {
-        connect(m_curveTreeModel, &CurveTreeModel::curveCheckStateChanged,
-                this, &MainWindow::onCurveCheckStateChanged);
-    }
+    // CurveTreeModel 的 curveCheckStateChanged 信号已由 CurveViewController 处理
+    // 移除了以下连接（现在由 CurveViewController 统一管理）:
+    // connect(m_curveTreeModel, &CurveTreeModel::curveCheckStateChanged,
+    //         this, &MainWindow::onCurveCheckStateChanged);
 
     if (m_projectExplorer && m_projectExplorer->treeView()) {
         connect(m_projectExplorer->treeView(), &QTreeView::customContextMenuRequested,
@@ -100,8 +112,9 @@ void MainWindow::initComponents()
     });
 
     // Controller → PlotWidget (点拾取请求)
+    // 注意：使用 qOverload 明确指定使用旧的信号版本（参数为 int）
     connect(m_mainController, &MainController::requestStartPointPicking,
-            m_chartView, &PlotWidget::startPointPicking);
+            m_chartView, qOverload<int>(&PlotWidget::startPointPicking));
     connect(m_mainController, &MainController::requestCancelPointPicking,
             m_chartView, &PlotWidget::cancelPointPicking);
 
@@ -132,6 +145,9 @@ void MainWindow::on_toolButtonOpen_clicked()
 
 void MainWindow::onCurveCheckStateChanged(const QString& curveId, bool checked)
 {
+    // 注意：此槽函数已被 CurveViewController 接管
+    // 现在由 CurveViewController::onCurveCheckStateChanged() 处理
+    // 保留此函数是为了兼容性，但实际上不会被调用
     m_chartView->setCurveVisible(curveId, checked);
 }
 
