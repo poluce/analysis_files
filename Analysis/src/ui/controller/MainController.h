@@ -14,6 +14,7 @@ class AlgorithmService; // 添加
 class HistoryManager; // 添加
 class PeakAreaDialog; // 添加
 class PlotWidget; // 添加
+class InteractionController; // 添加
 
 /**
  * @brief MainController 协调UI和应用服务。
@@ -26,11 +27,11 @@ public:
     explicit MainController(CurveManager* curveManager, QObject *parent = nullptr);
     ~MainController();
 
-    // 访问峰面积对话框（用于MainWindow更新进度）
-    PeakAreaDialog* peakAreaDialog() const { return m_peakAreaDialog; }
+    // 设置 PlotWidget（用于基线绘制和交互控制）
+    void setPlotWidget(PlotWidget* plotWidget);
 
-    // 设置 PlotWidget（用于基线绘制）
-    void setPlotWidget(PlotWidget* plotWidget) { m_plotWidget = plotWidget; }
+    // 获取 InteractionController（用于外部访问，如果需要）
+    InteractionController* interactionController() const { return m_interactionController; }
 
 signals:
     /**
@@ -39,10 +40,6 @@ signals:
      */
     void curveAvailable(const ThermalCurve& curve);
     void curveDataChanged(const QString& curveId); // 添加
-
-    // 点拾取相关信号
-    void requestStartPointPicking(int numPoints);
-    void requestCancelPointPicking();
 
 public slots:
     /**
@@ -67,11 +64,14 @@ public slots:
     void onPeakAreaRequested();
     void onBaselineRequested();
 
-    // 响应 PlotWidget 的点拾取完成信号
-    void onPointsPickedForPeakArea(const QString& curveId,
-                                   const QVector<QPointF>& points);
-    void onPointsPickedForBaseline(const QString& curveId,
-                                   const QVector<QPointF>& points);
+    // 响应 InteractionController 的点拾取完成信号（统一处理）
+    void onPointsSelected(const QVector<QPointF>& points);
+
+    // 响应UI的曲线删除请求
+    void onCurveDeleteRequested(const QString& curveId);
+
+    // 响应UI的进度更新请求
+    void onPointPickingProgress(int picked, int total);
 
 private slots:
     /**
@@ -87,6 +87,10 @@ private slots:
     void onAlgorithmFinished(const QString& curveId); // 添加
 
 private:
+    // 辅助方法
+    void handlePeakAreaCalculation(const QVector<QPointF>& points);
+    void handleBaselineDrawing(const QVector<QPointF>& points);
+
     CurveManager* m_curveManager;         // 非拥有指针
     DataImportWidget* m_dataImportWidget; // 拥有指针
     TextFileReader* m_textFileReader;     // 拥有指针
@@ -94,6 +98,7 @@ private:
     HistoryManager* m_historyManager;     // 添加，非拥有指针（单例）
     PeakAreaDialog* m_peakAreaDialog = nullptr; // 添加，拥有指针
     PlotWidget* m_plotWidget = nullptr;   // 添加，非拥有指针
+    InteractionController* m_interactionController = nullptr; // 添加，拥有指针
 
     // 标记当前的点拾取目的
     enum class PickingPurpose { None, PeakArea, Baseline };

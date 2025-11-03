@@ -25,9 +25,11 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+signals:
+    void curveDeleteRequested(const QString& curveId);
+
 private slots:
     void on_toolButtonOpen_clicked();
-    void onCurveCheckStateChanged(const QString& curveId, bool checked);
     void onProjectTreeContextMenuRequested(const QPoint& pos);
     void onCurveAdded(const QString& curveId);
 

@@ -70,6 +70,11 @@ void MainWindow::initComponents()
     connect(m_curveManager, &CurveManager::curveAdded,
             this, &MainWindow::onCurveAdded);
 
+    // ========== UI → Controller 信号连接 ==========
+    // 曲线删除请求
+    connect(this, &MainWindow::curveDeleteRequested,
+            m_mainController, &MainController::onCurveDeleteRequested);
+
     // ========== UI 内部信号 ==========
     // 注意：PlotWidget 的 curveSelected 信号已经由 CurveViewController 处理
     // 不再需要重复连接到 CurveManager::setActiveCurve
@@ -111,29 +116,12 @@ void MainWindow::initComponents()
         m_mainController->onBaselineRequested();
     });
 
-    // Controller → PlotWidget (点拾取请求)
-    // 注意：使用 qOverload 明确指定使用旧的信号版本（参数为 int）
-    connect(m_mainController, &MainController::requestStartPointPicking,
-            m_chartView, qOverload<int>(&PlotWidget::startPointPicking));
-    connect(m_mainController, &MainController::requestCancelPointPicking,
-            m_chartView, &PlotWidget::cancelPointPicking);
+    // 点拾取现在由 InteractionController 管理，不需要在此处连接
+    // MainController 内部已经将 InteractionController 连接到 PlotWidget
 
-    // PlotWidget → Controller (点拾取完成 - 峰面积)
-    connect(m_chartView, &PlotWidget::pointsPickedOnCurve,
-            m_mainController, &MainController::onPointsPickedForPeakArea);
-
-    // PlotWidget → Controller (点拾取完成 - 基线)
-    connect(m_chartView, &PlotWidget::pointsPickedOnCurve,
-            m_mainController, &MainController::onPointsPickedForBaseline);
-
-    // PlotWidget → PeakAreaDialog (进度更新)
+    // PlotWidget → MainController (进度更新)
     connect(m_chartView, &PlotWidget::pointPickingProgress,
-            this, [this](int picked, int total) {
-        qDebug() << "MainWindow: 点拾取进度 -" << picked << "/" << total;
-        if (m_mainController->peakAreaDialog()) {
-            m_mainController->peakAreaDialog()->updateProgress(picked, total);
-        }
-    });
+            m_mainController, &MainController::onPointPickingProgress);
 
     qDebug() << "MainWindow::initComponents - 信号连接完成";
 }
@@ -141,14 +129,6 @@ void MainWindow::initComponents()
 void MainWindow::on_toolButtonOpen_clicked()
 {
     m_mainController->onShowDataImport();
-}
-
-void MainWindow::onCurveCheckStateChanged(const QString& curveId, bool checked)
-{
-    // 注意：此槽函数已被 CurveViewController 接管
-    // 现在由 CurveViewController::onCurveCheckStateChanged() 处理
-    // 保留此函数是为了兼容性，但实际上不会被调用
-    m_chartView->setCurveVisible(curveId, checked);
 }
 
 void MainWindow::onCurveAdded(const QString& curveId)
@@ -195,7 +175,7 @@ void MainWindow::onProjectTreeContextMenuRequested(const QPoint &pos)
     QAction *deleteAction = menu.addAction(tr("删除"));
     QAction *selected = menu.exec(tree->viewport()->mapToGlobal(pos));
     if (selected == deleteAction) {
-        m_curveManager->removeCurve(curveId);
+        emit curveDeleteRequested(curveId);
     }
 }
 

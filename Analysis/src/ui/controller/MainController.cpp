@@ -13,6 +13,7 @@
 #include <memory>
 #include "ui/PeakAreaDialog.h"
 #include "ui/PlotWidget.h"
+#include "ui/interaction/InteractionController.h"
 #include <QMessageBox>
 
 MainController::MainController(CurveManager* curveManager, QObject *parent)
@@ -47,6 +48,32 @@ MainController::~MainController()
     delete m_dataImportWidget;
     delete m_textFileReader;
     delete m_peakAreaDialog;
+    delete m_interactionController;
+}
+
+void MainController::setPlotWidget(PlotWidget* plotWidget)
+{
+    m_plotWidget = plotWidget;
+
+    // 创建 InteractionController
+    if (m_plotWidget && !m_interactionController) {
+        m_interactionController = new InteractionController(m_plotWidget, this);
+
+        // 连接 InteractionController 的信号
+        connect(m_interactionController, &InteractionController::pointsSelected,
+                this, &MainController::onPointsSelected);
+
+        connect(m_interactionController, &InteractionController::interactionCancelled,
+                this, [this]() {
+            qDebug() << "MainController: 交互被取消";
+            m_currentPickingPurpose = PickingPurpose::None;
+            if (m_peakAreaDialog) {
+                m_peakAreaDialog->close();
+            }
+        });
+
+        qDebug() << "MainController: InteractionController 已创建并连接";
+    }
 }
 
 void MainController::onShowDataImport()
@@ -209,7 +236,15 @@ void MainController::onPeakAreaRequested()
 
     qDebug() << "  活动曲线:" << activeCurve->name() << ", ID:" << activeCurve->id();
 
-    // 2. 创建并显示对话框
+    // 2. 检查 InteractionController
+    if (!m_interactionController) {
+        qWarning() << "  错误: InteractionController 未初始化";
+        QMessageBox::critical(nullptr, tr("错误"),
+            tr("交互控制器未初始化"));
+        return;
+    }
+
+    // 3. 创建并显示对话框
     if (!m_peakAreaDialog) {
         qDebug() << "  创建 PeakAreaDialog";
         m_peakAreaDialog = new PeakAreaDialog();
@@ -218,7 +253,9 @@ void MainController::onPeakAreaRequested()
         connect(m_peakAreaDialog, &PeakAreaDialog::cancelled,
                 this, [this]() {
             qDebug() << "MainController: 用户取消了峰面积计算";
-            emit requestCancelPointPicking();
+            if (m_interactionController) {
+                m_interactionController->cancelInteraction();
+            }
             m_currentPickingPurpose = PickingPurpose::None;
         });
     }
@@ -227,35 +264,55 @@ void MainController::onPeakAreaRequested()
     m_peakAreaDialog->showPickingPrompt();
     m_peakAreaDialog->show();
 
-    // 3. 通知PlotWidget进入点拾取模式
+    // 4. 使用 InteractionController 启动点拾取模式
     m_currentPickingPurpose = PickingPurpose::PeakArea;
-    qDebug() << "  发送信号 requestStartPointPicking(2)";
-    emit requestStartPointPicking(2);  // 需要2个点
+    qDebug() << "  调用 InteractionController->startPointPicking(2)";
+    m_interactionController->startPointPicking(2, tr("请在曲线上选择两个点来计算峰面积"));
     qDebug() << "  峰面积计算流程初始化完成";
 }
 
-void MainController::onPointsPickedForPeakArea(const QString& curveId,
-                                                const QVector<QPointF>& points)
+// ========== 统一的点拾取完成处理 ==========
+void MainController::onPointsSelected(const QVector<QPointF>& points)
 {
-    qDebug() << "MainController::onPointsPickedForPeakArea - 收到信号";
+    qDebug() << "MainController::onPointsSelected - 收到点拾取完成信号";
     qDebug() << "  当前拾取目的:" << (int)m_currentPickingPurpose;
+    qDebug() << "  点数:" << points.size();
 
-    if (m_currentPickingPurpose != PickingPurpose::PeakArea) {
-        qDebug() << "  忽略: 当前拾取目的不是峰面积";
+    if (points.size() < 2) {
+        qWarning() << "  错误: 点数不足，需要至少2个点";
+        m_currentPickingPurpose = PickingPurpose::None;
         return;
     }
 
-    qDebug() << "  曲线ID:" << curveId << ", 点数:" << points.size();
-    for (int i = 0; i < points.size(); ++i) {
-        qDebug() << "    点" << i << ":" << points[i];
+    // 根据目的执行相应的操作
+    switch (m_currentPickingPurpose) {
+    case PickingPurpose::PeakArea:
+        handlePeakAreaCalculation(points);
+        break;
+
+    case PickingPurpose::Baseline:
+        handleBaselineDrawing(points);
+        break;
+
+    case PickingPurpose::None:
+    default:
+        qWarning() << "  警告: 没有指定拾取目的";
+        break;
     }
 
-    // 1. 获取曲线数据
-    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    // 重置状态
+    m_currentPickingPurpose = PickingPurpose::None;
+}
+
+void MainController::handlePeakAreaCalculation(const QVector<QPointF>& points)
+{
+    qDebug() << "MainController::handlePeakAreaCalculation";
+
+    // 1. 获取活动曲线
+    ThermalCurve* curve = m_curveManager->getActiveCurve();
     if (!curve) {
-        qWarning() << "  错误: 曲线不存在，ID=" << curveId;
+        qWarning() << "  错误: 没有活动曲线";
         QMessageBox::critical(nullptr, tr("错误"), tr("曲线不存在"));
-        m_currentPickingPurpose = PickingPurpose::None;
         return;
     }
 
@@ -325,9 +382,44 @@ void MainController::onPointsPickedForPeakArea(const QString& curveId,
     // 5. 记录日志
     qInfo() << QString("峰面积计算完成: %1 到 %2, 面积 = %3")
                 .arg(x1).arg(x2).arg(area);
+}
 
-    m_currentPickingPurpose = PickingPurpose::None;
-    qDebug() << "  峰面积计算流程完成";
+void MainController::handleBaselineDrawing(const QVector<QPointF>& points)
+{
+    qDebug() << "MainController::handleBaselineDrawing";
+
+    if (!m_plotWidget) {
+        qWarning() << "  错误: PlotWidget 指针为空，无法绘制基线";
+        return;
+    }
+
+    // 获取活动曲线ID
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (!activeCurve) {
+        qWarning() << "  错误: 没有活动曲线";
+        return;
+    }
+
+    QString curveId = activeCurve->id();
+    qDebug() << "  曲线ID:" << curveId << ", 点数:" << points.size();
+    for (int i = 0; i < points.size(); ++i) {
+        qDebug() << "    点" << i << ":" << points[i];
+    }
+
+    // 创建 BaselineCommand
+    qDebug() << "  创建 BaselineCommand";
+    auto command = std::make_unique<BaselineCommand>(
+        m_plotWidget, curveId, points[0], points[1]);
+
+    // 通过历史管理器执行命令（支持撤销/重做）
+    qDebug() << "  执行 BaselineCommand";
+    if (!m_historyManager->executeCommand(std::move(command))) {
+        qWarning() << "  错误: 基线绘制命令执行失败";
+        QMessageBox::critical(nullptr, tr("错误"),
+            tr("基线绘制失败"));
+    } else {
+        qInfo() << "  基线绘制成功";
+    }
 }
 
 // ========== 基线绘制功能 ==========
@@ -346,10 +438,18 @@ void MainController::onBaselineRequested()
 
     qDebug() << "  活动曲线:" << activeCurve->name() << ", ID:" << activeCurve->id();
 
-    // 2. 通知PlotWidget进入点拾取模式
+    // 2. 检查 InteractionController
+    if (!m_interactionController) {
+        qWarning() << "  错误: InteractionController 未初始化";
+        QMessageBox::critical(nullptr, tr("错误"),
+            tr("交互控制器未初始化"));
+        return;
+    }
+
+    // 3. 使用 InteractionController 启动点拾取模式
     m_currentPickingPurpose = PickingPurpose::Baseline;
-    qDebug() << "  发送信号 requestStartPointPicking(2)";
-    emit requestStartPointPicking(2);  // 需要2个点
+    qDebug() << "  调用 InteractionController->startPointPicking(2)";
+    m_interactionController->startPointPicking(2, tr("请在曲线上选择两个点来绘制基线"));
 
     // TODO: 可以创建一个类似的对话框提示用户
     QMessageBox::information(nullptr, tr("基线绘制"),
@@ -357,51 +457,18 @@ void MainController::onBaselineRequested()
     qDebug() << "  基线绘制流程初始化完成";
 }
 
-void MainController::onPointsPickedForBaseline(const QString& curveId,
-                                                const QVector<QPointF>& points)
+// ========== 响应UI的曲线删除请求 ==========
+void MainController::onCurveDeleteRequested(const QString& curveId)
 {
-    qDebug() << "MainController::onPointsPickedForBaseline - 收到信号";
-    qDebug() << "  当前拾取目的:" << (int)m_currentPickingPurpose;
+    qDebug() << "MainController::onCurveDeleteRequested - 曲线ID:" << curveId;
+    m_curveManager->removeCurve(curveId);
+}
 
-    if (m_currentPickingPurpose != PickingPurpose::Baseline) {
-        qDebug() << "  忽略: 当前拾取目的不是基线";
-        return;
+// ========== 响应UI的进度更新请求 ==========
+void MainController::onPointPickingProgress(int picked, int total)
+{
+    qDebug() << "MainController::onPointPickingProgress - 进度:" << picked << "/" << total;
+    if (m_peakAreaDialog) {
+        m_peakAreaDialog->updateProgress(picked, total);
     }
-
-    qDebug() << "  曲线ID:" << curveId << ", 点数:" << points.size();
-    for (int i = 0; i < points.size(); ++i) {
-        qDebug() << "    点" << i << ":" << points[i];
-    }
-
-    if (!m_plotWidget) {
-        qWarning() << "  错误: PlotWidget 指针为空，无法绘制基线";
-        m_currentPickingPurpose = PickingPurpose::None;
-        return;
-    }
-
-    if (points.size() < 2) {
-        qWarning() << "  错误: 点数不足，需要至少2个点";
-        QMessageBox::warning(nullptr, tr("错误"),
-            tr("需要至少两个点来绘制基线"));
-        m_currentPickingPurpose = PickingPurpose::None;
-        return;
-    }
-
-    // 创建 BaselineCommand
-    qDebug() << "  创建 BaselineCommand";
-    auto command = std::make_unique<BaselineCommand>(
-        m_plotWidget, curveId, points[0], points[1]);
-
-    // 通过历史管理器执行命令（支持撤销/重做）
-    qDebug() << "  执行 BaselineCommand";
-    if (!m_historyManager->executeCommand(std::move(command))) {
-        qWarning() << "  错误: 基线绘制命令执行失败";
-        QMessageBox::critical(nullptr, tr("错误"),
-            tr("基线绘制失败"));
-    } else {
-        qInfo() << "  基线绘制成功";
-    }
-
-    m_currentPickingPurpose = PickingPurpose::None;
-    qDebug() << "  基线绘制流程完成";
 }
