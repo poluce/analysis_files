@@ -52,11 +52,13 @@ Analysis.exe
 项目采用清晰的**四层分层架构**,遵循领域驱动设计(DDD)原则:
 
 ### 1. 表示层 (Presentation Layer) - `src/ui/`
-负责用户界面显示和交互,不包含业务逻辑:
-- **MainWindow**: 主窗口,管理整体布局(菜单、工具栏、停靠面板)
+- **MainWindow**: 主窗口,管理整体布局(菜单、工具栏、停靠面板),接收预构造的 ChartView 与 ProjectExplorerView,仅负责布局与信号转发
 - **PlotWidget**: 基于 Qt Charts 的图表组件,支持多曲线显示、缩放、交互选择
-- **ProjectExplorer**: 项目浏览器,树形结构展示曲线及其衍生关系
-- **CurveTreeModel**: 自定义树模型,支持父子关系和 checkbox 控制显示
+- **ProjectExplorer**: 项目浏览器,树形结构展示曲线及其衍生关系(模型由 ProjectTreeManager 提供)
+- **CurveViewController**: 负责协调 CurveManager、ProjectTreeManager、ChartView、ProjectExplorerView 的状态同步
+- **DataImportWidget**: 数据导入对话框,智能列识别和预览
+- **PeakAreaDialog**: 峰面积计算对话框
+- **MainController**: 主控制器(MVC中的C),协调UI和业务逻辑
 - **DataImportWidget**: 数据导入对话框,智能列识别和预览
 - **PeakAreaDialog**: 峰面积计算对话框
 - **MainController**: 主控制器(MVC中的C),协调UI和业务逻辑
@@ -254,6 +256,7 @@ params["dt"] = 0.1;            // 虚拟时间步长
 - **UI设计文档**: `设计文档/UI 设计文档 — 仿 AKTS-Thermokinetics .md`
 - **新设计文档**: `新设计文档/抽象算法行为类型.md`
 - **新设计文档**: `新设计文档/交互类.md`
+- **新设计文档**: `新设计文档/统一初始化.md`
 
 ## 代码质量要求
 

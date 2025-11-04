@@ -1,22 +1,33 @@
 #include "curve_view_controller.h"
 #include "application/curve/curve_manager.h"
+#include "application/project/project_tree_manager.h"
 #include "domain/model/thermal_curve.h"
+#include "ui/project_explorer_view.h"
 #include "ui/chart_view.h"
-#include "ui/curve_tree_model.h"
+#include <QAbstractItemModel>
+#include <QModelIndex>
 #include <QDebug>
+#include <QTreeView>
 
 CurveViewController::CurveViewController(
-    CurveManager* curveManager, ChartView* plotWidget, CurveTreeModel* treeModel, QObject* parent)
+    CurveManager* curveManager, ChartView* plotWidget, ProjectTreeManager* treeManager,
+    ProjectExplorerView* projectExplorer, QObject* parent)
     : QObject(parent)
     , m_curveManager(curveManager)
     , m_plotWidget(plotWidget)
-    , m_treeModel(treeModel)
+    , m_treeManager(treeManager)
+    , m_projectExplorer(projectExplorer)
 {
-    Q_ASSERT(m_curveManager);
-    Q_ASSERT(m_plotWidget);
-    Q_ASSERT(m_treeModel);
-
     qDebug() << "构造:  CurveViewController";
+
+    auto* model = m_treeManager->model();
+    m_projectExplorer->setModel(model);
+
+    QTreeView* tree = m_projectExplorer->treeView();
+    tree->expandAll();
+    connect(model, &QAbstractItemModel::rowsInserted, tree, [tree](const QModelIndex&, int, int) {
+        tree->expandAll();
+    });
 
     // 连接 CurveManager 的信号
     connect(m_curveManager, &CurveManager::curveAdded, this, &CurveViewController::onCurveAdded);
@@ -27,8 +38,8 @@ CurveViewController::CurveViewController(
     // 连接 ChartView 的信号
     connect(m_plotWidget, &ChartView::curveSelected, this, &CurveViewController::onCurveSelected);
 
-    // 连接 CurveTreeModel 的信号
-    connect(m_treeModel, &CurveTreeModel::curveCheckStateChanged, this, &CurveViewController::onCurveCheckStateChanged);
+    // 连接 ProjectTreeManager 的信号
+    connect(m_treeManager, &ProjectTreeManager::curveCheckStateChanged, this, &CurveViewController::onCurveCheckStateChanged);
 }
 
 // ========== 点拾取接口 ==========
@@ -36,11 +47,6 @@ CurveViewController::CurveViewController(
 void CurveViewController::requestPointPicking(int numPoints, PointPickingCallback callback)
 {
     qDebug() << "CurveViewController::requestPointPicking - 请求拾取" << numPoints << "个点";
-
-    if (!m_plotWidget) {
-        qWarning() << "CurveViewController::requestPointPicking - ChartView 为空";
-        return;
-    }
 
     // 委托给 ChartView
     m_plotWidget->startPointPicking(numPoints, callback);
@@ -50,9 +56,7 @@ void CurveViewController::cancelPointPicking()
 {
     qDebug() << "CurveViewController::cancelPointPicking - 取消点拾取";
 
-    if (m_plotWidget) {
-        m_plotWidget->cancelPointPicking();
-    }
+    m_plotWidget->cancelPointPicking();
 }
 
 // ========== 视图管理接口 ==========
@@ -61,9 +65,7 @@ void CurveViewController::setCurveVisible(const QString& curveId, bool visible)
 {
     qDebug() << "CurveViewController::setCurveVisible - 曲线ID:" << curveId << ", 可见性:" << visible;
 
-    if (m_plotWidget) {
-        m_plotWidget->setCurveVisible(curveId, visible);
-    }
+    m_plotWidget->setCurveVisible(curveId, visible);
 }
 
 void CurveViewController::highlightCurve(const QString& curveId)
@@ -79,9 +81,8 @@ void CurveViewController::updateAllCurves()
     qDebug() << "CurveViewController::updateAllCurves - 更新所有曲线";
 
     // 刷新树模型
-    if (m_treeModel) {
-        m_treeModel->refresh();
-    }
+    m_treeManager->refresh();
+    m_projectExplorer->treeView()->expandAll();
 
     // 刷新图表（如果需要）
     // m_plotWidget->update();
@@ -93,15 +94,17 @@ void CurveViewController::onCurveAdded(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveAdded - 曲线已添加:" << curveId;
 
-    // ChartView 和 CurveTreeModel 已经直接监听 CurveManager 的信号
+    // ChartView 和 ProjectTreeManager 已经直接监听 CurveManager 的信号
     // 这里可以添加额外的协调逻辑（如果需要）
 
+    if (m_projectExplorer && m_projectExplorer->treeView()) {
+        m_projectExplorer->treeView()->expandAll();
+    }
+
     // 例如：自动选中新添加的曲线
-    if (m_curveManager) {
-        ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-        if (activeCurve && activeCurve->id() == curveId) {
-            highlightCurve(curveId);
-        }
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (activeCurve && activeCurve->id() == curveId) {
+        highlightCurve(curveId);
     }
 }
 
@@ -109,7 +112,7 @@ void CurveViewController::onCurveRemoved(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveRemoved - 曲线已移除:" << curveId;
 
-    // ChartView 和 CurveTreeModel 已经直接监听 CurveManager 的信号
+    // ChartView 和 ProjectTreeManager 已经直接监听 CurveManager 的信号
     // 这里可以添加额外的协调逻辑（如果需要）
 }
 
@@ -138,12 +141,13 @@ void CurveViewController::onCurveSelected(const QString& curveId)
     qDebug() << "CurveViewController::onCurveSelected - 用户选择了曲线:" << curveId;
 
     // 将选择同步到 CurveManager
-    if (m_curveManager && !curveId.isEmpty()) {
-        m_curveManager->setActiveCurve(curveId);
+    if (curveId.isEmpty()) {
+        return;
     }
+    m_curveManager->setActiveCurve(curveId);
 }
 
-// ========== 响应 CurveTreeModel 信号 ==========
+// ========== 响应 ProjectTreeManager 信号 ==========
 
 void CurveViewController::onCurveCheckStateChanged(const QString& curveId, bool checked)
 {

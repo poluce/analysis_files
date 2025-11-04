@@ -22,13 +22,13 @@ SOURCES += \
     src/ui/main.cpp \
     src/ui/main_window.cpp \
     src/ui/chart_view.cpp \
-    src/ui/curve_tree_model.cpp \
     src/ui/peak_area_dialog.cpp \
     src/ui/controller/main_controller.cpp \
     src/ui/controller/curve_view_controller.cpp \
     src/ui/controller/interaction_controller.cpp \
     \
     # Application Layer
+    src/application/application_context.cpp \
     src/application/curve/curve_manager.cpp \
     src/application/algorithm/algorithm_manager.cpp \
     src/application/history/history_manager.cpp \
@@ -53,13 +53,13 @@ HEADERS += \
     src/ui/project_explorer_view.h \
     src/ui/main_window.h \
     src/ui/chart_view.h \
-    src/ui/curve_tree_model.h \
     src/ui/peak_area_dialog.h \
     src/ui/controller/main_controller.h \
     src/ui/controller/curve_view_controller.h \
     src/ui/controller/interaction_controller.h \
     \
     # Application Layer
+    src/application/application_context.h \
     src/application/curve/curve_manager.h \
     src/application/algorithm/algorithm_manager.h \
     src/application/history/history_manager.h \

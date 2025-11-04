@@ -1,9 +1,4 @@
-#include "application/algorithm/algorithm_manager.h"
-#include "infrastructure/algorithm/baseline_correction_algorithm.h"
-#include "infrastructure/algorithm/differentiation_algorithm.h"
-#include "infrastructure/algorithm/integration_algorithm.h"
-#include "infrastructure/algorithm/moving_average_filter_algorithm.h"
-#include "main_window.h"
+#include "application/application_context.h"
 
 #include <QApplication>
 #include <QLocale>
@@ -23,14 +18,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    // 注册算法
-    AlgorithmManager::instance()->registerAlgorithm(new DifferentiationAlgorithm());
-    AlgorithmManager::instance()->registerAlgorithm(new MovingAverageFilterAlgorithm());
-    AlgorithmManager::instance()->registerAlgorithm(new IntegrationAlgorithm());
-    AlgorithmManager::instance()->registerAlgorithm(new BaselineCorrectionAlgorithm());
-
-    MainWindow w;
-    w.show();
+    ApplicationContext context;
+    context.start();
 
     return a.exec();
 }

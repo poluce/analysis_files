@@ -1,4 +1,4 @@
-#ifndef PROJECTEXPLORERVIEW_H
+﻿#ifndef PROJECTEXPLORERVIEW_H
 #define PROJECTEXPLORERVIEW_H
 
 #include <QModelIndex>
@@ -16,7 +16,7 @@ public:
 
 signals:
     void fileDoubleClicked(const QModelIndex& index);
-    void deleteActionClicked(const QModelIndex& index);
+    void deleteActionClicked();
 
 private:
     QTreeView* m_treeView;

@@ -1,28 +1,28 @@
-#ifndef MAINWINDOW_H
+﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
 
-#include "project_explorer_view.h"
-
 // 前置声明
 class ChartView;
+class ProjectExplorerView;
 class QDockWidget;
-class QStandardItemModel;
-class QStandardItem;
+class QAction;
 class QToolBar;
-class CurveManager;
 class MainController;
 class CurveViewController;
-class ThermalCurve;
-class CurveTreeModel;
+class QPoint;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget* parent = nullptr);
+    MainWindow(ChartView* chartView, ProjectExplorerView* projectExplorer, QWidget* parent = nullptr);
     ~MainWindow();
+
+    void attachControllers(MainController* mainController, CurveViewController* curveViewController);
+
+    ChartView* chartView() const { return m_chartView; }
 
 signals:
     void curveDeleteRequested(const QString& curveId);
@@ -30,7 +30,6 @@ signals:
 private slots:
     void on_toolButtonOpen_clicked();
     void onProjectTreeContextMenuRequested(const QPoint& pos);
-    void onCurveAdded(const QString& curveId);
 
     // 算法按钮
     void onSimpleAlgorithmActionTriggered();
@@ -42,7 +41,6 @@ private:
     void initDockWidgets();
     void initCentral();
     void initStatusBar();
-    void initComponents();
 
     // UI设置助手函数
     void setupLeftDock();
@@ -51,22 +49,22 @@ private:
     QToolBar* createViewToolBar();
     QToolBar* createMathToolBar();
 
+    void setupViewConnections();
+
     // --- UI 成员 ---
-    ProjectExplorerView* m_projectExplorer;
-    CurveTreeModel* m_curveTreeModel;
-    ChartView* m_chartView;
-    QDockWidget* m_projectExplorerDock;
-    QDockWidget* m_propertiesDock;
+    ProjectExplorerView* m_projectExplorer { nullptr };
+    ChartView* m_chartView { nullptr };
+    QDockWidget* m_projectExplorerDock { nullptr };
+    QDockWidget* m_propertiesDock { nullptr };
 
     // --- 操作 ---
-    QAction* m_undoAction;
-    QAction* m_redoAction;
-    QAction* m_peakAreaAction;
-    QAction* m_baselineAction;
+    QAction* m_undoAction { nullptr };
+    QAction* m_redoAction { nullptr };
+    QAction* m_peakAreaAction { nullptr };
+    QAction* m_baselineAction { nullptr };
 
     // --- 服务与控制器 ---
-    CurveManager* m_curveManager;
-    MainController* m_mainController;
-    CurveViewController* m_curveViewController; // 新增：曲线视图控制器
+    MainController* m_mainController { nullptr };
+    CurveViewController* m_curveViewController { nullptr }; // 新增：曲线视图控制器
 };
 #endif // MAINWINDOW_H

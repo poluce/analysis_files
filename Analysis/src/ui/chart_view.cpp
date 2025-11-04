@@ -6,6 +6,7 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QPainter>
+#include <QtGlobal>
 #include <QVBoxLayout>
 #include <QtCharts/QChart>
 #include <QtCharts/QLegend>
@@ -23,6 +24,7 @@ ChartView::ChartView(CurveManager* curveManager, QWidget* parent)
     , m_selectedSeries(nullptr)
 {
     qDebug() << "构造:  ChartView";
+    Q_ASSERT(m_curveManager);
     m_chartView = new QChartView(this);
     QChart* chart = new QChart();
     chart->setTitle(tr("热分析曲线"));
@@ -325,13 +327,11 @@ bool ChartView::hitTestIncludePenWidth() const { return m_hitTestIncludePen; }
 // 连接来自曲线管理的信后
 void ChartView::setupConnections()
 {
-    if (m_curveManager) {
-        // 监听 CurveManager 的信号（通知路径：Service → UI）
-        connect(m_curveManager, &CurveManager::curveAdded, this, &ChartView::onCurveAdded);
-        connect(m_curveManager, &CurveManager::curveDataChanged, this, &ChartView::onCurveDataChanged);
-        connect(m_curveManager, &CurveManager::curvesCleared, this, &ChartView::onCurvesCleared);
-        connect(m_curveManager, &CurveManager::curveRemoved, this, &ChartView::onCurveRemoved);
-    }
+    // 监听 CurveManager 的信号（通知路径：Service → UI）
+    connect(m_curveManager, &CurveManager::curveAdded, this, &ChartView::onCurveAdded);
+    connect(m_curveManager, &CurveManager::curveDataChanged, this, &ChartView::onCurveDataChanged);
+    connect(m_curveManager, &CurveManager::curvesCleared, this, &ChartView::onCurvesCleared);
+    connect(m_curveManager, &CurveManager::curveRemoved, this, &ChartView::onCurveRemoved);
 }
 
 void ChartView::setCurveVisible(const QString& curveId, bool visible)

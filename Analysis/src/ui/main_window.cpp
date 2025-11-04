@@ -1,10 +1,8 @@
-#include "main_window.h"
-#include "application/curve/curve_manager.h"
+﻿#include "main_window.h"
 #include "application/history/history_manager.h"
 #include "chart_view.h"
-#include "curve_tree_model.h"
-#include "domain/model/thermal_curve.h"
 #include "peak_area_dialog.h"
+#include "project_explorer_view.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/controller/main_controller.h"
 
@@ -12,13 +10,12 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QDockWidget>
-#include <QFileInfo>
 #include <QFormLayout>
-#include <QIcon>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QModelIndex>
 #include <QStatusBar>
 #include <QStyle>
 #include <QTabWidget>
@@ -26,20 +23,21 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-MainWindow::MainWindow(QWidget* parent)
+MainWindow::MainWindow(ChartView* chartView, ProjectExplorerView* projectExplorer, QWidget* parent)
     : QMainWindow(parent)
+    , m_projectExplorer(projectExplorer)
+    , m_chartView(chartView)
 {
     qDebug() << "构造:    MainWindow";
+
     resize(1600, 900);
     setWindowTitle(tr("热分析软件"));
-    // 先创建 CurveManager（需要传递给 ChartView）
-    m_curveManager = new CurveManager(this);
 
     initRibbon();
     initCentral();
     initDockWidgets();
     initStatusBar();
-    initComponents();
+    setupViewConnections();
     setUnifiedTitleAndToolBarOnMac(true);
 }
 
@@ -47,50 +45,23 @@ MainWindow::~MainWindow() = default;
 
 void MainWindow::on_toolButtonOpen_clicked() { m_mainController->onShowDataImport(); }
 
-void MainWindow::onCurveAdded(const QString& curveId)
-{
-    // 当新曲线添加时，自动展开树形结构以显示它
-    if (!m_projectExplorer || !m_projectExplorer->treeView() || !m_curveTreeModel) {
-        return;
-    }
-
-    QTreeView* tree = m_projectExplorer->treeView();
-    ThermalCurve* curve = m_curveManager->getCurve(curveId);
-    if (!curve) {
-        return;
-    }
-
-    // 获取项目名称
-    QString projectName = curve->projectName();
-    if (projectName.isEmpty()) {
-        return;
-    }
-
-    // 展开所有节点以显示新添加的曲线
-    tree->expandAll();
-}
-
 void MainWindow::onProjectTreeContextMenuRequested(const QPoint& pos)
 {
-    if (!m_projectExplorer || !m_projectExplorer->treeView()) {
-        return;
-    }
-
     QTreeView* tree = m_projectExplorer->treeView();
+
     const QModelIndex index = tree->indexAt(pos);
     if (!index.isValid()) {
         return;
     }
 
-    QString curveId = m_curveTreeModel->getCurveId(index);
+    const QString curveId = index.data(Qt::UserRole).toString();
     if (curveId.isEmpty()) {
         return;
     }
 
     QMenu menu(this);
     QAction* deleteAction = menu.addAction(tr("删除"));
-    QAction* selected = menu.exec(tree->viewport()->mapToGlobal(pos));
-    if (selected == deleteAction) {
+    if (menu.exec(tree->viewport()->mapToGlobal(pos)) == deleteAction) {
         emit curveDeleteRequested(curveId);
     }
 }
@@ -126,7 +97,7 @@ void MainWindow::initRibbon()
 void MainWindow::initCentral()
 {
     qDebug() << "初始化中央部件";
-    m_chartView = new ChartView(m_curveManager, this);
+    m_chartView->setParent(this);
     setCentralWidget(m_chartView);
 }
 
@@ -148,67 +119,58 @@ void MainWindow::initStatusBar()
     statusBar()->addPermanentWidget(zoomLabel);
 }
 
-void MainWindow::initComponents()
+void MainWindow::setupViewConnections()
 {
+    QTreeView* tree = m_projectExplorer->treeView();
 
-    // 创建 CurveViewController（负责视图协调）
-    m_curveViewController = new CurveViewController(m_curveManager, m_chartView, m_curveTreeModel, this);
+    tree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(tree, &QTreeView::customContextMenuRequested, this, &MainWindow::onProjectTreeContextMenuRequested);
 
-    // 创建 MainController（负责命令协调）
-    m_mainController = new MainController(m_curveManager, this);
+    connect(m_projectExplorer, &ProjectExplorerView::deleteActionClicked, this, [this, tree]() {
+        const QString curveId = tree->currentIndex().data(Qt::UserRole).toString();
+        if (curveId.isEmpty()) {
+            return;
+        }
+        emit curveDeleteRequested(curveId);
+    });
+}
 
-    // 设置 ChartView（用于基线绘制等功能）
+void MainWindow::attachControllers(MainController* mainController, CurveViewController* curveViewController)
+{
+    m_mainController = mainController;
+    m_curveViewController = curveViewController;
+
     m_mainController->setPlotWidget(m_chartView);
 
-    // ========== 信号连接（通知路径：Service → UI） ==========
-    // CurveTreeModel 和 ChartView 会自动通过 CurveViewController 响应 CurveManager 的信号
-
-    // 连接curveAdded信号以自动展开树形结构
-    connect(m_curveManager, &CurveManager::curveAdded, this, &MainWindow::onCurveAdded);
-
-    // ========== UI → Controller 信号连接 ==========
-    // 曲线删除请求
+    // UI → Controller
     connect(this, &MainWindow::curveDeleteRequested, m_mainController, &MainController::onCurveDeleteRequested);
 
-    // ========== UI 内部信号 ==========
-
-    if (m_projectExplorer && m_projectExplorer->treeView()) {
-        connect(
-            m_projectExplorer->treeView(), &QTreeView::customContextMenuRequested, this,
-            &MainWindow::onProjectTreeContextMenuRequested);
-    }
-
-    // ========== 撤销/重做信号连接 ==========
-    // 连接撤销和重做按钮到控制器
     connect(m_undoAction, &QAction::triggered, m_mainController, &MainController::onUndo);
     connect(m_redoAction, &QAction::triggered, m_mainController, &MainController::onRedo);
 
-    // 监听历史状态变化，更新按钮的启用/禁用状态
-    connect(&HistoryManager::instance(), &HistoryManager::historyChanged, this, [this]() {
-        HistoryManager& historyManager = HistoryManager::instance();
-        m_undoAction->setEnabled(historyManager.canUndo());
-        m_redoAction->setEnabled(historyManager.canRedo());
-        qDebug() << "历史状态更新: 可撤销=" << historyManager.canUndo() << ", 可重做=" << historyManager.canRedo();
-    });
-
-    // ========== 峰面积和基线功能信号连接 ==========
-    qDebug() << "MainWindow::initComponents - 连接峰面积和基线功能信号";
-
-    // 按钮点击 → Controller
     connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
         qDebug() << "MainWindow: 峰面积按钮被点击";
         m_mainController->onPeakAreaRequested();
     });
+
     connect(m_baselineAction, &QAction::triggered, this, [this]() {
         qDebug() << "MainWindow: 基线按钮被点击";
         m_mainController->onBaselineRequested();
     });
 
-    // 点拾取现在由 InteractionController 管理，不需要在此处连接
-    // ChartView → MainController (进度更新)
     connect(m_chartView, &ChartView::pointPickingProgress, m_mainController, &MainController::onPointPickingProgress);
 
-    qDebug() << "MainWindow::initComponents - 信号连接完成";
+    auto updateHistoryButtons = [this]() {
+        HistoryManager& historyManager = HistoryManager::instance();
+        m_undoAction->setEnabled(historyManager.canUndo());
+        m_redoAction->setEnabled(historyManager.canRedo());
+        qDebug() << "历史状态更新: 可撤销=" << historyManager.canUndo() << ", 可重做=" << historyManager.canRedo();
+    };
+
+    connect(&HistoryManager::instance(), &HistoryManager::historyChanged, this, updateHistoryButtons);
+    updateHistoryButtons();
+
+    qDebug() << "MainWindow::attachControllers - 信号连接完成";
 }
 
 // 创建文件工具栏
@@ -283,11 +245,6 @@ QToolBar* MainWindow::createMathToolBar()
 void MainWindow::setupLeftDock()
 {
     m_projectExplorerDock = new QDockWidget(tr("项目浏览器"), this);
-    m_projectExplorer = new ProjectExplorerView(this);
-
-    m_curveTreeModel = new CurveTreeModel(m_curveManager, this);
-    m_projectExplorer->setModel(m_curveTreeModel);
-
     m_projectExplorerDock->setWidget(m_projectExplorer);
     addDockWidget(Qt::LeftDockWidgetArea, m_projectExplorerDock);
 }
