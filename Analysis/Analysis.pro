@@ -17,66 +17,70 @@ win32:g++:  QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
 
 SOURCES += \
     # UI Layer
-    src/ui/DataImportWidget.cpp \
-    src/ui/ProjectExplorerView.cpp \
+    src/ui/data_import_widget.cpp \
+    src/ui/project_explorer_view.cpp \
     src/ui/main.cpp \
-    src/ui/mainwindow.cpp \
-    src/ui/ChartView.cpp \
-    src/ui/CurveTreeModel.cpp \
-    src/ui/PeakAreaDialog.cpp \
-    src/ui/controller/MainController.cpp \
-    src/ui/controller/CurveViewController.cpp \
-    src/ui/controller/InteractionController.cpp \
+    src/ui/main_window.cpp \
+    src/ui/chart_view.cpp \
+    src/ui/curve_tree_model.cpp \
+    src/ui/peak_area_dialog.cpp \
+    src/ui/controller/main_controller.cpp \
+    src/ui/controller/curve_view_controller.cpp \
+    src/ui/controller/interaction_controller.cpp \
     \
     # Application Layer
-    src/application/curve/CurveManager.cpp \
-    src/application/algorithm/AlgorithmManager.cpp \
-    src/application/history/HistoryManager.cpp \
-    src/application/history/AlgorithmCommand.cpp \
-    src/application/history/BaselineCommand.cpp \
+    src/application/curve/curve_manager.cpp \
+    src/application/algorithm/algorithm_manager.cpp \
+    src/application/history/history_manager.cpp \
+    src/application/history/algorithm_command.cpp \
+    src/application/history/baseline_command.cpp \
+    src/application/project/project_tree_manager.cpp \
     \
     # Domain Layer
-    src/domain/model/ThermalCurve.cpp \
+    src/domain/model/thermal_curve.cpp \
     \
     # Infrastructure Layer
-    src/infrastructure/io/TextFileReader.cpp \
-    src/infrastructure/algorithm/DifferentiationAlgorithm.cpp \
-    src/infrastructure/algorithm/MovingAverageFilterAlgorithm.cpp \
-    src/infrastructure/algorithm/IntegrationAlgorithm.cpp \
-    src/infrastructure/algorithm/BaselineCorrectionAlgorithm.cpp
+    src/infrastructure/io/text_file_reader.cpp \
+    src/infrastructure/algorithm/differentiation_algorithm.cpp \
+    src/infrastructure/algorithm/moving_average_filter_algorithm.cpp \
+    src/infrastructure/algorithm/integration_algorithm.cpp \
+    src/infrastructure/algorithm/baseline_correction_algorithm.cpp
+
 
 HEADERS += \
     # UI Layer
-    src/ui/DataImportWidget.h \
-    src/ui/ProjectExplorerView.h \
-    src/ui/mainwindow.h \
-    src/ui/ChartView.h \
-    src/ui/CurveTreeModel.h \
-    src/ui/PeakAreaDialog.h \
-    src/ui/controller/MainController.h \
-    src/ui/controller/CurveViewController.h \
-    src/ui/controller/InteractionController.h \
+    src/ui/data_import_widget.h \
+    src/ui/project_explorer_view.h \
+    src/ui/main_window.h \
+    src/ui/chart_view.h \
+    src/ui/curve_tree_model.h \
+    src/ui/peak_area_dialog.h \
+    src/ui/controller/main_controller.h \
+    src/ui/controller/curve_view_controller.h \
+    src/ui/controller/interaction_controller.h \
     \
     # Application Layer
-    src/application/curve/CurveManager.h \
-    src/application/algorithm/AlgorithmManager.h \
-    src/application/history/HistoryManager.h \
-    src/application/history/AlgorithmCommand.h \
-    src/application/history/BaselineCommand.h \
+    src/application/curve/curve_manager.h \
+    src/application/algorithm/algorithm_manager.h \
+    src/application/history/history_manager.h \
+    src/application/history/algorithm_command.h \
+    src/application/history/baseline_command.h \
+    src/application/project/project_tree_manager.h \
     \
     # Domain Layer
-    src/domain/model/ThermalDataPoint.h \
-    src/domain/model/ThermalCurve.h \
-    src/domain/algorithm/IThermalAlgorithm.h \
-    src/domain/algorithm/ICommand.h \
+    src/domain/model/thermal_data_point.h \
+    src/domain/model/thermal_curve.h \
+    src/domain/algorithm/i_thermal_algorithm.h \
+    src/domain/algorithm/i_command.h \
     \
     # Infrastructure Layer
-    src/infrastructure/io/IFileReader.h \
-    src/infrastructure/io/TextFileReader.h \
-    src/infrastructure/algorithm/DifferentiationAlgorithm.h \
-    src/infrastructure/algorithm/MovingAverageFilterAlgorithm.h \
-    src/infrastructure/algorithm/IntegrationAlgorithm.h \
-    src/infrastructure/algorithm/BaselineCorrectionAlgorithm.h
+    src/infrastructure/io/i_file_reader.h \
+    src/infrastructure/io/text_file_reader.h \
+    src/infrastructure/algorithm/differentiation_algorithm.h \
+    src/infrastructure/algorithm/moving_average_filter_algorithm.h \
+    src/infrastructure/algorithm/integration_algorithm.h \
+    src/infrastructure/algorithm/baseline_correction_algorithm.h
+
 
 # FORMS section removed as UI is now code-based
 

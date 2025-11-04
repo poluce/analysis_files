@@ -1,9 +1,9 @@
-#include "application/algorithm/AlgorithmManager.h"
-#include "infrastructure/algorithm/BaselineCorrectionAlgorithm.h"
-#include "infrastructure/algorithm/DifferentiationAlgorithm.h"
-#include "infrastructure/algorithm/IntegrationAlgorithm.h"
-#include "infrastructure/algorithm/MovingAverageFilterAlgorithm.h"
-#include "mainwindow.h"
+#include "application/algorithm/algorithm_manager.h"
+#include "infrastructure/algorithm/baseline_correction_algorithm.h"
+#include "infrastructure/algorithm/differentiation_algorithm.h"
+#include "infrastructure/algorithm/integration_algorithm.h"
+#include "infrastructure/algorithm/moving_average_filter_algorithm.h"
+#include "main_window.h"
 
 #include <QApplication>
 #include <QLocale>
