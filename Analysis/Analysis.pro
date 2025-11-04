@@ -18,19 +18,19 @@ win32:g++:  QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
 SOURCES += \
     # UI Layer
     src/ui/DataImportWidget.cpp \
+    src/ui/ProjectExplorerView.cpp \
     src/ui/main.cpp \
     src/ui/mainwindow.cpp \
-    src/ui/PlotWidget.cpp \
-    src/ui/ProjectExplorer.cpp \
+    src/ui/ChartView.cpp \
     src/ui/CurveTreeModel.cpp \
     src/ui/PeakAreaDialog.cpp \
     src/ui/controller/MainController.cpp \
     src/ui/controller/CurveViewController.cpp \
-    src/ui/interaction/InteractionController.cpp \
+    src/ui/controller/InteractionController.cpp \
     \
     # Application Layer
     src/application/curve/CurveManager.cpp \
-    src/application/algorithm/AlgorithmService.cpp \
+    src/application/algorithm/AlgorithmManager.cpp \
     src/application/history/HistoryManager.cpp \
     src/application/history/AlgorithmCommand.cpp \
     src/application/history/BaselineCommand.cpp \
@@ -48,18 +48,18 @@ SOURCES += \
 HEADERS += \
     # UI Layer
     src/ui/DataImportWidget.h \
+    src/ui/ProjectExplorerView.h \
     src/ui/mainwindow.h \
-    src/ui/PlotWidget.h \
-    src/ui/ProjectExplorer.h \
+    src/ui/ChartView.h \
     src/ui/CurveTreeModel.h \
     src/ui/PeakAreaDialog.h \
     src/ui/controller/MainController.h \
     src/ui/controller/CurveViewController.h \
-    src/ui/interaction/InteractionController.h \
+    src/ui/controller/InteractionController.h \
     \
     # Application Layer
     src/application/curve/CurveManager.h \
-    src/application/algorithm/AlgorithmService.h \
+    src/application/algorithm/AlgorithmManager.h \
     src/application/history/HistoryManager.h \
     src/application/history/AlgorithmCommand.h \
     src/application/history/BaselineCommand.h \

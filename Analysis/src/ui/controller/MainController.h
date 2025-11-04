@@ -10,10 +10,10 @@ class CurveManager;
 class DataImportWidget;
 class TextFileReader;
 class ThermalCurve;
-class AlgorithmService; // 添加
+class AlgorithmManager; // 添加
 class HistoryManager; // 添加
 class PeakAreaDialog; // 添加
-class PlotWidget; // 添加
+class ChartView; // 添加
 class InteractionController; // 添加
 
 /**
@@ -27,8 +27,8 @@ public:
     explicit MainController(CurveManager* curveManager, QObject *parent = nullptr);
     ~MainController();
 
-    // 设置 PlotWidget（用于基线绘制和交互控制）
-    void setPlotWidget(PlotWidget* plotWidget);
+    // 设置 ChartView（用于基线绘制和交互控制）
+    void setPlotWidget(ChartView* plotWidget);
 
     // 获取 InteractionController（用于外部访问，如果需要）
     InteractionController* interactionController() const { return m_interactionController; }
@@ -94,10 +94,10 @@ private:
     CurveManager* m_curveManager;         // 非拥有指针
     DataImportWidget* m_dataImportWidget; // 拥有指针
     TextFileReader* m_textFileReader;     // 拥有指针
-    AlgorithmService* m_algorithmService; // 添加
+    AlgorithmManager* m_algorithmService; // 添加
     HistoryManager* m_historyManager;     // 添加，非拥有指针（单例）
     PeakAreaDialog* m_peakAreaDialog = nullptr; // 添加，拥有指针
-    PlotWidget* m_plotWidget = nullptr;   // 添加，非拥有指针
+    ChartView* m_plotWidget = nullptr;   // 添加，非拥有指针
     InteractionController* m_interactionController = nullptr; // 添加，拥有指针
 
     // 标记当前的点拾取目的

@@ -1,28 +1,28 @@
 #include "ui/controller/MainController.h"
 #include "application/curve/CurveManager.h"
 #include "domain/model/ThermalCurve.h"
-#include "ui/DataImportWidget.h"
 #include "infrastructure/io/TextFileReader.h"
+#include "ui/DataImportWidget.h"
 #include <QDebug>
 
-#include "application/algorithm/AlgorithmService.h"
-#include "domain/algorithm/IThermalAlgorithm.h"
-#include "application/history/HistoryManager.h"
+#include "application/algorithm/AlgorithmManager.h"
 #include "application/history/AlgorithmCommand.h"
 #include "application/history/BaselineCommand.h"
-#include <memory>
+#include "application/history/HistoryManager.h"
+#include "domain/algorithm/IThermalAlgorithm.h"
 #include "ui/PeakAreaDialog.h"
-#include "ui/PlotWidget.h"
-#include "ui/interaction/InteractionController.h"
+#include "ui/ChartView.h"
+#include "ui/controller/InteractionController.h"
 #include <QMessageBox>
+#include <memory>
 
-MainController::MainController(CurveManager* curveManager, QObject *parent)
-    : QObject(parent),
-      m_curveManager(curveManager),
-      m_dataImportWidget(new DataImportWidget()),
-      m_textFileReader(new TextFileReader()),
-      m_algorithmService(AlgorithmService::instance()),
-      m_historyManager(&HistoryManager::instance())
+MainController::MainController(CurveManager* curveManager, QObject* parent)
+    : QObject(parent)
+    , m_curveManager(curveManager)
+    , m_dataImportWidget(new DataImportWidget())
+    , m_textFileReader(new TextFileReader())
+    , m_algorithmService(AlgorithmManager::instance())
+    , m_historyManager(&HistoryManager::instance())
 {
     Q_ASSERT(m_curveManager);
     Q_ASSERT(m_algorithmService);
@@ -33,14 +33,17 @@ MainController::MainController(CurveManager* curveManager, QObject *parent)
 
     // ========== 信号连接设置 ==========
     // 命令路径：DataImportWidget → MainController
-    connect(m_dataImportWidget, &DataImportWidget::previewRequested,
-            this, &MainController::onPreviewRequested);
-    connect(m_dataImportWidget, &DataImportWidget::importRequested,
-            this, &MainController::onImportTriggered);
+    connect(
+        m_dataImportWidget, &DataImportWidget::previewRequested, this,
+        &MainController::onPreviewRequested);
+    connect(
+        m_dataImportWidget, &DataImportWidget::importRequested, this,
+        &MainController::onImportTriggered);
 
-    // 通知路径：AlgorithmService → MainController（可选的转发）
-    connect(m_algorithmService, &AlgorithmService::algorithmFinished,
-            this, &MainController::onAlgorithmFinished);
+    // 通知路径：AlgorithmManager → MainController（可选的转发）
+    connect(
+        m_algorithmService, &AlgorithmManager::algorithmFinished, this,
+        &MainController::onAlgorithmFinished);
 }
 
 MainController::~MainController()
@@ -51,7 +54,7 @@ MainController::~MainController()
     delete m_interactionController;
 }
 
-void MainController::setPlotWidget(PlotWidget* plotWidget)
+void MainController::setPlotWidget(ChartView* plotWidget)
 {
     m_plotWidget = plotWidget;
 
@@ -60,26 +63,24 @@ void MainController::setPlotWidget(PlotWidget* plotWidget)
         m_interactionController = new InteractionController(m_plotWidget, this);
 
         // 连接 InteractionController 的信号
-        connect(m_interactionController, &InteractionController::pointsSelected,
-                this, &MainController::onPointsSelected);
+        connect(
+            m_interactionController, &InteractionController::pointsSelected, this,
+            &MainController::onPointsSelected);
 
-        connect(m_interactionController, &InteractionController::interactionCancelled,
-                this, [this]() {
-            qDebug() << "MainController: 交互被取消";
-            m_currentPickingPurpose = PickingPurpose::None;
-            if (m_peakAreaDialog) {
-                m_peakAreaDialog->close();
-            }
-        });
+        connect(
+            m_interactionController, &InteractionController::interactionCancelled, this, [this]() {
+                qDebug() << "MainController: 交互被取消";
+                m_currentPickingPurpose = PickingPurpose::None;
+                if (m_peakAreaDialog) {
+                    m_peakAreaDialog->close();
+                }
+            });
 
         qDebug() << "MainController: InteractionController 已创建并连接";
     }
 }
 
-void MainController::onShowDataImport()
-{
-    m_dataImportWidget->show();
-}
+void MainController::onShowDataImport() { m_dataImportWidget->show(); }
 
 void MainController::onPreviewRequested(const QString& filePath)
 {
@@ -91,7 +92,7 @@ void MainController::onPreviewRequested(const QString& filePath)
 void MainController::onImportTriggered()
 {
     qDebug() << "控制器：收到导入请求。";
-    
+
     // 1. 从 m_dataImportWidget 获取所有用户配置
     QVariantMap config = m_dataImportWidget->getImportConfig();
     QString filePath = config.value("filePath").toString();
@@ -144,9 +145,9 @@ void MainController::onAlgorithmRequested(const QString& algorithmName)
         return;
     }
 
-    // 3. 创建算法命令
-    auto command = std::make_unique<AlgorithmCommand>(
-        algorithm, activeCurve, m_curveManager, algorithmName);
+    // 3. 创建新建曲线的算法命令
+    auto command
+        = std::make_unique<AlgorithmCommand>(algorithm, activeCurve, m_curveManager, algorithmName);
 
     // 4. 通过历史管理器执行命令（支持撤销/重做）
     if (!m_historyManager->executeCommand(std::move(command))) {
@@ -155,7 +156,8 @@ void MainController::onAlgorithmRequested(const QString& algorithmName)
     // 注意：新曲线的添加和UI更新由 CurveManager::curveAdded 信号自动触发
 }
 
-void MainController::onAlgorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params)
+void MainController::onAlgorithmRequestedWithParams(
+    const QString& algorithmName, const QVariantMap& params)
 {
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
@@ -175,8 +177,8 @@ void MainController::onAlgorithmRequestedWithParams(const QString& algorithmName
     }
 
     // 创建算法命令
-    auto command = std::make_unique<AlgorithmCommand>(
-        algorithm, activeCurve, m_curveManager, algorithmName);
+    auto command
+        = std::make_unique<AlgorithmCommand>(algorithm, activeCurve, m_curveManager, algorithmName);
 
     // 通过历史管理器执行命令（支持撤销/重做）
     if (!m_historyManager->executeCommand(std::move(command))) {
@@ -185,10 +187,7 @@ void MainController::onAlgorithmRequestedWithParams(const QString& algorithmName
     // 注意：新曲线的添加和UI更新由 CurveManager::curveAdded 信号自动触发
 }
 
-void MainController::onAlgorithmFinished(const QString& curveId)
-{
-    emit curveDataChanged(curveId);
-}
+void MainController::onAlgorithmFinished(const QString& curveId) { emit curveDataChanged(curveId); }
 
 void MainController::onUndo()
 {
@@ -229,8 +228,7 @@ void MainController::onPeakAreaRequested()
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
         qWarning() << "  错误: 没有活动曲线";
-        QMessageBox::warning(nullptr, tr("错误"),
-            tr("请先选择一条曲线"));
+        QMessageBox::warning(nullptr, tr("错误"), tr("请先选择一条曲线"));
         return;
     }
 
@@ -239,8 +237,7 @@ void MainController::onPeakAreaRequested()
     // 2. 检查 InteractionController
     if (!m_interactionController) {
         qWarning() << "  错误: InteractionController 未初始化";
-        QMessageBox::critical(nullptr, tr("错误"),
-            tr("交互控制器未初始化"));
+        QMessageBox::critical(nullptr, tr("错误"), tr("交互控制器未初始化"));
         return;
     }
 
@@ -250,8 +247,7 @@ void MainController::onPeakAreaRequested()
         m_peakAreaDialog = new PeakAreaDialog();
 
         // 连接取消信号
-        connect(m_peakAreaDialog, &PeakAreaDialog::cancelled,
-                this, [this]() {
+        connect(m_peakAreaDialog, &PeakAreaDialog::cancelled, this, [this]() {
             qDebug() << "MainController: 用户取消了峰面积计算";
             if (m_interactionController) {
                 m_interactionController->cancelInteraction();
@@ -339,13 +335,15 @@ void MainController::handlePeakAreaCalculation(const QVector<QPointF>& points)
         double xb = data[i + 1].temperature;
 
         // 只计算在选定范围内的部分
-        if (xb < x1 || xa > x2) continue;
+        if (xb < x1 || xa > x2)
+            continue;
 
         // 处理边界情况：线段部分在范围内
         double xStart = (xa < x1) ? x1 : xa;
         double xEnd = (xb > x2) ? x2 : xb;
 
-        if (xStart >= xEnd) continue;
+        if (xStart >= xEnd)
+            continue;
 
         // 线性插值获取边界点的Y值
         double ya = data[i].value;
@@ -380,8 +378,7 @@ void MainController::handlePeakAreaCalculation(const QVector<QPointF>& points)
     }
 
     // 5. 记录日志
-    qInfo() << QString("峰面积计算完成: %1 到 %2, 面积 = %3")
-                .arg(x1).arg(x2).arg(area);
+    qInfo() << QString("峰面积计算完成: %1 到 %2, 面积 = %3").arg(x1).arg(x2).arg(area);
 }
 
 void MainController::handleBaselineDrawing(const QVector<QPointF>& points)
@@ -389,7 +386,7 @@ void MainController::handleBaselineDrawing(const QVector<QPointF>& points)
     qDebug() << "MainController::handleBaselineDrawing";
 
     if (!m_plotWidget) {
-        qWarning() << "  错误: PlotWidget 指针为空，无法绘制基线";
+        qWarning() << "  错误: ChartView 指针为空，无法绘制基线";
         return;
     }
 
@@ -408,15 +405,13 @@ void MainController::handleBaselineDrawing(const QVector<QPointF>& points)
 
     // 创建 BaselineCommand
     qDebug() << "  创建 BaselineCommand";
-    auto command = std::make_unique<BaselineCommand>(
-        m_plotWidget, curveId, points[0], points[1]);
+    auto command = std::make_unique<BaselineCommand>(m_plotWidget, curveId, points[0], points[1]);
 
     // 通过历史管理器执行命令（支持撤销/重做）
     qDebug() << "  执行 BaselineCommand";
     if (!m_historyManager->executeCommand(std::move(command))) {
         qWarning() << "  错误: 基线绘制命令执行失败";
-        QMessageBox::critical(nullptr, tr("错误"),
-            tr("基线绘制失败"));
+        QMessageBox::critical(nullptr, tr("错误"), tr("基线绘制失败"));
     } else {
         qInfo() << "  基线绘制成功";
     }
@@ -431,8 +426,7 @@ void MainController::onBaselineRequested()
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
         qWarning() << "  错误: 没有活动曲线";
-        QMessageBox::warning(nullptr, tr("错误"),
-            tr("请先选择一条曲线"));
+        QMessageBox::warning(nullptr, tr("错误"), tr("请先选择一条曲线"));
         return;
     }
 
@@ -441,8 +435,7 @@ void MainController::onBaselineRequested()
     // 2. 检查 InteractionController
     if (!m_interactionController) {
         qWarning() << "  错误: InteractionController 未初始化";
-        QMessageBox::critical(nullptr, tr("错误"),
-            tr("交互控制器未初始化"));
+        QMessageBox::critical(nullptr, tr("错误"), tr("交互控制器未初始化"));
         return;
     }
 
@@ -452,8 +445,7 @@ void MainController::onBaselineRequested()
     m_interactionController->startPointPicking(2, tr("请在曲线上选择两个点来绘制基线"));
 
     // TODO: 可以创建一个类似的对话框提示用户
-    QMessageBox::information(nullptr, tr("基线绘制"),
-        tr("请在曲线上选择两个点来绘制基线"));
+    QMessageBox::information(nullptr, tr("基线绘制"), tr("请在曲线上选择两个点来绘制基线"));
     qDebug() << "  基线绘制流程初始化完成";
 }
 

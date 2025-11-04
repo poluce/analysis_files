@@ -3,10 +3,10 @@
 
 #include <QMainWindow>
 
-#include "ProjectExplorer.h"
+#include "ProjectExplorerView.h"
 
 // 前置声明
-class PlotWidget;
+class ChartView;
 class QDockWidget;
 class QStandardItemModel;
 class QStandardItem;
@@ -53,9 +53,9 @@ private:
     QToolBar* createMathToolBar();
 
     // --- UI 成员 ---
-    ProjectExplorer* m_projectExplorer;
+    ProjectExplorerView* m_projectExplorer;
     CurveTreeModel* m_curveTreeModel;
-    PlotWidget* m_chartView;
+    ChartView* m_chartView;
     QDockWidget* m_projectExplorerDock;
     QDockWidget* m_propertiesDock;
 

@@ -1,12 +1,12 @@
 #include "CurveViewController.h"
 #include "application/curve/CurveManager.h"
-#include "ui/PlotWidget.h"
+#include "ui/ChartView.h"
 #include "ui/CurveTreeModel.h"
 #include "domain/model/ThermalCurve.h"
 #include <QDebug>
 
 CurveViewController::CurveViewController(CurveManager* curveManager,
-                                         PlotWidget* plotWidget,
+                                         ChartView* plotWidget,
                                          CurveTreeModel* treeModel,
                                          QObject* parent)
     : QObject(parent),
@@ -28,8 +28,8 @@ CurveViewController::CurveViewController(CurveManager* curveManager,
     connect(m_curveManager, &CurveManager::activeCurveChanged,
             this, &CurveViewController::onActiveCurveChanged);
 
-    // 连接 PlotWidget 的信号
-    connect(m_plotWidget, &PlotWidget::curveSelected,
+    // 连接 ChartView 的信号
+    connect(m_plotWidget, &ChartView::curveSelected,
             this, &CurveViewController::onCurveSelected);
 
     // 连接 CurveTreeModel 的信号
@@ -46,11 +46,11 @@ void CurveViewController::requestPointPicking(int numPoints, PointPickingCallbac
     qDebug() << "CurveViewController::requestPointPicking - 请求拾取" << numPoints << "个点";
 
     if (!m_plotWidget) {
-        qWarning() << "CurveViewController::requestPointPicking - PlotWidget 为空";
+        qWarning() << "CurveViewController::requestPointPicking - ChartView 为空";
         return;
     }
 
-    // 委托给 PlotWidget
+    // 委托给 ChartView
     m_plotWidget->startPointPicking(numPoints, callback);
 }
 
@@ -101,7 +101,7 @@ void CurveViewController::onCurveAdded(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveAdded - 曲线已添加:" << curveId;
 
-    // PlotWidget 和 CurveTreeModel 已经直接监听 CurveManager 的信号
+    // ChartView 和 CurveTreeModel 已经直接监听 CurveManager 的信号
     // 这里可以添加额外的协调逻辑（如果需要）
 
     // 例如：自动选中新添加的曲线
@@ -117,7 +117,7 @@ void CurveViewController::onCurveRemoved(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveRemoved - 曲线已移除:" << curveId;
 
-    // PlotWidget 和 CurveTreeModel 已经直接监听 CurveManager 的信号
+    // ChartView 和 CurveTreeModel 已经直接监听 CurveManager 的信号
     // 这里可以添加额外的协调逻辑（如果需要）
 }
 
@@ -125,7 +125,7 @@ void CurveViewController::onCurveDataChanged(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveDataChanged - 曲线数据已变化:" << curveId;
 
-    // PlotWidget 已经直接监听 CurveManager 的信号并更新显示
+    // ChartView 已经直接监听 CurveManager 的信号并更新显示
     // 这里可以添加额外的协调逻辑（如果需要）
 }
 
@@ -139,7 +139,7 @@ void CurveViewController::onActiveCurveChanged(const QString& curveId)
     }
 }
 
-// ========== 响应 PlotWidget 信号 ==========
+// ========== 响应 ChartView 信号 ==========
 
 void CurveViewController::onCurveSelected(const QString& curveId)
 {
@@ -157,6 +157,6 @@ void CurveViewController::onCurveCheckStateChanged(const QString& curveId, bool 
 {
     qDebug() << "CurveViewController::onCurveCheckStateChanged - 曲线:" << curveId << ", 勾选状态:" << checked;
 
-    // 更新 PlotWidget 的曲线可见性
+    // 更新 ChartView 的曲线可见性
     setCurveVisible(curveId, checked);
 }

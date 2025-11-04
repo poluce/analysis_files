@@ -1,8 +1,9 @@
-#include "mainwindow.h"
-#include "application/algorithm/AlgorithmService.h"
+#include "application/algorithm/AlgorithmManager.h"
+#include "infrastructure/algorithm/BaselineCorrectionAlgorithm.h"
 #include "infrastructure/algorithm/DifferentiationAlgorithm.h"
-#include "infrastructure/algorithm/MovingAverageFilterAlgorithm.h"
 #include "infrastructure/algorithm/IntegrationAlgorithm.h"
+#include "infrastructure/algorithm/MovingAverageFilterAlgorithm.h"
+#include "mainwindow.h"
 
 #include <QApplication>
 #include <QLocale>
@@ -23,9 +24,10 @@ int main(int argc, char* argv[])
     }
 
     // 注册算法
-    AlgorithmService::instance()->registerAlgorithm(new DifferentiationAlgorithm());
-    AlgorithmService::instance()->registerAlgorithm(new MovingAverageFilterAlgorithm());
-    AlgorithmService::instance()->registerAlgorithm(new IntegrationAlgorithm());
+    AlgorithmManager::instance()->registerAlgorithm(new DifferentiationAlgorithm());
+    AlgorithmManager::instance()->registerAlgorithm(new MovingAverageFilterAlgorithm());
+    AlgorithmManager::instance()->registerAlgorithm(new IntegrationAlgorithm());
+    AlgorithmManager::instance()->registerAlgorithm(new BaselineCorrectionAlgorithm());
 
     MainWindow w;
     w.show();

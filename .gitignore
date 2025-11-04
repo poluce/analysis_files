@@ -72,3 +72,4 @@ Thumbs.db
 
 # Build output
 build-*
+*.vscode

@@ -10,8 +10,9 @@
  * 从而支持撤销（undo）和重做（redo）功能。
  * 所有可撤销的操作都应该实现此接口。
  */
-class ICommand
-{
+// 如果算法继承一个算法动作配合一条命令
+// 如果是其他指令，也是一个动作配合一条命令
+class ICommand {
 public:
     // 接口必须有虚析构函数
     virtual ~ICommand() = default;

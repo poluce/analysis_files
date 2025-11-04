@@ -9,14 +9,14 @@
 
 // 前置声明
 class CurveManager;
-class PlotWidget;
+class ChartView;
 class CurveTreeModel;
 
 /**
  * @brief CurveViewController 管理曲线视图的展示逻辑
  *
  * 职责：
- * - 协调 PlotWidget、ProjectExplorer、CurveTreeModel 的更新
+ * - 协调 ChartView、ProjectExplorerView、CurveTreeModel 的更新
  * - 封装点拾取交互流程（使用回调函数）
  * - 管理曲线可见性、选择、高亮状态
  * - 响应 CurveManager 的数据变化信号
@@ -35,7 +35,7 @@ public:
      * @param parent 父对象
      */
     explicit CurveViewController(CurveManager* curveManager,
-                                 PlotWidget* plotWidget,
+                                 ChartView* plotWidget,
                                  CurveTreeModel* treeModel,
                                  QObject* parent = nullptr);
 
@@ -79,7 +79,7 @@ private slots:
     void onCurveDataChanged(const QString& curveId);
     void onActiveCurveChanged(const QString& curveId);
 
-    // --- 响应 PlotWidget 信号 ---
+    // --- 响应 ChartView 信号 ---
     void onCurveSelected(const QString& curveId);
 
     // --- 响应 CurveTreeModel 信号 ---
@@ -87,7 +87,7 @@ private slots:
 
 private:
     CurveManager* m_curveManager;
-    PlotWidget* m_plotWidget;
+    ChartView* m_plotWidget;
     CurveTreeModel* m_treeModel;
 };
 

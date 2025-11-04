@@ -1,9 +1,9 @@
-#include "ProjectExplorer.h"
+#include "ProjectExplorerView.h"
 #include <QTreeView>
 #include <QAbstractItemModel>
 #include <QVBoxLayout>
 
-ProjectExplorer::ProjectExplorer(QWidget *parent)
+ProjectExplorerView::ProjectExplorerView(QWidget *parent)
     : QWidget(parent)
 {
     m_treeView = new QTreeView(this);
@@ -19,15 +19,15 @@ ProjectExplorer::ProjectExplorer(QWidget *parent)
     layout->addWidget(m_treeView);
     setLayout(layout);
 
-    connect(m_treeView, &QTreeView::doubleClicked, this, &ProjectExplorer::fileDoubleClicked);
+    connect(m_treeView, &QTreeView::doubleClicked, this, &ProjectExplorerView::fileDoubleClicked);
 }
 
-void ProjectExplorer::setModel(QAbstractItemModel *model)
+void ProjectExplorerView::setModel(QAbstractItemModel *model)
 {
     m_treeView->setModel(model);
 }
 
-QTreeView* ProjectExplorer::treeView() const
+QTreeView* ProjectExplorerView::treeView() const
 {
     return m_treeView;
 }

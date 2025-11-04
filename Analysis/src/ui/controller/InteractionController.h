@@ -3,11 +3,11 @@
 
 #include <QObject>
 #include <QPointF>
-#include <QVector>
 #include <QString>
+#include <QVector>
 
 // 前置声明
-class PlotWidget;
+class ChartView;
 class ThermalCurve;
 
 /**
@@ -21,12 +21,11 @@ class ThermalCurve;
  *
  * 设计理念：
  * - 解耦算法执行和用户输入
- * - PlotWidget 只负责绘图和坐标转换
+ * - ChartView 只负责绘图和坐标转换
  * - InteractionController 负责交互状态管理
  * - MainController 负责协调算法执行流程
  */
-class InteractionController : public QObject
-{
+class InteractionController : public QObject {
     Q_OBJECT
 
 public:
@@ -36,13 +35,13 @@ public:
      * 定义不同的用户交互类型。
      */
     enum class Mode {
-        None,                   // 无交互（正常浏览模式）
-        PointSelection,         // 点拾取模式（选择 N 个点）
-        MultiPointSelection,    // 多点选择模式（选择多组点）
-        DualCurveSelection      // 双曲线选择模式（选择主曲线和参考曲线）
+        None,                // 无交互（正常浏览模式）
+        PointSelection,      // 点拾取模式（选择 N 个点）
+        MultiPointSelection, // 多点选择模式（选择多组点）
+        DualCurveSelection   // 双曲线选择模式（选择主曲线和参考曲线）
     };
 
-    explicit InteractionController(PlotWidget* plotWidget, QObject* parent = nullptr);
+    explicit InteractionController(ChartView* plotWidget, QObject* parent = nullptr);
     ~InteractionController();
 
     /**
@@ -86,7 +85,7 @@ public:
     /**
      * @brief 处理用户点击事件
      *
-     * PlotWidget 应该在鼠标点击时调用此方法。
+     * ChartView 应该在鼠标点击时调用此方法。
      *
      * @param scenePos 场景坐标（图表坐标系）
      */
@@ -107,7 +106,8 @@ signals:
      * @param referenceCurve 参考曲线
      * @param points 拾取的点（如果有）
      */
-    void dualCurveSelected(ThermalCurve* mainCurve, ThermalCurve* referenceCurve, const QVector<QPointF>& points);
+    void dualCurveSelected(
+        ThermalCurve* mainCurve, ThermalCurve* referenceCurve, const QVector<QPointF>& points);
 
     /**
      * @brief 交互取消信号
@@ -133,17 +133,17 @@ private:
      */
     void finishPointPicking();
 
-    PlotWidget* m_plotWidget;           // 关联的图表组件
-    Mode m_currentMode;                 // 当前交互模式
-    QString m_currentPrompt;            // 当前提示信息
+    ChartView* m_plotWidget; // 关联的图表组件
+    Mode m_currentMode;       // 当前交互模式
+    QString m_currentPrompt;  // 当前提示信息
 
     // 点拾取模式状态
-    int m_requiredPointCount;           // 需要拾取的点数量
-    QVector<QPointF> m_selectedPoints;  // 已拾取的点
+    int m_requiredPointCount;          // 需要拾取的点数量
+    QVector<QPointF> m_selectedPoints; // 已拾取的点
 
     // 双曲线模式状态
-    ThermalCurve* m_mainCurve;          // 主曲线
-    ThermalCurve* m_referenceCurve;     // 参考曲线
+    ThermalCurve* m_mainCurve;      // 主曲线
+    ThermalCurve* m_referenceCurve; // 参考曲线
 };
 
 #endif // INTERACTIONCONTROLLER_H

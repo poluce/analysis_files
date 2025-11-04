@@ -1,5 +1,5 @@
-#ifndef ALGORITHMSERVICE_H
-#define ALGORITHMSERVICE_H
+#ifndef ALGORITHMANAGER_H
+#define ALGORITHMANAGER_H
 
 #include <QObject>
 #include <QMap>
@@ -19,11 +19,11 @@ class CurveManager;
  * 1. execute() - 旧接口，用于简单的单曲线算法（A类）
  * 2. executeWithInputs() - 新接口，支持复杂输入/输出（B-E类）
  */
-class AlgorithmService : public QObject
+class AlgorithmManager : public QObject
 {
     Q_OBJECT
 public:
-    static AlgorithmService* instance();
+    static AlgorithmManager* instance();
 
     void setCurveManager(CurveManager* manager);
     void registerAlgorithm(IThermalAlgorithm* algorithm);
@@ -44,10 +44,10 @@ signals:
                              const QVariant& result);
 
 private:
-    explicit AlgorithmService(QObject *parent = nullptr);
-    ~AlgorithmService();
-    AlgorithmService(const AlgorithmService&) = delete;
-    AlgorithmService& operator=(const AlgorithmService&) = delete;
+    explicit AlgorithmManager(QObject *parent = nullptr);
+    ~AlgorithmManager();
+    AlgorithmManager(const AlgorithmManager&) = delete;
+    AlgorithmManager& operator=(const AlgorithmManager&) = delete;
 
     // 根据输出类型处理算法结果
     void handleAlgorithmResult(IThermalAlgorithm* algorithm,
@@ -58,4 +58,4 @@ private:
     CurveManager* m_curveManager = nullptr;
 };
 
-#endif // ALGORITHMSERVICE_H
+#endif // ALGORITHMANAGER_H

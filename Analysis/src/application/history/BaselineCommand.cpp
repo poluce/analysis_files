@@ -1,10 +1,10 @@
 #include "BaselineCommand.h"
-#include "ui/PlotWidget.h"
+#include "ui/ChartView.h"
 #include <QUuid>
 #include <QPen>
 #include <QDebug>
 
-BaselineCommand::BaselineCommand(PlotWidget* plotWidget,
+BaselineCommand::BaselineCommand(ChartView* plotWidget,
                                  const QString& curveId,
                                  const QPointF& start,
                                  const QPointF& end)
@@ -20,7 +20,7 @@ BaselineCommand::BaselineCommand(PlotWidget* plotWidget,
 bool BaselineCommand::execute()
 {
     if (!m_plotWidget) {
-        qWarning() << "BaselineCommand: PlotWidget 指针为空";
+        qWarning() << "BaselineCommand: ChartView 指针为空";
         return false;
     }
 
@@ -35,7 +35,7 @@ bool BaselineCommand::execute()
 bool BaselineCommand::undo()
 {
     if (!m_plotWidget) {
-        qWarning() << "BaselineCommand: PlotWidget 指针为空";
+        qWarning() << "BaselineCommand: ChartView 指针为空";
         return false;
     }
 

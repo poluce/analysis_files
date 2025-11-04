@@ -1,31 +1,31 @@
-#include "AlgorithmService.h"
+#include "AlgorithmManager.h"
 #include "domain/algorithm/IThermalAlgorithm.h"
 #include "application/curve/CurveManager.h"
 #include "domain/model/ThermalCurve.h"
 #include <QDebug>
 #include <QUuid>
 
-AlgorithmService* AlgorithmService::instance()
+AlgorithmManager* AlgorithmManager::instance()
 {
-    static AlgorithmService service;
+    static AlgorithmManager service;
     return &service;
 }
 
-AlgorithmService::AlgorithmService(QObject *parent) : QObject(parent)
+AlgorithmManager::AlgorithmManager(QObject *parent) : QObject(parent)
 {
 }
 
-AlgorithmService::~AlgorithmService()
+AlgorithmManager::~AlgorithmManager()
 {
     qDeleteAll(m_algorithms);
 }
 
-void AlgorithmService::setCurveManager(CurveManager* manager)
+void AlgorithmManager::setCurveManager(CurveManager* manager)
 {
     m_curveManager = manager;
 }
 
-void AlgorithmService::registerAlgorithm(IThermalAlgorithm* algorithm)
+void AlgorithmManager::registerAlgorithm(IThermalAlgorithm* algorithm)
 {
     if (algorithm) {
         qDebug() << "注册算法:" << algorithm->name();
@@ -33,12 +33,12 @@ void AlgorithmService::registerAlgorithm(IThermalAlgorithm* algorithm)
     }
 }
 
-IThermalAlgorithm* AlgorithmService::getAlgorithm(const QString& name)
+IThermalAlgorithm* AlgorithmManager::getAlgorithm(const QString& name)
 {
     return m_algorithms.value(name, nullptr);
 }
 
-void AlgorithmService::execute(const QString& name, ThermalCurve* curve)
+void AlgorithmManager::execute(const QString& name, ThermalCurve* curve)
 {
     if (!curve) {
         qWarning() << "算法执行失败：曲线为空。";
@@ -96,7 +96,7 @@ void AlgorithmService::execute(const QString& name, ThermalCurve* curve)
 
 // ==================== 新接口方法实现 ====================
 
-void AlgorithmService::executeWithInputs(const QString& name, const QVariantMap& inputs)
+void AlgorithmManager::executeWithInputs(const QString& name, const QVariantMap& inputs)
 {
     if (!m_curveManager) {
         qWarning() << "算法执行失败：CurveManager 未设置。";
@@ -140,7 +140,7 @@ void AlgorithmService::executeWithInputs(const QString& name, const QVariantMap&
     emit algorithmResultReady(name, algorithm->outputType(), result);
 }
 
-void AlgorithmService::handleAlgorithmResult(IThermalAlgorithm* algorithm,
+void AlgorithmManager::handleAlgorithmResult(IThermalAlgorithm* algorithm,
                                             ThermalCurve* parentCurve,
                                             const QVariant& result)
 {

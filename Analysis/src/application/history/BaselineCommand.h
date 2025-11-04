@@ -6,7 +6,7 @@
 #include <QPointF>
 
 // 前置声明
-class PlotWidget;
+class ChartView;
 
 /**
  * @brief BaselineCommand 将基线绘制封装为可撤销的命令。
@@ -21,12 +21,12 @@ class BaselineCommand : public ICommand
 public:
     /**
      * @brief 构造一个基线绘制命令。
-     * @param plotWidget PlotWidget 指针（不获取所有权）。
+     * @param plotWidget ChartView 指针（不获取所有权）。
      * @param curveId 曲线ID。
      * @param start 起点数据坐标。
      * @param end 终点数据坐标。
      */
-    BaselineCommand(PlotWidget* plotWidget,
+    BaselineCommand(ChartView* plotWidget,
                     const QString& curveId,
                     const QPointF& start,
                     const QPointF& end);
@@ -55,7 +55,7 @@ public:
     QString description() const override;
 
 private:
-    PlotWidget* m_plotWidget;  // PlotWidget 指针（不拥有）
+    ChartView* m_plotWidget;  // ChartView 指针（不拥有）
     QString m_curveId;         // 曲线ID
     QPointF m_start;           // 起点数据坐标
     QPointF m_end;             // 终点数据坐标

@@ -1,11 +1,43 @@
 #ifndef ITHERMALALGORITHM_H
 #define ITHERMALALGORITHM_H
 
-#include <QVector>
-#include <QString>
-#include <QVariantMap>
-#include <QVariant>
 #include "domain/model/ThermalCurve.h"
+#include <QString>
+#include <QVariant>
+#include <QVariantMap>
+#include <QVector>
+
+/*
+ * ───────────────────────────────────────────────
+ *  Algorithm Input Key Specification (v1.0)
+ * ───────────────────────────────────────────────
+ *  这些 key 用于在 Algorithm::execute(inputs) 的参数输入中传递数据。
+ *  插件算法可复用这些标准字段，或在 "custom" map 中定义扩展字段。
+ *
+ *  基本输入：
+ *   - "mainCurve"        当前选中曲线（Curve* 或 QLineSeries*）
+ *   - "refCurve"         参考曲线（用于相交/积分类算法）
+ *   - "points"           用户选中点集合 QVector<QPointF>
+ *   - "x1", "x2"         选区范围边界
+ *   - "region"           X区间范围 {x1, x2}
+ *   - "baselineMode"     基线计算模式 ("linear", "poly")
+ *   - "smoothWindow"     平滑算法窗口大小
+ *   - "derivativeOrder"  微分阶数
+ *   - "color"            新曲线颜色
+ *   - "curveName"        生成曲线命名后缀
+ *   - "annotationText"   标注内容
+ *   - "meta"             附加元信息，如版本、来源
+ *
+ *  扩展输入：
+ *   - "selectedCurves"   多曲线集合 QVector<Curve*>
+ *   - "intersectionCurves" 相交曲线对
+ *   - "highlightColor"   交互高亮颜色
+ *   - "showAnnotation"   是否绘制文字标注
+ *   - "custom"           插件自定义参数 QVariantMap
+ *
+ *  所有字段均为可选（除 mainCurve 外），由算法根据需要解析。
+ *  ───────────────────────────────────────────────
+ */
 
 // 前置声明
 class ThermalDataPoint;
@@ -22,8 +54,7 @@ class ThermalDataPoint;
  * - D类：曲线相交算法（如曲线差值）
  * - E类：多选点多曲线算法（如多峰分析）
  */
-class IThermalAlgorithm
-{
+class IThermalAlgorithm {
 public:
     /**
      * @brief 算法输入类型枚举
@@ -31,11 +62,11 @@ public:
      * 定义算法需要的输入数据类型，决定是否需要用户交互。
      */
     enum class InputType {
-        None,               // 无需额外输入（A类：单曲线算法）
-        PointSelection,     // 需要选点（B/C类：基线校正、峰面积）
-        DualCurve,          // 需要选择第二条曲线（C类：双曲线算法）
-        Intersect,          // 需要选点和另一条曲线（D类：曲线相交）
-        MultiPoint          // 需要多点选取（E类：多峰分析）
+        None,           // 无需额外输入（A类：单曲线算法）
+        PointSelection, // 需要选点（B/C类：基线校正、峰面积）
+        DualCurve,      // 需要选择第二条曲线（C类：双曲线算法）
+        Intersect,      // 需要选点和另一条曲线（D类：曲线相交）
+        MultiPoint      // 需要多点选取（E类：多峰分析）
     };
 
     /**
@@ -44,11 +75,11 @@ public:
      * 定义算法的输出结果类型。
      */
     enum class OutputType {
-        Curve,              // 输出新曲线（最常见）
-        Area,               // 输出面积值和区域图
-        Intersection,       // 输出交点集合
-        Annotation,         // 输出标注（如峰位置、切线）
-        MultipleCurves      // 输出多条曲线
+        Curve,         // 输出新曲线（最常见）
+        Area,          // 输出面积值和区域图
+        Intersection,  // 输出交点集合
+        Annotation,    // 输出标注（如峰位置、切线）
+        MultipleCurves // 输出多条曲线
     };
 
     // 接口必须有虚析构函数
@@ -107,7 +138,15 @@ public:
     virtual SignalType getOutputSignalType(SignalType inputType) const = 0;
 
     // ==================== 新接口方法 (支持 A-E 类算法) ====================
+    /**
+     * @brief 配置算法参数的弹窗
+     *
+     * 用户在此配置弹窗上选择有关算法的配置信息
+     *
+     * @return 算法的输入类型。
+     */
 
+    virtual QVariantMap configure(QWidget* parent = nullptr) { return {}; }
     /**
      * @brief 返回算法的输入类型。
      *
@@ -116,7 +155,8 @@ public:
      *
      * @return 算法的输入类型。
      */
-    virtual InputType inputType() const {
+    virtual InputType inputType() const
+    {
         return InputType::None;
     }
 
@@ -128,7 +168,8 @@ public:
      *
      * @return 算法的输出类型。
      */
-    virtual OutputType outputType() const {
+    virtual OutputType outputType() const
+    {
         return OutputType::Curve;
     }
 
@@ -153,7 +194,8 @@ public:
      * @param inputs 输入数据映射。
      * @return 算法执行结果。
      */
-    virtual QVariant execute(const QVariantMap& inputs) {
+    virtual QVariant execute(const QVariantMap& inputs)
+    {
         // 默认实现：从 inputs 中提取主曲线，调用旧的 process() 方法
         if (inputs.contains("mainCurve")) {
             auto curve = inputs["mainCurve"].value<ThermalCurve*>();
@@ -175,7 +217,8 @@ public:
      *
      * @return 交互提示信息。
      */
-    virtual QString userPrompt() const {
+    virtual QString userPrompt() const
+    {
         return QString();
     }
 };

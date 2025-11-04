@@ -1,9 +1,9 @@
 #include "InteractionController.h"
-#include "ui/PlotWidget.h"
 #include "domain/model/ThermalCurve.h"
+#include "ui/ChartView.h"
 #include <QDebug>
 
-InteractionController::InteractionController(PlotWidget* plotWidget, QObject* parent)
+InteractionController::InteractionController(ChartView* plotWidget, QObject* parent)
     : QObject(parent)
     , m_plotWidget(plotWidget)
     , m_currentMode(Mode::None)
@@ -14,10 +14,7 @@ InteractionController::InteractionController(PlotWidget* plotWidget, QObject* pa
     qDebug() << "InteractionController 已创建";
 }
 
-InteractionController::~InteractionController()
-{
-    qDebug() << "InteractionController 已销毁";
-}
+InteractionController::~InteractionController() { qDebug() << "InteractionController 已销毁"; }
 
 void InteractionController::startPointPicking(int numPoints, const QString& prompt)
 {
@@ -27,7 +24,7 @@ void InteractionController::startPointPicking(int numPoints, const QString& prom
     }
 
     if (!m_plotWidget) {
-        qWarning() << "点拾取模式：PlotWidget 为空";
+        qWarning() << "点拾取模式：ChartView 为空";
         return;
     }
 
@@ -47,19 +44,21 @@ void InteractionController::startPointPicking(int numPoints, const QString& prom
     // 通知模式改变
     emit modeChanged(m_currentMode, m_currentPrompt);
 
-    // 使用 PlotWidget 的回调接口
-    m_plotWidget->startPointPicking(numPoints, [this](const QString& curveId, const QVector<QPointF>& points) {
-        qDebug() << "InteractionController: 收到点拾取回调，曲线ID =" << curveId << ", 点数 =" << points.size();
+    // 使用 ChartView 的回调接口
+    m_plotWidget->startPointPicking(
+        numPoints, [this](const QString& curveId, const QVector<QPointF>& points) {
+            qDebug() << "InteractionController: 收到点拾取回调，曲线ID =" << curveId
+                     << ", 点数 =" << points.size();
 
-        // 保存点和曲线ID
-        m_selectedPoints = points;
+            // 保存点和曲线ID
+            m_selectedPoints = points;
 
-        // 发出完成信号
-        emit pointsSelected(points);
+            // 发出完成信号
+            emit pointsSelected(points);
 
-        // 重置状态
-        resetState();
-    });
+            // 重置状态
+            resetState();
+        });
 }
 
 void InteractionController::startMultiPointSelection(const QString& prompt)
@@ -78,7 +77,7 @@ void InteractionController::startMultiPointSelection(const QString& prompt)
     // 通知模式改变
     emit modeChanged(m_currentMode, m_currentPrompt);
 
-    // TODO: 在 PlotWidget 上显示提示信息和完成按钮
+    // TODO: 在 ChartView 上显示提示信息和完成按钮
 }
 
 void InteractionController::startDualCurveSelection(ThermalCurve* mainCurve, const QString& prompt)
@@ -104,7 +103,7 @@ void InteractionController::startDualCurveSelection(ThermalCurve* mainCurve, con
     // 通知模式改变
     emit modeChanged(m_currentMode, m_currentPrompt);
 
-    // TODO: 在 PlotWidget 上高亮主曲线
+    // TODO: 在 ChartView 上高亮主曲线
     // TODO: 显示提示信息让用户选择参考曲线
 }
 
@@ -114,7 +113,7 @@ void InteractionController::cancelInteraction()
 
     Mode previousMode = m_currentMode;
 
-    // 取消 PlotWidget 的点拾取
+    // 取消 ChartView 的点拾取
     if (m_plotWidget && previousMode == Mode::PointSelection) {
         m_plotWidget->cancelPointPicking();
     }
@@ -136,7 +135,7 @@ void InteractionController::handlePointClicked(const QPointF& scenePos)
         m_selectedPoints.append(scenePos);
         qDebug() << "已选择" << m_selectedPoints.size() << "/" << m_requiredPointCount << "个点";
 
-        // TODO: 在 PlotWidget 上绘制标记
+        // TODO: 在 ChartView 上绘制标记
 
         // 检查是否已收集足够的点
         if (m_selectedPoints.size() >= m_requiredPointCount) {
@@ -150,7 +149,7 @@ void InteractionController::handlePointClicked(const QPointF& scenePos)
         m_selectedPoints.append(scenePos);
         qDebug() << "已选择" << m_selectedPoints.size() << "个点（多点模式）";
 
-        // TODO: 在 PlotWidget 上绘制标记
+        // TODO: 在 ChartView 上绘制标记
         // 用户需要手动完成选择（通过按钮或快捷键）
         break;
     }
@@ -182,7 +181,7 @@ void InteractionController::resetState()
     m_mainCurve = nullptr;
     m_referenceCurve = nullptr;
 
-    // TODO: 清除 PlotWidget 上的临时标记和高亮
+    // TODO: 清除 ChartView 上的临时标记和高亮
 
     emit modeChanged(m_currentMode, QString());
 }
