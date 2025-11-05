@@ -97,14 +97,9 @@ void ChartView::mousePressEvent(QMouseEvent* event)
         return;
     }
 
-    m_mode = InteractionMode::Pick;
     const QPointF chartViewPos = mapToChartCoordinates(event->pos());
     if (m_mode == InteractionMode::Pick) {
-        // 收集选取的点,每收集一个就m_pickCount - 1；
-        // m_pickCount = 0 ，发送收集的数据，切换为视图模式
-        QPointF point = this->m_chartView->chart()->mapToValue(chartViewPos);
-        qDebug() << "********************point***********" << point;
-        m_pickPoints.append(point.x());
+        handlePointSelectionClick(chartViewPos);
     } else {
         handleCurveSelectionClick(chartViewPos);
     }
@@ -137,6 +132,21 @@ void ChartView::handleCurveSelectionClick(const QPointF& chartPos)
             m_selectedSeries = nullptr;
         }
         emit curveSelected("");
+    }
+}
+
+void ChartView::handlePointSelectionClick(const QPointF &chartViewPos)
+{
+    // 收集选取的点,每收集一个就m_pickCount - 1；
+    // m_pickCount = 0 ，发送收集的数据，切换为视图模式
+    QPointF point = this->m_chartView->chart()->mapToValue(chartViewPos);
+    m_pickPoints.append(point.x());
+    m_pickCount--;
+    if(m_pickCount == 0)
+    {
+        emit pickPoints(m_pickPoints);
+        qDebug()<<"发送用户选取的横坐标::"<<m_pickPoints;
+        setInteractionMode(InteractionMode::View);
     }
 }
 

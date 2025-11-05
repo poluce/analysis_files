@@ -1,4 +1,4 @@
-#include "ui/controller/main_controller.h"
+﻿#include "ui/controller/main_controller.h"
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include "infrastructure/io/text_file_reader.h"
@@ -64,6 +64,7 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     connect(mainWindow, &MainWindow::redoRequested, this, &MainController::onRedo, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::peakAreaRequested, this, &MainController::onPeakAreaRequested, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::baselineRequested, this, &MainController::onBaselineRequested, Qt::UniqueConnection);
+    //算法接入
     connect(mainWindow, &MainWindow::algorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequestedWithParams, Qt::UniqueConnection);
 }
@@ -223,6 +224,8 @@ void MainController::onBaselineRequested()
 {
     qDebug() << "MainController::onBaselineRequested - 功能已停用";
     QMessageBox::information(m_mainWindow, tr("功能不可用"), tr("点拾取功能已移除，基线绘制暂不可用。"));
+
+
 }
 
 // ========== 响应UI的曲线删除请求 ==========

@@ -201,21 +201,23 @@ QToolBar* MainWindow::createMathToolBar()
 
     toolbar->addSeparator();
 
-    // 添加峰面积计算按钮
-    m_peakAreaAction = toolbar->addAction(style()->standardIcon(QStyle::SP_FileDialogContentsView), tr("峰面积计算..."));
-
     // 添加基线绘制按钮
-    m_baselineAction = toolbar->addAction(style()->standardIcon(QStyle::SP_FileDialogDetailedView), tr("绘制基线..."));
+    m_baselineAction = toolbar->addAction(tr("绘制基线"));
+    m_baselineAction->setData("baseline_correction");
+    // 添加峰面积计算按钮
+    m_peakAreaAction = toolbar->addAction(tr("峰面积计算"));
 
-    connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
-        qDebug() << "MainWindow: 峰面积按钮被点击";
-        emit peakAreaRequested();
-    });
-    connect(m_baselineAction, &QAction::triggered, this, [this]() {
-        qDebug() << "MainWindow: 基线按钮被点击";
-        emit baselineRequested();
-    });
+//    connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
+//        qDebug() << "MainWindow: 峰面积按钮被点击";
+//        emit peakAreaRequested();
+//    });
+//    connect(m_baselineAction, &QAction::triggered, this, [this]() {
+//        qDebug() << "MainWindow: 基线按钮被点击";
+//        emit baselineRequested();
+//    });
 
+    connect(m_baselineAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
+    connect(m_peakAreaAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
     connect(diffAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
     connect(integAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);

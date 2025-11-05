@@ -1,4 +1,4 @@
-#ifndef CHARTVIEW_H
+﻿#ifndef CHARTVIEW_H
 #define CHARTVIEW_H
 
 #include <QHash>
@@ -81,7 +81,8 @@ private:
     QValueAxis* ensureYAxisForCurve(const ThermalCurve& curve);
 
     void drawAnnotationLines(QPainter& painter);
-    void handleCurveSelectionClick(const QPointF& chartPos);
+    void handleCurveSelectionClick(const QPointF& chartViewPos);
+    void handlePointSelectionClick(const QPointF& chartViewPos);
     QPointF mapToChartCoordinates(const QPoint& widgetPos) const;
     QLineSeries* findSeriesNearPoint(const QPointF& chartPos, qreal& outDistance) const;
     // --- 曲线系列管理：封装 QLineSeries 的创建、数据填充与映射维护 ---

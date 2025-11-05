@@ -1,4 +1,4 @@
-#ifndef MAINCONTROLLER_H
+﻿#ifndef MAINCONTROLLER_H
 #define MAINCONTROLLER_H
 
 #include <QObject>
@@ -57,10 +57,6 @@ public slots:
      * @brief 重做最近被撤销的操作。
      */
     void onRedo();
-
-    // 峰面积和基线功能
-    void onPeakAreaRequested();
-    void onBaselineRequested();
 
     // 响应UI的曲线删除请求
     void onCurveDeleteRequested(const QString& curveId);
