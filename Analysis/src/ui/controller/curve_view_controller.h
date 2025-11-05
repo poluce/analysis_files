@@ -3,9 +3,6 @@
 
 #include <QObject>
 #include <QString>
-#include <QVector>
-#include <QPointF>
-#include <functional>
 
 // 前置声明
 class CurveManager;
@@ -42,20 +39,6 @@ public:
                                  ProjectExplorerView* projectExplorer,
                                  QObject* parent = nullptr);
 
-    // --- 点拾取接口 ---
-    /**
-     * @brief 请求点拾取（使用回调函数）
-     * @param numPoints 需要拾取的点数
-     * @param callback 拾取完成后的回调函数
-     */
-    using PointPickingCallback = std::function<void(const QString& curveId, const QVector<QPointF>& points)>;
-    void requestPointPicking(int numPoints, PointPickingCallback callback);
-
-    /**
-     * @brief 取消当前的点拾取操作
-     */
-    void cancelPointPicking();
-
     // --- 视图管理接口 ---
     /**
      * @brief 设置曲线可见性
@@ -81,6 +64,7 @@ private slots:
     void onCurveRemoved(const QString& curveId);
     void onCurveDataChanged(const QString& curveId);
     void onActiveCurveChanged(const QString& curveId);
+    void onCurvesCleared();
 
     // --- 响应 ChartView 信号 ---
     void onCurveSelected(const QString& curveId);

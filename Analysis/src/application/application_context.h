@@ -12,7 +12,7 @@ class ChartView;
 class ProjectExplorerView;
 
 /**
- * @brief ApplicationContext 统一管理应用启动时的 MVC 实例创建顺序。
+ * @brief ApplicationContext 统一管理应用启动时的 MVC 各实例创建顺序。
  *
  * 初始化顺序：
  * 1. Model（CurveManager、ProjectTreeManager）

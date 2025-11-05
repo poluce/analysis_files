@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QVariantMap>
 
 // 前置声明
 class ChartView;
@@ -9,9 +10,8 @@ class ProjectExplorerView;
 class QDockWidget;
 class QAction;
 class QToolBar;
-class MainController;
-class CurveViewController;
 class QPoint;
+class HistoryManager;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -20,12 +20,19 @@ public:
     MainWindow(ChartView* chartView, ProjectExplorerView* projectExplorer, QWidget* parent = nullptr);
     ~MainWindow();
 
-    void attachControllers(MainController* mainController, CurveViewController* curveViewController);
+    void bindHistoryManager(HistoryManager& historyManager);
 
     ChartView* chartView() const { return m_chartView; }
 
 signals:
     void curveDeleteRequested(const QString& curveId);
+    void dataImportRequested();
+    void undoRequested();
+    void redoRequested();
+    void peakAreaRequested();
+    void baselineRequested();
+    void algorithmRequested(const QString& algorithmName);
+    void algorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params);
 
 private slots:
     void on_toolButtonOpen_clicked();
@@ -50,6 +57,7 @@ private:
     QToolBar* createMathToolBar();
 
     void setupViewConnections();
+    void updateHistoryButtons();
 
     // --- UI 成员 ---
     ProjectExplorerView* m_projectExplorer { nullptr };
@@ -64,7 +72,6 @@ private:
     QAction* m_baselineAction { nullptr };
 
     // --- 服务与控制器 ---
-    MainController* m_mainController { nullptr };
-    CurveViewController* m_curveViewController { nullptr }; // 新增：曲线视图控制器
+    HistoryManager* m_historyManager { nullptr };
 };
 #endif // MAINWINDOW_H

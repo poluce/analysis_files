@@ -7,12 +7,10 @@
 
 #include "application/algorithm/algorithm_manager.h"
 #include "application/history/algorithm_command.h"
-#include "application/history/baseline_command.h"
 #include "application/history/history_manager.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "ui/chart_view.h"
-#include "ui/controller/interaction_controller.h"
-#include "ui/peak_area_dialog.h"
+#include "ui/main_window.h"
 #include <QMessageBox>
 #include <memory>
 
@@ -45,31 +43,29 @@ MainController::~MainController()
 {
     delete m_dataImportWidget;
     delete m_textFileReader;
-    delete m_peakAreaDialog;
-    delete m_interactionController;
 }
 
 void MainController::setPlotWidget(ChartView* plotWidget)
 {
     m_plotWidget = plotWidget;
+}
 
-    // 创建 InteractionController
-    if (m_plotWidget && !m_interactionController) {
-        m_interactionController = new InteractionController(m_plotWidget, this);
-
-        // 连接 InteractionController 的信号
-        connect(m_interactionController, &InteractionController::pointsSelected, this, &MainController::onPointsSelected);
-
-        connect(m_interactionController, &InteractionController::interactionCancelled, this, [this]() {
-            qDebug() << "MainController: 交互被取消";
-            m_currentPickingPurpose = PickingPurpose::None;
-            if (m_peakAreaDialog) {
-                m_peakAreaDialog->close();
-            }
-        });
-
-        qDebug() << "MainController: InteractionController 已创建并连接";
+void MainController::attachMainWindow(MainWindow* mainWindow)
+{
+    if (!mainWindow) {
+        return;
     }
+
+    m_mainWindow = mainWindow;
+
+    connect(mainWindow, &MainWindow::dataImportRequested, this, &MainController::onShowDataImport, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::curveDeleteRequested, this, &MainController::onCurveDeleteRequested, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::undoRequested, this, &MainController::onUndo, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::redoRequested, this, &MainController::onRedo, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::peakAreaRequested, this, &MainController::onPeakAreaRequested, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::baselineRequested, this, &MainController::onBaselineRequested, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::algorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequestedWithParams, Qt::UniqueConnection);
 }
 
 void MainController::onShowDataImport() { m_dataImportWidget->show(); }
@@ -218,231 +214,15 @@ void MainController::onRedo()
 // ========== 峰面积计算功能 ==========
 void MainController::onPeakAreaRequested()
 {
-    qDebug() << "MainController::onPeakAreaRequested - 开始峰面积计算流程";
-
-    // 1. 检查是否有活动曲线
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        qWarning() << "  错误: 没有活动曲线";
-        QMessageBox::warning(nullptr, tr("错误"), tr("请先选择一条曲线"));
-        return;
-    }
-
-    qDebug() << "  活动曲线:" << activeCurve->name() << ", ID:" << activeCurve->id();
-
-    // 2. 检查 InteractionController
-    if (!m_interactionController) {
-        qWarning() << "  错误: InteractionController 未初始化";
-        QMessageBox::critical(nullptr, tr("错误"), tr("交互控制器未初始化"));
-        return;
-    }
-
-    // 3. 创建并显示对话框
-    if (!m_peakAreaDialog) {
-        qDebug() << "  创建 PeakAreaDialog";
-        m_peakAreaDialog = new PeakAreaDialog();
-
-        // 连接取消信号
-        connect(m_peakAreaDialog, &PeakAreaDialog::cancelled, this, [this]() {
-            qDebug() << "MainController: 用户取消了峰面积计算";
-            if (m_interactionController) {
-                m_interactionController->cancelInteraction();
-            }
-            m_currentPickingPurpose = PickingPurpose::None;
-        });
-    }
-
-    qDebug() << "  显示 PeakAreaDialog 并设置提示";
-    m_peakAreaDialog->showPickingPrompt();
-    m_peakAreaDialog->show();
-
-    // 4. 使用 InteractionController 启动点拾取模式
-    m_currentPickingPurpose = PickingPurpose::PeakArea;
-    qDebug() << "  调用 InteractionController->startPointPicking(2)";
-    m_interactionController->startPointPicking(2, tr("请在曲线上选择两个点来计算峰面积"));
-    qDebug() << "  峰面积计算流程初始化完成";
-}
-
-// ========== 统一的点拾取完成处理 ==========
-void MainController::onPointsSelected(const QVector<QPointF>& points)
-{
-    qDebug() << "MainController::onPointsSelected - 收到点拾取完成信号";
-    qDebug() << "  当前拾取目的:" << (int)m_currentPickingPurpose;
-    qDebug() << "  点数:" << points.size();
-
-    if (points.size() < 2) {
-        qWarning() << "  错误: 点数不足，需要至少2个点";
-        m_currentPickingPurpose = PickingPurpose::None;
-        return;
-    }
-
-    // 根据目的执行相应的操作
-    switch (m_currentPickingPurpose) {
-    case PickingPurpose::PeakArea:
-        handlePeakAreaCalculation(points);
-        break;
-
-    case PickingPurpose::Baseline:
-        handleBaselineDrawing(points);
-        break;
-
-    case PickingPurpose::None:
-    default:
-        qWarning() << "  警告: 没有指定拾取目的";
-        break;
-    }
-
-    // 重置状态
-    m_currentPickingPurpose = PickingPurpose::None;
-}
-
-void MainController::handlePeakAreaCalculation(const QVector<QPointF>& points)
-{
-    qDebug() << "MainController::handlePeakAreaCalculation";
-
-    // 1. 获取活动曲线
-    ThermalCurve* curve = m_curveManager->getActiveCurve();
-    if (!curve) {
-        qWarning() << "  错误: 没有活动曲线";
-        QMessageBox::critical(nullptr, tr("错误"), tr("曲线不存在"));
-        return;
-    }
-
-    qDebug() << "  曲线名称:" << curve->name();
-    const auto& data = curve->getProcessedData();
-    qDebug() << "  曲线数据点数:" << data.size();
-
-    // 2. 找到两个点对应的X坐标
-    double x1 = points[0].x();
-    double x2 = points[1].x();
-
-    if (x1 > x2) {
-        std::swap(x1, x2);
-    }
-
-    qDebug() << "  计算峰面积，范围: X1=" << x1 << ", X2=" << x2;
-
-    // 3. 使用梯形积分法计算峰面积
-    qDebug() << "  开始梯形积分计算...";
-    double area = 0.0;
-    int segmentCount = 0;
-    for (int i = 0; i < data.size() - 1; ++i) {
-        double xa = data[i].temperature;
-        double xb = data[i + 1].temperature;
-
-        // 只计算在选定范围内的部分
-        if (xb < x1 || xa > x2)
-            continue;
-
-        // 处理边界情况：线段部分在范围内
-        double xStart = (xa < x1) ? x1 : xa;
-        double xEnd = (xb > x2) ? x2 : xb;
-
-        if (xStart >= xEnd)
-            continue;
-
-        // 线性插值获取边界点的Y值
-        double ya = data[i].value;
-        double yb = data[i + 1].value;
-
-        double yStart, yEnd;
-        if (xa == xb) {
-            yStart = ya;
-            yEnd = yb;
-        } else {
-            yStart = ya + (yb - ya) * (xStart - xa) / (xb - xa);
-            yEnd = ya + (yb - ya) * (xEnd - xa) / (xb - xa);
-        }
-
-        // 梯形面积 = (yStart + yEnd) / 2 * (xEnd - xStart)
-        double segmentArea = (yStart + yEnd) / 2.0 * (xEnd - xStart);
-        area += segmentArea;
-        segmentCount++;
-    }
-
-    qDebug() << "  积分完成: 计算了" << segmentCount << "个梯形段，总面积 =" << area;
-
-    // 4. 显示结果
-    QString unit = curve->getYAxisLabel() + QString::fromUtf8(" · °C");
-    qDebug() << "  单位:" << unit << ", 绝对值面积:" << qAbs(area);
-
-    if (m_peakAreaDialog) {
-        qDebug() << "  调用 m_peakAreaDialog->showResult()";
-        m_peakAreaDialog->showResult(qAbs(area), unit);
-    } else {
-        qWarning() << "  警告: m_peakAreaDialog 为空，无法显示结果";
-    }
-
-    // 5. 记录日志
-    qInfo() << QString("峰面积计算完成: %1 到 %2, 面积 = %3").arg(x1).arg(x2).arg(area);
-}
-
-void MainController::handleBaselineDrawing(const QVector<QPointF>& points)
-{
-    qDebug() << "MainController::handleBaselineDrawing";
-
-    if (!m_plotWidget) {
-        qWarning() << "  错误: ChartView 指针为空，无法绘制基线";
-        return;
-    }
-
-    // 获取活动曲线ID
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        qWarning() << "  错误: 没有活动曲线";
-        return;
-    }
-
-    QString curveId = activeCurve->id();
-    qDebug() << "  曲线ID:" << curveId << ", 点数:" << points.size();
-    for (int i = 0; i < points.size(); ++i) {
-        qDebug() << "    点" << i << ":" << points[i];
-    }
-
-    // 创建 BaselineCommand
-    qDebug() << "  创建 BaselineCommand";
-    auto command = std::make_unique<BaselineCommand>(m_plotWidget, curveId, points[0], points[1]);
-
-    // 通过历史管理器执行命令（支持撤销/重做）
-    qDebug() << "  执行 BaselineCommand";
-    if (!m_historyManager->executeCommand(std::move(command))) {
-        qWarning() << "  错误: 基线绘制命令执行失败";
-        QMessageBox::critical(nullptr, tr("错误"), tr("基线绘制失败"));
-    } else {
-        qInfo() << "  基线绘制成功";
-    }
+    qDebug() << "MainController::onPeakAreaRequested - 功能已停用";
+    QMessageBox::information(m_mainWindow, tr("功能不可用"), tr("点拾取功能已移除，峰面积计算暂不可用。"));
 }
 
 // ========== 基线绘制功能 ==========
 void MainController::onBaselineRequested()
 {
-    qDebug() << "MainController::onBaselineRequested - 开始基线绘制流程";
-
-    // 1. 检查是否有活动曲线
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        qWarning() << "  错误: 没有活动曲线";
-        QMessageBox::warning(nullptr, tr("错误"), tr("请先选择一条曲线"));
-        return;
-    }
-
-    qDebug() << "  活动曲线:" << activeCurve->name() << ", ID:" << activeCurve->id();
-
-    // 2. 检查 InteractionController
-    if (!m_interactionController) {
-        qWarning() << "  错误: InteractionController 未初始化";
-        QMessageBox::critical(nullptr, tr("错误"), tr("交互控制器未初始化"));
-        return;
-    }
-
-    // 3. 使用 InteractionController 启动点拾取模式
-    m_currentPickingPurpose = PickingPurpose::Baseline;
-    qDebug() << "  调用 InteractionController->startPointPicking(2)";
-    m_interactionController->startPointPicking(2, tr("请在曲线上选择两个点来绘制基线"));
-
-    // TODO: 可以创建一个类似的对话框提示用户
-    QMessageBox::information(nullptr, tr("基线绘制"), tr("请在曲线上选择两个点来绘制基线"));
-    qDebug() << "  基线绘制流程初始化完成";
+    qDebug() << "MainController::onBaselineRequested - 功能已停用";
+    QMessageBox::information(m_mainWindow, tr("功能不可用"), tr("点拾取功能已移除，基线绘制暂不可用。"));
 }
 
 // ========== 响应UI的曲线删除请求 ==========
@@ -452,11 +232,3 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
     m_curveManager->removeCurve(curveId);
 }
 
-// ========== 响应UI的进度更新请求 ==========
-void MainController::onPointPickingProgress(int picked, int total)
-{
-    qDebug() << "MainController::onPointPickingProgress - 进度:" << picked << "/" << total;
-    if (m_peakAreaDialog) {
-        m_peakAreaDialog->updateProgress(picked, total);
-    }
-}

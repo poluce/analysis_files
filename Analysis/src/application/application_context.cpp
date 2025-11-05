@@ -2,6 +2,7 @@
 
 #include "application/algorithm/algorithm_manager.h"
 #include "application/curve/curve_manager.h"
+#include "application/history/history_manager.h"
 #include "application/project/project_tree_manager.h"
 #include "infrastructure/algorithm/baseline_correction_algorithm.h"
 #include "infrastructure/algorithm/differentiation_algorithm.h"
@@ -23,17 +24,18 @@ ApplicationContext::ApplicationContext(QObject* parent)
     m_projectTreeManager = new ProjectTreeManager(m_curveManager, this);
 
     // 2. View
-    m_chartView = new ChartView(m_curveManager);
+    m_chartView = new ChartView();
     m_projectExplorerView = new ProjectExplorerView();
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
+    m_mainWindow->bindHistoryManager(HistoryManager::instance());
 
     // 3. Controller
     m_mainController = new MainController(m_curveManager, this);
-    m_curveViewController = new CurveViewController(
-        m_curveManager, m_chartView, m_projectTreeManager, m_projectExplorerView, this);
+    m_mainController->setPlotWidget(m_chartView);
+    m_mainController->attachMainWindow(m_mainWindow);
 
-    // 建立 UI 与控制器之间的连接
-    m_mainWindow->attachControllers(m_mainController, m_curveViewController);
+    m_curveViewController
+        = new CurveViewController(m_curveManager, m_chartView, m_projectTreeManager, m_projectExplorerView, this);
 }
 
 ApplicationContext::~ApplicationContext()
@@ -42,10 +44,7 @@ ApplicationContext::~ApplicationContext()
     m_mainWindow = nullptr;
 }
 
-void ApplicationContext::start()
-{
-    m_mainWindow->show();
-}
+void ApplicationContext::start() { m_mainWindow->show(); }
 
 void ApplicationContext::registerAlgorithms()
 {

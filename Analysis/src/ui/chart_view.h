@@ -3,72 +3,63 @@
 
 #include <QHash>
 #include <QMouseEvent>
-#include <QPair>
 #include <QPen>
+#include <QPointF>
 #include <QVector>
 #include <QWidget>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
-#include <functional>
 
 class ThermalCurve;
-class CurveManager;
+class QPainter;
+class QGraphicsLineItem;
 
 QT_CHARTS_USE_NAMESPACE
 
-// 交互模式枚举
+/**
+ * @brief 定义图表的交互模式
+ *
+ * 控制用户当前与图表的交互方式：
+ * - View: 普通视图操作（缩放、平移、区域选择）
+ * - Pick: 拾取或测量模式（点击、标注、分析）
+ */
 enum class InteractionMode {
-    Normal,    // 正常模式：点击选择曲线
-    PickPoints // 拾取点模式：点击获取坐标
+    View, // 视图模式：缩放、平移、放大镜、框选
+    Pick  // 拾取模式：选择数据点、测量、显示坐标
 };
 
 class ChartView : public QWidget {
     Q_OBJECT
 public:
-    explicit ChartView(CurveManager* curveManager, QWidget* parent = nullptr);
+    explicit ChartView(QWidget* parent = nullptr);
 
-    // 配置接口 —— 点击命中阈值（像素）
-    // 基础像素阈值，默认 8px（会再乘以屏幕 devicePixelRatio）。
     void setHitTestBasePixelThreshold(qreal px);
     qreal hitTestBasePixelThreshold() const;
 
-    // 把线条笔宽纳入命中阈值（提高粗线的可点中性），默认 true。
     void setHitTestIncludePenWidth(bool enabled);
+    void setPickCount(int count);
     bool hitTestIncludePenWidth() const;
+    void setInteractionMode(InteractionMode type);
 
-    // 点拾取模式接口
-    // 回调函数类型定义
-    using PointPickingCallback
-        = std::function<void(const QString& curveId, const QVector<QPointF>& points)>;
-
-    // 新接口：使用回调函数
-    void startPointPicking(int numPoints, PointPickingCallback callback);
-
-    // 旧接口：使用信号（保留兼容性）
-    void startPointPicking(int numPoints);
-
-    void cancelPointPicking();
-    InteractionMode interactionMode() const;
-
-    // 注释线管理
     void addAnnotationLine(
-        const QString& id, const QString& curveId, const QPointF& start, const QPointF& end,
-        const QPen& pen = QPen(Qt::red, 2));
+        const QString& id, const QString& curveId, const QPointF& start, const QPointF& end, const QPen& pen = QPen(Qt::red, 2));
     void removeAnnotation(const QString& id);
     void clearAllAnnotations();
 
 public slots:
     void addCurve(const ThermalCurve& curve);
-    void rescaleAxes(); // 重新缩放所有坐标轴以适应当前可见曲线
+    void updateCurve(const ThermalCurve& curve);
+    void removeCurve(const QString& curveId);
+    void clearCurves();
+    void setVerticalCrosshairEnabled(bool enabled);
+    void setHorizontalCrosshairEnabled(bool enabled);
+    void rescaleAxes();
     void setCurveVisible(const QString& curveId, bool visible);
 
-private slots:
-    // 响应 CurveManager 的信号
-    void onCurveAdded(const QString& curveId);
-    void onCurveDataChanged(const QString& curveId);
-    void onCurveRemoved(const QString& curveId);
-    void onCurvesCleared();
+public:
+    bool verticalCrosshairEnabled() const { return m_verticalCrosshairEnabled; }
+    bool horizontalCrosshairEnabled() const { return m_horizontalCrosshairEnabled; }
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -76,52 +67,76 @@ protected:
 
 signals:
     void curveSelected(const QString& curveId);
-
-    // 点拾取相关信号
-    void pointsPickedOnCurve(const QString& curveId, const QVector<QPointF>& points);
-    void pointPickingProgress(int picked, int total);
-    void pointPickingCancelled();
+    /**
+     * @brief 在拾取点的模式中当用户拾取够了设置的点数时排序后发出。
+     * @param outputs 包含拾取点信息横轴位置：
+     *  - "x1" point1
+     *  - "x2" point2
+     *  - "x3" point3
+     */
+    void pickPoints(const QVector<float>& outputs);
 
 private:
     void updateSeriesStyle(QLineSeries* series, bool selected);
-    void setupConnections();
+    QValueAxis* ensureYAxisForCurve(const ThermalCurve& curve);
 
-    // 点拾取辅助方法
-    QPair<QString, QPointF> findNearestPointOnCurves(const QPointF& screenPos);
-    void drawPointMarkers(QPainter& painter);
     void drawAnnotationLines(QPainter& painter);
+    void handleCurveSelectionClick(const QPointF& chartPos);
+    QPointF mapToChartCoordinates(const QPoint& widgetPos) const;
+    QLineSeries* findSeriesNearPoint(const QPointF& chartPos, qreal& outDistance) const;
+    // --- 曲线系列管理：封装 QLineSeries 的创建、数据填充与映射维护 ---
+    QLineSeries* seriesForCurve(const QString& curveId) const;
+    // 根据 ThermalCurve 构建新的系列实例并写入基础属性
+    QLineSeries* createSeriesForCurve(const ThermalCurve& curve) const;
+    // 将 ThermalCurve 数据点批量写入指定系列
+    void populateSeriesWithCurveData(QLineSeries* series, const ThermalCurve& curve) const;
+    // 将系列附着到 X 轴与目标 Y 轴
+    void attachSeriesToAxes(QLineSeries* series, QValueAxis* axisY);
+    // 将系列从所有已附着的坐标轴解绑
+    void detachSeriesFromAxes(QLineSeries* series);
+    // 记录系列与曲线 ID 的双向映射关系
+    void registerSeriesMapping(QLineSeries* series, const QString& curveId);
+    // 移除系列与曲线 ID 的双向映射关系
+    void unregisterSeriesMapping(const QString& curveId);
+    // 同步图例项的可见性
+    void updateLegendVisibility(QLineSeries* series, bool visible) const;
+    // --- 坐标轴管理：根据现有数据动态调整尺度并在清空时恢复默认 ---
+    void rescaleAxis(QValueAxis* axis) const;
+    void resetAxesToDefault();
+    // --- 十字线管理：维护鼠标位置与十字线可见性 ---
+    void updateCrosshairVisibility();
+    void updateCrosshairPosition(const QPointF& viewportPos);
+    void clearCrosshair();
 
-    CurveManager* m_curveManager; // 非拥有指针
+private:
     QChartView* m_chartView;
     QLineSeries* m_selectedSeries;
     QHash<QLineSeries*, QString> m_seriesToId;
     QHash<QString, QLineSeries*> m_idToSeries;
 
-    // 坐标轴
     QValueAxis* m_axisX = nullptr;
     QValueAxis* m_axisY_primary = nullptr;
     QValueAxis* m_axisY_secondary = nullptr;
 
-    // 命中判定相关配置
     qreal m_hitTestBasePx = 8.0;
     bool m_hitTestIncludePen = true;
+    bool m_verticalCrosshairEnabled = false;
+    bool m_horizontalCrosshairEnabled = false;
+    bool m_hasMousePosition = false;
+    QGraphicsLineItem* m_verticalCrosshairLine = nullptr;
+    QGraphicsLineItem* m_horizontalCrosshairLine = nullptr;
 
-    // 点拾取状态
-    InteractionMode m_interactionMode = InteractionMode::Normal;
-    bool m_isPickingPoints = false;
-    int m_numPointsNeeded = 0;
-    QVector<QPointF> m_pickedPoints;
-    QString m_targetCurveId;                // 在哪条曲线上拾取
-    PointPickingCallback m_pickingCallback; // 回调函数（如果使用回调模式）
-
-    // 注释线数据结构
     struct AnnotationLine {
         QString id;
-        QString curveId; // 关联的曲线ID，用于确定坐标系
-        QPointF start;   // 数据坐标
-        QPointF end;     // 数据坐标
+        QString curveId;
+        QPointF start;
+        QPointF end;
         QPen pen;
     };
+    InteractionMode m_mode; // 切换视图和拾取点的模式
+    int m_pickCount;
+    QVector<float> m_pickPoints;
+
     QVector<AnnotationLine> m_annotations;
 };
 

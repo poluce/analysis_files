@@ -10,7 +10,7 @@
 ## 项目概览
 - 基于 Qt 5.14.2 + Qt Charts 的桌面热分析数据处理工具，支持 TGA、DSC、ARC 等多种仪器数据。
 - 采用四层分层架构（UI / Application / Domain / Infrastructure），遵循领域驱动设计，数据由 `CurveManager` 统一管理。
-- 图表子系统重写为 `ChartView` + 控制器组合，支持多曲线显示、曲线选择、高亮、注释线、点拾取等交互。
+- 图表子系统重写为 `ChartView` + 控制器组合，支持多曲线显示、曲线选择、高亮与注释线等交互。
 - 算法体系由 `AlgorithmManager` 统一注册与调度，支持传统单输入算法与需要交互选点的 B 类算法（如基线校正）。
 - 撤销/重做通过命令模式落地，`HistoryManager` 维护命令栈并向 UI 发信号更新工具栏状态。
 
@@ -37,15 +37,14 @@
 ## 代码结构与职责
 
 ### 表示层（`src/ui/`）
-- `main_window.*`：主窗口，负责菜单、工具栏、停靠面板、Ribbon 初始化与信号转发，接收预构造的 `ChartView` 与 `ProjectExplorerView` 并仅处理布局与 UI 事件。
-- `chart_view.*`：基于 Qt Charts 的曲线视图组件，支持多轴、多曲线、命中检测、注释线与点拾取。
+- `main_window.*`：主窗口，负责菜单、工具栏、停靠面板、Ribbon 初始化与信号转发，接收预构造的 `ChartView` 与 `ProjectExplorerView` 并仅处理布局与 UI 事件；通过 `dataImportRequested`、`algorithmRequested*`、`undoRequested` 等信号通知控制器，避免直接持有控制器指针。
+- `chart_view.*`：基于 Qt Charts 的曲线视图组件，支持多轴、多曲线、命中检测与注释线管理。
 - `project_explorer_view.*`：封装 `QTreeView`，展示由 `ProjectTreeManager` 提供的曲线树。
 - `data_import_widget.*`：数据导入与预览对话框。
-- `peak_area_dialog.*`：峰面积计算的参数配置界面。
+- （已移除）`peak_area_dialog.*`：峰面积计算改为消息提示流程，暂不支持图上点拾取。
 - `controller/`：
   - `main_controller.*`：协调 UI 与应用层服务，集中处理导入、算法执行、撤销/重做等业务流程。
   - `curve_view_controller.*`：连接 `CurveManager`、`ChartView`、`ProjectExplorerView`、`ProjectTreeManager`，管理曲线显示、高亮与树视图同步。
-  - `interaction_controller.*`：管理点拾取、双曲线选择等交互模式，为 B 类算法提供输入。
 
 ### 应用层（`src/application/`）
 - `application_context.*`：统一初始化入口，按模块顺序创建 Model / View / Controller，并集中注册算法后启动主窗口。
@@ -66,7 +65,12 @@
   - `differentiation_algorithm.*`：微分（大窗口平滑中心差分）。
   - `integration_algorithm.*`：积分（梯形法）。
   - `moving_average_filter_algorithm.*`：移动平均滤波。
-  - `baseline_correction_algorithm.*`：基线校正（B 类算法，需要点拾取，可输出基线或去基线结果）。
+  - `baseline_correction_algorithm.*`：基线校正算法逻辑保留，但当前 UI 入口因点拾取功能移除而禁用。
+
+### 分层交互准则
+- **视图层（UI）**：只负责发射信号与直接的界面响应，不包含业务逻辑；需要的数据与动作由控制层驱动。
+- **控制层（Controller）**：接收来自视图层与数据模型的信号，解析成业务语义后调用应用服务或回写视图，承担协调与调度职责。
+- **数据模型层（Manager / Domain Model）**：通过信号向控制层报告状态变化，接受控制层或其他模型的事件驱动；禁止模型间直接调用，只允许事件监听关系。
 
 ### 其他目录
 - `build-scripts/`：集中存放构建脚本与 `BUILD.md` 说明。
@@ -91,7 +95,7 @@ MainWindow 菜单/按钮
   → MainController::onAlgorithmRequested*(name, params)
   → AlgorithmManager 调度算法
       A 类：直接处理活动曲线并生成新曲线
-      B 类：InteractionController 启动点拾取 → 收集坐标 → executeWithInputs()
+      B 类：原交互式算法（需点拾取）入口已禁用，待重新设计交互流程后再启用
   → AlgorithmManager 根据 OutputType
       - AppendCurve: 构造新曲线 → CurveManager::addCurve()
       - ReplaceCurve: 更新已有曲线 → CurveManager::updateCurve()
@@ -113,7 +117,7 @@ MainWindow 菜单/按钮
   2. 明确 `InputType` / `OutputType` / `SignalType`。
   3. 在 `AlgorithmManager::registerAlgorithm()` 注册。
   4. 在 `MainWindow` 中添加 UI 操作并连接至 `MainController`。
-  5. 若需要用户选点或多输入，使用 `InteractionController` 或 `CurveViewController::requestPointPicking()`。
+  5. 若需恢复交互式选点，请先重新设计 `ChartView` 点拾取接口并更新相关控制器。
 - UI 层不包含业务逻辑，只发射信号；业务处理统一进入 `MainController` 或对应的 Manager。
 - 所有修改曲线数据的操作必须封装为命令（派生自 `ICommand`）并通过 `HistoryManager::executeCommand()` 执行。
 - 引入新文件格式需实现 `IFileReader`，并在 `CurveManager::registerDefaultReaders()` 中注册。
@@ -123,7 +127,7 @@ MainWindow 菜单/按钮
 ## 调试与排障
 - 微分算法调试：在参数中设置 `params["enableDebug"] = true`、`params["halfWin"] = 50`、`params["dt"] = 0.1`，详见 `微分算法/微分算法使用说明.md`。
 - 调试日志说明请参考根目录的 `调试日志说明.md`。
-- 点拾取/基线调试：通过 `ChartView::startPointPicking()` 或 `InteractionController` 触发，观察控制台提示及 `pointPickingProgress` 信号。
+- 点拾取相关调试入口已移除，如需重建请先恢复 `ChartView` 交互接口。
 - 若图表显示异常，确认 `ProjectTreeManager::curveCheckStateChanged` 与 `ChartView::setCurveVisible` 的连接是否完整。
 - Windows 平台下若找不到 `qmake` 或 `mingw32-make`，根据 `Analysis/build-scripts/BUILD.md` 调整 PATH。
 
@@ -150,3 +154,4 @@ MainWindow 菜单/按钮
 - 若引入新依赖或大改结构，请先更新设计文档并在回复中说明影响面。
 - 默认使用中文与用户交流，提交前检查文档拼写与格式是否符合仓库风格。
 - 确认生存周期，减少if 的使用。
+- `MainWindow` 请通过信号向控制器发布事件，控制器在 `ApplicationContext` 中注册这些槽函数；不要重新引入 `attachControllers` 或直接持有控制器指针。

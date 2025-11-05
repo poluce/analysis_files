@@ -47,6 +47,20 @@ struct CurveMetadata {
 };
 
 /**
+ * @brief 定义曲线的绘制类型
+ *
+ * 表示该曲线在图表中应如何呈现：
+ * - Line: 折线
+ * - Scatter: 散点
+ * - Area: 面积（用于两条曲线间填充）
+ */
+enum class PlotStyle {
+    Line,    // 折线图
+    Scatter, // 散点图
+    Area     // 面积图（通常需要两条曲线）
+};
+
+/**
  * @brief ThermalCurve 类代表一个完整的热分析数据曲线。
  *
  * 它持有从文件加载的原始、不可变的数据，以及一份可由算法处理的数据副本。
@@ -66,6 +80,7 @@ public:
     const QVector<ThermalDataPoint>& getProcessedData() const;
     const CurveMetadata& getMetadata() const;
     QString parentId() const;
+    PlotStyle plotStyle() const;
 
     // --- 设置器 ---
     void setName(const QString& name);
@@ -76,6 +91,7 @@ public:
     void setProcessedData(const QVector<ThermalDataPoint>& data);
     void setMetadata(const CurveMetadata& metadata);
     void setParentId(const QString& parentId);
+    void setPlotStyle(PlotStyle style);
 
     // --- 辅助方法 ---
     /**
@@ -96,12 +112,14 @@ public:
     void resetToRaw();
 
 private:
-    QString m_id;                    // 唯一标识
-    QString m_name;                  // 曲线名称
-    QString m_projectName;           // 项目名称（文件名，用于树形结构的根节点）
-    InstrumentType m_instrumentType; // 仪器类型
-    SignalType m_signalType;         // 信号处理类型
-    QString m_parentId;              // 父曲线ID（用于算法生成的曲线）
+    QString m_id;                            // 唯一标识
+    QString m_name;                          // 曲线名称
+    QString m_projectName;                   // 项目名称（文件名，用于树形结构的根节点）
+    InstrumentType m_instrumentType;         // 仪器类型
+    SignalType m_signalType;                 // 信号处理类型
+    QString m_parentId;                      // 父曲线ID（用于算法生成的曲线）
+    bool m_isAuxiliaryCurve;                 // 判断是否是辅助曲线
+    PlotStyle m_plotStyle = PlotStyle::Line; // 默认折线
 
     QVector<ThermalDataPoint> m_rawData;       // 原始数据 (只读)
     QVector<ThermalDataPoint> m_processedData; // 处理后数据

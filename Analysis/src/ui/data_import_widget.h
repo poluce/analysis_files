@@ -48,6 +48,13 @@ private slots:
     void onCloseClicked();
 
 private:
+    // 帮助函数
+    QWidget* createTemperatureGroup();
+    QWidget* createTimeGroup();
+    QWidget* createSignalGroup();
+    QWidget* createRateGroup();
+
+private:
     // 顶部：数据文件选择
     QLineEdit* m_filePathEdit;
     QPushButton* m_browseBtn;
@@ -90,11 +97,5 @@ private:
     // 底部按钮
     QPushButton* m_importBtn;
     QPushButton* m_closeBtn;
-
-    // 帮助函数
-    QWidget* createTemperatureGroup();
-    QWidget* createTimeGroup();
-    QWidget* createSignalGroup();
-    QWidget* createRateGroup();
 };
 #endif // DATAIMPORTWIDGET_H

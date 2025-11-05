@@ -1,10 +1,7 @@
 ﻿#include "main_window.h"
 #include "application/history/history_manager.h"
 #include "chart_view.h"
-#include "peak_area_dialog.h"
 #include "project_explorer_view.h"
-#include "ui/controller/curve_view_controller.h"
-#include "ui/controller/main_controller.h"
 
 #include <QAction>
 #include <QComboBox>
@@ -43,7 +40,10 @@ MainWindow::MainWindow(ChartView* chartView, ProjectExplorerView* projectExplore
 
 MainWindow::~MainWindow() = default;
 
-void MainWindow::on_toolButtonOpen_clicked() { m_mainController->onShowDataImport(); }
+void MainWindow::on_toolButtonOpen_clicked()
+{
+    emit dataImportRequested();
+}
 
 void MainWindow::onProjectTreeContextMenuRequested(const QPoint& pos)
 {
@@ -135,42 +135,13 @@ void MainWindow::setupViewConnections()
     });
 }
 
-void MainWindow::attachControllers(MainController* mainController, CurveViewController* curveViewController)
+
+void MainWindow::bindHistoryManager(HistoryManager& historyManager)
 {
-    m_mainController = mainController;
-    m_curveViewController = curveViewController;
+    m_historyManager = &historyManager;
 
-    m_mainController->setPlotWidget(m_chartView);
-
-    // UI → Controller
-    connect(this, &MainWindow::curveDeleteRequested, m_mainController, &MainController::onCurveDeleteRequested);
-
-    connect(m_undoAction, &QAction::triggered, m_mainController, &MainController::onUndo);
-    connect(m_redoAction, &QAction::triggered, m_mainController, &MainController::onRedo);
-
-    connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
-        qDebug() << "MainWindow: 峰面积按钮被点击";
-        m_mainController->onPeakAreaRequested();
-    });
-
-    connect(m_baselineAction, &QAction::triggered, this, [this]() {
-        qDebug() << "MainWindow: 基线按钮被点击";
-        m_mainController->onBaselineRequested();
-    });
-
-    connect(m_chartView, &ChartView::pointPickingProgress, m_mainController, &MainController::onPointPickingProgress);
-
-    auto updateHistoryButtons = [this]() {
-        HistoryManager& historyManager = HistoryManager::instance();
-        m_undoAction->setEnabled(historyManager.canUndo());
-        m_redoAction->setEnabled(historyManager.canRedo());
-        qDebug() << "历史状态更新: 可撤销=" << historyManager.canUndo() << ", 可重做=" << historyManager.canRedo();
-    };
-
-    connect(&HistoryManager::instance(), &HistoryManager::historyChanged, this, updateHistoryButtons);
+    connect(&historyManager, &HistoryManager::historyChanged, this, &MainWindow::updateHistoryButtons);
     updateHistoryButtons();
-
-    qDebug() << "MainWindow::attachControllers - 信号连接完成";
 }
 
 // 创建文件工具栏
@@ -193,12 +164,14 @@ QToolBar* MainWindow::createFileToolBar()
     m_undoAction->setShortcutContext(Qt::ApplicationShortcut); // 设置为应用程序级别快捷键
     m_undoAction->setEnabled(false);                           // 初始状态禁用
     this->addAction(m_undoAction);                             // 添加到 MainWindow 以确保快捷键全局可用
+    connect(m_undoAction, &QAction::triggered, this, &MainWindow::undoRequested);
 
     m_redoAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowForward), tr("重做"));
     m_redoAction->setShortcut(QKeySequence::Redo);             // 绑定 Ctrl +y
     m_redoAction->setShortcutContext(Qt::ApplicationShortcut); // 设置为应用程序级别快捷键
     m_redoAction->setEnabled(false);                           // 初始状态禁用
     this->addAction(m_redoAction);                             // 添加到 MainWindow 以确保快捷键全局可用
+    connect(m_redoAction, &QAction::triggered, this, &MainWindow::redoRequested);
 
     toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     return toolbar;
@@ -233,6 +206,15 @@ QToolBar* MainWindow::createMathToolBar()
 
     // 添加基线绘制按钮
     m_baselineAction = toolbar->addAction(style()->standardIcon(QStyle::SP_FileDialogDetailedView), tr("绘制基线..."));
+
+    connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
+        qDebug() << "MainWindow: 峰面积按钮被点击";
+        emit peakAreaRequested();
+    });
+    connect(m_baselineAction, &QAction::triggered, this, [this]() {
+        qDebug() << "MainWindow: 基线按钮被点击";
+        emit baselineRequested();
+    });
 
     connect(diffAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
@@ -273,7 +255,7 @@ void MainWindow::onSimpleAlgorithmActionTriggered()
     }
     QString algorithmName = action->data().toString();
     if (!algorithmName.isEmpty()) {
-        m_mainController->onAlgorithmRequested(algorithmName);
+        emit algorithmRequested(algorithmName);
     }
 }
 
@@ -286,5 +268,21 @@ void MainWindow::onMovingAverageAction()
     }
     QVariantMap params;
     params.insert("window", window);
-    m_mainController->onAlgorithmRequestedWithParams("moving_average", params);
+    emit algorithmRequestedWithParams("moving_average", params);
+}
+
+
+void MainWindow::updateHistoryButtons()
+{
+    if (!m_historyManager) {
+        return;
+    }
+
+    const bool canUndo = m_historyManager->canUndo();
+    const bool canRedo = m_historyManager->canRedo();
+
+    m_undoAction->setEnabled(canUndo);
+    m_redoAction->setEnabled(canRedo);
+
+    qDebug() << "历史状态更新: 可撤销=" << canUndo << ", 可重做=" << canRedo;
 }

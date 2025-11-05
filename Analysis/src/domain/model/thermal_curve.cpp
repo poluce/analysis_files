@@ -29,6 +29,8 @@ const CurveMetadata& ThermalCurve::getMetadata() const { return m_metadata; }
 
 QString ThermalCurve::parentId() const { return m_parentId; }
 
+PlotStyle ThermalCurve::plotStyle() const { return m_plotStyle; }
+
 void ThermalCurve::setName(const QString& name) { m_name = name; }
 
 void ThermalCurve::setProjectName(const QString& projectName) { m_projectName = projectName; }
@@ -48,6 +50,8 @@ void ThermalCurve::setProcessedData(const QVector<ThermalDataPoint>& data) { m_p
 void ThermalCurve::setMetadata(const CurveMetadata& metadata) { m_metadata = metadata; }
 
 void ThermalCurve::setParentId(const QString& parentId) { m_parentId = parentId; }
+
+void ThermalCurve::setPlotStyle(PlotStyle style) { m_plotStyle = style; }
 
 void ThermalCurve::resetToRaw() { m_processedData = m_rawData; }
 
