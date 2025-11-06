@@ -32,25 +32,27 @@
   ```
 - 运行调试版：`Analysis/build-debug/debug/Analysis.exe`
 - 运行发布版（若使用脚本生成）：`Analysis/build-release/release/Analysis.exe`
-- 环境要求：Qt ≥ 5.14.2、MinGW 7.3.0、C++17、启用 Qt Charts 模块。
+- 环境要求：Qt 5.14.2、MinGW 7.3.0、C++17、启用 Qt Charts 模块。
 
 ## 代码结构与职责
 
 ### 表示层（`src/ui/`）
 - `main_window.*`：主窗口，负责菜单、工具栏、停靠面板、Ribbon 初始化与信号转发，接收预构造的 `ChartView` 与 `ProjectExplorerView` 并仅处理布局与 UI 事件；通过 `dataImportRequested`、`algorithmRequested*`、`undoRequested` 等信号通知控制器，避免直接持有控制器指针。
-- `chart_view.*`：基于 Qt Charts 的曲线视图组件，支持多轴、多曲线、命中检测与注释线管理。
+- `chart_view.*`：基于 Qt Charts 的曲线视图组件，支持多轴、多曲线、命中检测、注释线管理与交互式选点（返回 `QPointF` 序列，`InteractionMode::Pick` 下会锁定橡皮筋并显示十字光标）。
 - `project_explorer_view.*`：封装 `QTreeView`，展示由 `ProjectTreeManager` 提供的曲线树。
 - `data_import_widget.*`：数据导入与预览对话框。
 - （已移除）`peak_area_dialog.*`：峰面积计算改为消息提示流程，暂不支持图上点拾取。
 - `controller/`：
-  - `main_controller.*`：协调 UI 与应用层服务，集中处理导入、算法执行、撤销/重做等业务流程。
-  - `curve_view_controller.*`：连接 `CurveManager`、`ChartView`、`ProjectExplorerView`、`ProjectTreeManager`，管理曲线显示、高亮与树视图同步。
+  - `main_controller.*`：协调 UI 与应用层服务，集中处理导入、算法执行、撤销/重做等业务流程，并充当 `AlgorithmCoordinator` 的桥梁（转发参数、选点结果与提示信息）。
+  - `curve_view_controller.*`：连接 `CurveManager`、`ChartView`、`ProjectExplorerView`、`ProjectTreeManager`，管理曲线显示、高亮、树视图同步与交互选点（`setPickPointMode`、`pointsPicked` 信号）。
 
 ### 应用层（`src/application/`）
 - `application_context.*`：统一初始化入口，按模块顺序创建 Model / View / Controller，并集中注册算法后启动主窗口。
 - `curve/curve_manager.*`：曲线生命周期管理、活动曲线维护、信号广播。
 - `project/project_tree_manager.*`：基于 `QStandardItemModel` 管理项目/曲线树，处理复选框状态并发射 `curveCheckStateChanged`。
 - `algorithm/algorithm_manager.*`：算法注册与调度，支持 `execute()`（A 类算法）与 `executeWithInputs()`（B-E 类算法），根据输出类型创建新曲线或返回数据。
+- `algorithm/algorithm_context.*`：运行态上下文存储，集中缓存算法参数、选点结果与阶段性输出，供后续算法或 UI 查询。
+- `algorithm/algorithm_coordinator.*`：算法协调器，按照 `AlgorithmDescriptor` 描述驱动参数表单、选点引导与依赖检查，最终组装输入并调用 `AlgorithmManager`。
 - `history/history_manager.*` 与命令类：实现命令模式，所有会修改数据的操作必须封装为命令并进入历史栈。
 
 ### 领域层（`src/domain/`）
@@ -93,13 +95,14 @@ MainWindow → MainController::onShowDataImport()
 ```
 MainWindow 菜单/按钮
   → MainController::onAlgorithmRequested*(name, params)
-  → AlgorithmManager 调度算法
-      A 类：直接处理活动曲线并生成新曲线
-      B 类：原交互式算法（需点拾取）入口已禁用，待重新设计交互流程后再启用
+  → AlgorithmCoordinator 根据 `AlgorithmDescriptor` 检查前置条件、落地参数/选点采集，并写入 `AlgorithmContext`
+      - ParameterDialog: 弹出配置窗口或使用默认值
+      - PointSelection: 切换 `ChartView` 至拾取模式，待 `CurveViewController::pointsPicked` 返回 `QVector<QPointF>`
+  → AlgorithmCoordinator 组装 `inputs`（含 `mainCurve`、参数、选点）并调用 AlgorithmManager::executeWithInputs()
   → AlgorithmManager 根据 OutputType
       - AppendCurve: 构造新曲线 → CurveManager::addCurve()
       - ReplaceCurve: 更新已有曲线 → CurveManager::updateCurve()
-      - DataOnly: 通过 algorithmResultReady 信号交回结果
+      - DataOnly / Area / Annotation: 通过 `algorithmResultReady` 信号返回数据；Coordinator 写回 `AlgorithmContext`
   → HistoryManager 记录命令，更新撤销/重做状态
 ```
 
@@ -116,8 +119,9 @@ MainWindow 菜单/按钮
   1. 在 `infrastructure/algorithm/` 实现 `IThermalAlgorithm`。
   2. 明确 `InputType` / `OutputType` / `SignalType`。
   3. 在 `AlgorithmManager::registerAlgorithm()` 注册。
-  4. 在 `MainWindow` 中添加 UI 操作并连接至 `MainController`。
-  5. 若需恢复交互式选点，请先重新设计 `ChartView` 点拾取接口并更新相关控制器。
+  4. 为 `AlgorithmCoordinator` 增补 `AlgorithmDescriptor`（交互方式、参数、依赖与输出写回键）。
+  5. 在 `MainWindow` 中添加 UI 操作并连接至 `MainController`。
+  6. 若需交互式选点，利用 `CurveViewController::pointsPicked` 回调并将结果写入 `AlgorithmContext`；禁止绕过协调器直接访问 `ChartView`。
 - UI 层不包含业务逻辑，只发射信号；业务处理统一进入 `MainController` 或对应的 Manager。
 - 所有修改曲线数据的操作必须封装为命令（派生自 `ICommand`）并通过 `HistoryManager::executeCommand()` 执行。
 - 引入新文件格式需实现 `IFileReader`，并在 `CurveManager::registerDefaultReaders()` 中注册。
@@ -141,9 +145,8 @@ MainWindow 菜单/按钮
 ## 参考资料
 - 架构概览：`设计文档/01_主架构设计.md`、`设计文档/02_四层架构详解.md`
 - 功能说明：`Analysis/功能说明.md`、`Analysis/ARCHITECTURE_OPTIMIZATION_PLAN.md`
-- 交互设计：`设计文档/曲线交互功能实现计划.md`、`新设计文档/交互类.md`
-- 项目树方案：`新设计文档/迁移项目树指导.md`、`新设计文档/优化项目浏览器的对比.md`
-- 初始化与配置：`新设计文档/统一初始化.md`、`新设计文档/注释语法.md`
+- 交互设计：`设计文档/曲线交互功能实现计划.md`、`新设计文档/交互类.md`、`新设计文档/一、MVC 层次划分总览.md`
+- 算法上下文：`新设计文档/📘 AlgorithmContext 类设计文档.md`、`新设计文档/AlgorithmContext_数据清单.md`、`新设计文档/AlgorithmContext_数据分类表.xlsx`、`新设计文档/AlgorithmContext_算法数据依赖表.xlsx`
 - 算法行为分类：`新设计文档/抽象算法行为类型.md`
 
 ## AI 助手工作提示

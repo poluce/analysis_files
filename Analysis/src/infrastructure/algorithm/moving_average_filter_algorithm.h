@@ -23,6 +23,7 @@ public:
     // 新接口方法（A类算法：单曲线，无交互）
     InputType inputType() const override;
     OutputType outputType() const override;
+    AlgorithmDescriptor descriptor() const override;
 
 private:
     int m_window = 5; // 滤波窗口大小（点数）

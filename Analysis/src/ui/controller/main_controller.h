@@ -4,32 +4,36 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
+#include <QPointF>
 
 // 前置声明
 class CurveManager;
 class DataImportWidget;
 class TextFileReader;
 class ThermalCurve;
-class AlgorithmManager; // 添加
-class HistoryManager; // 添加
-class ChartView; // 添加
+class AlgorithmManager;
+class AlgorithmCoordinator;
+class AlgorithmContext;
+class HistoryManager;
+class ChartView;
 class MainWindow;
+class CurveViewController;
 
 /**
  * @brief MainController 协调UI和应用服务。
  */
-class MainController : public QObject
-{
+class MainController : public QObject {
     Q_OBJECT
 
 public:
-    explicit MainController(CurveManager* curveManager, QObject *parent = nullptr);
+    explicit MainController(CurveManager* curveManager, QObject* parent = nullptr);
     ~MainController();
 
     // 设置 ChartView（用于基线绘制和交互控制）
     void setPlotWidget(ChartView* plotWidget);
     void attachMainWindow(MainWindow* mainWindow);
-
+    void setCurveViewController(CurveViewController* ViewController);
+    void setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, AlgorithmContext* context);
 
 signals:
     /**
@@ -44,7 +48,8 @@ public slots:
      * @brief 显示数据导入窗口。
      */
     void onShowDataImport();
-    void onAlgorithmRequested(const QString& algorithmName); // 简单执行，无参数
+    void onAlgorithmRequested(const QString& algorithmName);    // 简单执行，无参数
+    void onNewAlgorithmRequested(const QString& algorithmName); // 简单执行，无参数
     // 带参数执行算法（例如移动平均的窗口大小等）
     void onAlgorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params);
 
@@ -73,15 +78,23 @@ private slots:
      */
     void onImportTriggered();
     void onAlgorithmFinished(const QString& curveId); // 添加
+    void onPointsPickedFromView(const QVector<QPointF>& points);
+    void onCoordinatorRequestPointSelection(const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+    void onCoordinatorShowMessage(const QString& text);
+    void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
+    void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);
 
 private:
     CurveManager* m_curveManager;         // 非拥有指针
     DataImportWidget* m_dataImportWidget; // 拥有指针
     TextFileReader* m_textFileReader;     // 拥有指针
-    AlgorithmManager* m_algorithmManager; // 添加
-    HistoryManager* m_historyManager;     // 添加，非拥有指针（单例）
-    ChartView* m_plotWidget = nullptr;   // 非拥有指针
+    AlgorithmManager* m_algorithmManager; // 非拥有指针
+    AlgorithmCoordinator* m_algorithmCoordinator = nullptr; // 非拥有指针
+    AlgorithmContext* m_algorithmContext = nullptr;         // 非拥有指针
+    HistoryManager* m_historyManager;     // 非拥有指针（单例）
+    ChartView* m_plotWidget = nullptr;    // 非拥有指针
     MainWindow* m_mainWindow = nullptr;   // 非拥有指针
+    CurveViewController* m_curveViewController = nullptr;
 };
 
 #endif // MAINCONTROLLER_H

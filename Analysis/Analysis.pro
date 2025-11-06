@@ -29,7 +29,10 @@ SOURCES += \
     src/application/application_context.cpp \
     src/application/curve/curve_manager.cpp \
     src/application/algorithm/algorithm_manager.cpp \
+    src/application/algorithm/algorithm_context.cpp \
+    src/application/algorithm/algorithm_coordinator.cpp \
     src/application/history/history_manager.cpp \
+    src/application/history/add_curve_command.cpp \
     src/application/history/algorithm_command.cpp \
     src/application/history/baseline_command.cpp \
     src/application/project/project_tree_manager.cpp \
@@ -58,6 +61,10 @@ HEADERS += \
     src/application/application_context.h \
     src/application/curve/curve_manager.h \
     src/application/algorithm/algorithm_manager.h \
+    src/application/algorithm/algorithm_context.h \
+    src/application/algorithm/algorithm_coordinator.h \
+    src/application/algorithm/algorithm_descriptor.h \
+    src/application/history/add_curve_command.h \
     src/application/history/history_manager.h \
     src/application/history/algorithm_command.h \
     src/application/history/baseline_command.h \
@@ -66,6 +73,7 @@ HEADERS += \
     # Domain Layer
     src/domain/model/thermal_data_point.h \
     src/domain/model/thermal_curve.h \
+    src/domain/algorithm/algorithm_descriptor.h \
     src/domain/algorithm/i_thermal_algorithm.h \
     src/domain/algorithm/i_command.h \
     \

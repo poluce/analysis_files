@@ -1,10 +1,14 @@
-﻿#include "ui/controller/main_controller.h"
+#include "ui/controller/main_controller.h"
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include "infrastructure/io/text_file_reader.h"
+#include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
 #include <QDebug>
+#include <QtGlobal>
 
+#include "application/algorithm/algorithm_context.h"
+#include "application/algorithm/algorithm_coordinator.h"
 #include "application/algorithm/algorithm_manager.h"
 #include "application/history/algorithm_command.h"
 #include "application/history/history_manager.h"
@@ -45,10 +49,7 @@ MainController::~MainController()
     delete m_textFileReader;
 }
 
-void MainController::setPlotWidget(ChartView* plotWidget)
-{
-    m_plotWidget = plotWidget;
-}
+void MainController::setPlotWidget(ChartView* plotWidget) { m_plotWidget = plotWidget; }
 
 void MainController::attachMainWindow(MainWindow* mainWindow)
 {
@@ -62,11 +63,46 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     connect(mainWindow, &MainWindow::curveDeleteRequested, this, &MainController::onCurveDeleteRequested, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::undoRequested, this, &MainController::onUndo, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::redoRequested, this, &MainController::onRedo, Qt::UniqueConnection);
-    connect(mainWindow, &MainWindow::peakAreaRequested, this, &MainController::onPeakAreaRequested, Qt::UniqueConnection);
-    connect(mainWindow, &MainWindow::baselineRequested, this, &MainController::onBaselineRequested, Qt::UniqueConnection);
-    //算法接入
+    // 算法接入
     connect(mainWindow, &MainWindow::algorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
-    connect(mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequestedWithParams, Qt::UniqueConnection);
+    connect(mainWindow, &MainWindow::newAlgorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
+    connect(
+        mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequestedWithParams,
+        Qt::UniqueConnection);
+}
+
+void MainController::setCurveViewController(CurveViewController* ViewController)
+{
+    m_curveViewController = ViewController;
+
+    if (m_curveViewController) {
+        connect(
+            m_curveViewController, &CurveViewController::pointsPicked, this, &MainController::onPointsPickedFromView,
+            Qt::UniqueConnection);
+    }
+}
+
+void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, AlgorithmContext* context)
+{
+    m_algorithmCoordinator = coordinator;
+    m_algorithmContext = context;
+
+    if (!m_algorithmCoordinator) {
+        return;
+    }
+
+    connect(
+        m_algorithmCoordinator, &AlgorithmCoordinator::requestPointSelection, this,
+        &MainController::onCoordinatorRequestPointSelection, Qt::UniqueConnection);
+    connect(
+        m_algorithmCoordinator, &AlgorithmCoordinator::showMessage, this, &MainController::onCoordinatorShowMessage,
+        Qt::UniqueConnection);
+    connect(
+        m_algorithmCoordinator, &AlgorithmCoordinator::algorithmFailed, this,
+        &MainController::onCoordinatorAlgorithmFailed, Qt::UniqueConnection);
+    connect(
+        m_algorithmCoordinator, &AlgorithmCoordinator::algorithmSucceeded, this,
+        &MainController::onCoordinatorAlgorithmSucceeded, Qt::UniqueConnection);
 }
 
 void MainController::onShowDataImport() { m_dataImportWidget->show(); }
@@ -122,6 +158,11 @@ void MainController::onAlgorithmRequested(const QString& algorithmName)
 {
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName;
 
+    if (m_algorithmCoordinator) {
+        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName);
+        return;
+    }
+
     // 1. 业务规则检查
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
@@ -145,11 +186,22 @@ void MainController::onAlgorithmRequested(const QString& algorithmName)
     }
     // 注意：新曲线的添加和UI更新由 CurveManager::curveAdded 信号自动触发
 }
+
+void MainController::onNewAlgorithmRequested(const QString& algorithmName)
+{
+    onAlgorithmRequested(algorithmName);
+}
 // TODO:目前是通过mainwindow 中直接调用，后续也改为信号槽链接
 // 带参数的算法调用
 void MainController::onAlgorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params)
 {
     qDebug() << "带参数的算法调用";
+
+    if (m_algorithmCoordinator) {
+        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
+        return;
+    }
+
     // 获取曲线
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
@@ -212,22 +264,6 @@ void MainController::onRedo()
     // 注意：曲线的添加由 CurveManager::curveAdded 信号自动触发UI更新
 }
 
-// ========== 峰面积计算功能 ==========
-void MainController::onPeakAreaRequested()
-{
-    qDebug() << "MainController::onPeakAreaRequested - 功能已停用";
-    QMessageBox::information(m_mainWindow, tr("功能不可用"), tr("点拾取功能已移除，峰面积计算暂不可用。"));
-}
-
-// ========== 基线绘制功能 ==========
-void MainController::onBaselineRequested()
-{
-    qDebug() << "MainController::onBaselineRequested - 功能已停用";
-    QMessageBox::information(m_mainWindow, tr("功能不可用"), tr("点拾取功能已移除，基线绘制暂不可用。"));
-
-
-}
-
 // ========== 响应UI的曲线删除请求 ==========
 void MainController::onCurveDeleteRequested(const QString& curveId)
 {
@@ -235,3 +271,57 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
     m_curveManager->removeCurve(curveId);
 }
 
+void MainController::onPointsPickedFromView(const QVector<QPointF>& points)
+{
+    if (!m_algorithmCoordinator) {
+        qDebug() << "MainController::onPointsPickedFromView - 当前无算法协调器，忽略选点结果";
+        return;
+    }
+    m_algorithmCoordinator->handlePointSelectionResult(points);
+}
+
+void MainController::onCoordinatorRequestPointSelection(
+    const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
+{
+    Q_UNUSED(algorithmName);
+    Q_UNUSED(curveId);
+
+    if (!m_curveViewController) {
+        qWarning() << "MainController::onCoordinatorRequestPointSelection - 未绑定 CurveViewController";
+        return;
+    }
+
+    m_curveViewController->setPickPointMode(qMax(1, requiredPoints));
+
+    if (!hint.isEmpty()) {
+        onCoordinatorShowMessage(hint);
+    }
+}
+
+void MainController::onCoordinatorShowMessage(const QString& text)
+{
+    if (text.isEmpty()) {
+        return;
+    }
+
+    if (m_mainWindow) {
+        QMessageBox::information(m_mainWindow, tr("提示"), text);
+    } else {
+        qInfo() << text;
+    }
+}
+
+void MainController::onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason)
+{
+    qWarning() << "算法执行失败:" << algorithmName << reason;
+    if (m_mainWindow) {
+        QMessageBox::warning(
+            m_mainWindow, tr("算法失败"), tr("算法 %1 执行失败：%2").arg(algorithmName, reason));
+    }
+}
+
+void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmName)
+{
+    qInfo() << "算法执行完成:" << algorithmName;
+    // 预留：可在此刷新状态栏或提示用户
+}

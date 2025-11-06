@@ -40,10 +40,7 @@ MainWindow::MainWindow(ChartView* chartView, ProjectExplorerView* projectExplore
 
 MainWindow::~MainWindow() = default;
 
-void MainWindow::on_toolButtonOpen_clicked()
-{
-    emit dataImportRequested();
-}
+void MainWindow::on_toolButtonOpen_clicked() { emit dataImportRequested(); }
 
 void MainWindow::onProjectTreeContextMenuRequested(const QPoint& pos)
 {
@@ -135,7 +132,6 @@ void MainWindow::setupViewConnections()
     });
 }
 
-
 void MainWindow::bindHistoryManager(HistoryManager& historyManager)
 {
     m_historyManager = &historyManager;
@@ -202,22 +198,14 @@ QToolBar* MainWindow::createMathToolBar()
     toolbar->addSeparator();
 
     // 添加基线绘制按钮
-    m_baselineAction = toolbar->addAction(tr("绘制基线"));
-    m_baselineAction->setData("baseline_correction");
+    QAction* baselineAction = toolbar->addAction(tr("绘制基线"));
+    baselineAction->setData("baseline_correction");
     // 添加峰面积计算按钮
-    m_peakAreaAction = toolbar->addAction(tr("峰面积计算"));
+    QAction* peakAreaAction = toolbar->addAction(tr("峰面积计算"));
 
-//    connect(m_peakAreaAction, &QAction::triggered, this, [this]() {
-//        qDebug() << "MainWindow: 峰面积按钮被点击";
-//        emit peakAreaRequested();
-//    });
-//    connect(m_baselineAction, &QAction::triggered, this, [this]() {
-//        qDebug() << "MainWindow: 基线按钮被点击";
-//        emit baselineRequested();
-//    });
+    connect(baselineAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
+    connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
 
-    connect(m_baselineAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
-    connect(m_peakAreaAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
     connect(diffAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
     connect(integAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
@@ -273,6 +261,17 @@ void MainWindow::onMovingAverageAction()
     emit algorithmRequestedWithParams("moving_average", params);
 }
 
+void MainWindow::onAlgorithmActionTriggered()
+{
+    auto* action = qobject_cast<QAction*>(sender());
+    if (!action) {
+        return;
+    }
+    QString algorithmName = action->data().toString();
+    if (!algorithmName.isEmpty()) {
+        emit newAlgorithmRequested(algorithmName);
+    }
+}
 
 void MainWindow::updateHistoryButtons()
 {

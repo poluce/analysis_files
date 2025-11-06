@@ -1,6 +1,7 @@
 #include "text_file_reader.h"
 #include "domain/model/thermal_curve.h"
 #include <QDebug>
+#include <QRegularExpression>
 #include <QFile>
 #include <QFileInfo>
 #include <QTextStream>
@@ -30,6 +31,7 @@ FilePreviewData TextFileReader::readPreview(const QString& filePath) const
     QTextStream in(&file);
     // 强制按 GBK 解码文本，避免受系统本地编码影响
     in.setCodec("GBK");
+
     QStringList headerLines;
     QStringList dataLines;
     int lineCount = 0;
@@ -57,18 +59,26 @@ FilePreviewData TextFileReader::readPreview(const QString& filePath) const
     // 从最后一行表头中提取列名
     if (!headerLines.isEmpty()) {
         const bool isCsv = filePath.endsWith(".csv", Qt::CaseInsensitive);
-        QStringList headerCols
-            = isCsv ? headerLines.last().split(',') : headerLines.last().split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+        const QStringList headerCols
+            = isCsv ? headerLines.last().split(',') : headerLines.last().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        previewData.columns.reserve(headerCols.size());
         for (int i = 0; i < headerCols.size(); ++i) {
-            previewData.columns << QString("%1:%2").arg(i + 1).arg(headerCols.at(i).trimmed());
+            FilePreviewColumn column;
+            column.index = i;
+            column.label = headerCols.at(i).trimmed();
+            previewData.columns.append(column);
         }
     } else if (!dataLines.isEmpty()) {
         // 如果没有表头，则根据第一行数据列数生成默认列名
         const bool isCsv = filePath.endsWith(".csv", Qt::CaseInsensitive);
-        int colCount
-            = isCsv ? dataLines.first().count(',') + 1 : dataLines.first().split(QRegExp("\\s+"), Qt::SkipEmptyParts).size();
+        const int colCount
+            = isCsv ? dataLines.first().count(',') + 1 : dataLines.first().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).size();
+        previewData.columns.reserve(colCount);
         for (int i = 0; i < colCount; ++i) {
-            previewData.columns << QString("列 %1").arg(i + 1);
+            FilePreviewColumn column;
+            column.index = i;
+            column.label = QStringLiteral("列 %1").arg(i + 1);
+            previewData.columns.append(column);
         }
     }
 
@@ -95,6 +105,7 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
     QTextStream in(&file);
     // 强制按 GBK 解码文本，避免受系统本地编码影响
     in.setCodec("GBK");
+
     QStringList dataLines;
     while (!in.atEnd()) {
         const QString line = in.readLine().trimmed();
@@ -133,26 +144,36 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
     // 4. 解析数据
     const bool isCsv = filePath.endsWith(".csv", Qt::CaseInsensitive);
     auto splitLine
-        = [&](const QString& s) -> QStringList { return isCsv ? s.split(',') : s.split(QRegExp("\\s+"), Qt::SkipEmptyParts); };
+        = [&](const QString& s) -> QStringList { return isCsv ? s.split(',') : s.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts); };
 
     QVector<ThermalDataPoint> points;
     points.reserve(dataLines.size());
 
     for (const QString& line : dataLines) {
         const QStringList cols = splitLine(line);
-        bool ok;
         ThermalDataPoint point;
 
-        double time = (timeCol < cols.size()) ? cols.at(timeCol).toDouble(&ok) * timeFactor : 0.0;
+        bool ok = false;
+        double time = 0.0;
+        if (timeCol >= 0 && timeCol < cols.size()) {
+            time = cols.at(timeCol).toDouble(&ok) * timeFactor;
+        }
         point.time = ok ? time : 0.0;
 
+        bool tempOk = false;
         double temp = tempFixedValue;
-        if (!tempIsFixed && tempCol < cols.size()) {
-            temp = cols.at(tempCol).toDouble(&ok) + tempOffset;
+        if (!tempIsFixed && tempCol >= 0 && tempCol < cols.size()) {
+            temp = cols.at(tempCol).toDouble(&tempOk) + tempOffset;
+        } else {
+            tempOk = true;
         }
-        point.temperature = ok ? temp : 0.0;
+        point.temperature = tempOk ? temp : tempFixedValue;
 
-        double value = (signalCol < cols.size()) ? cols.at(signalCol).toDouble(&ok) : 0.0;
+        ok = false;
+        double value = 0.0;
+        if (signalCol >= 0 && signalCol < cols.size()) {
+            value = cols.at(signalCol).toDouble(&ok);
+        }
         point.value = ok ? value : 0.0;
 
         points.append(point);

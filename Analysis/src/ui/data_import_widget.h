@@ -1,27 +1,23 @@
 #ifndef DATAIMPORTWIDGET_H
 #define DATAIMPORTWIDGET_H
 
-#include <QCheckBox>
-#include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QFileDialog>
-#include <QFormLayout>
-#include <QFrame>
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QLineEdit>
-#include <QListWidget>
-#include <QPlainTextEdit>
-#include <QPushButton>
-#include <QSpinBox>
-#include <QTextEdit>
-#include <QVBoxLayout>
-#include <QVariantMap>
+#include <QVector>
 #include <QWidget>
+#include <QVariantMap>
 
-#include "infrastructure/io/text_file_reader.h" // 包含预览数据结构体的定义
+#include "infrastructure/io/text_file_reader.h" // 提供 FilePreviewData 定义
+
+class QCheckBox;
+class QComboBox;
+class QDoubleSpinBox;
+class QFrame;
+class QGroupBox;
+class QLabel;
+class QLineEdit;
+class QPlainTextEdit;
+class QPushButton;
+class QSpinBox;
+class QTextEdit;
 
 // DataImportWidget 类定义
 class DataImportWidget : public QWidget {
@@ -53,6 +49,13 @@ private:
     QWidget* createTimeGroup();
     QWidget* createSignalGroup();
     QWidget* createRateGroup();
+    QFrame* createSeparator();
+    void setupConnections();
+    void populateColumnCombos(const QVector<FilePreviewColumn>& columns);
+    [[nodiscard]] int extractColumnIndex(const QComboBox* combo) const;
+    void updateTemperatureControls();
+    void updateRateControls();
+    void handleSignalModeToggle(QCheckBox* source);
 
 private:
     // 顶部：数据文件选择

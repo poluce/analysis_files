@@ -1,6 +1,7 @@
 #include "moving_average_filter_algorithm.h"
 #include "domain/model/thermal_data_point.h"
 #include <QDebug>
+#include <QVariant>
 #include <QtGlobal>
 
 MovingAverageFilterAlgorithm::MovingAverageFilterAlgorithm() { qDebug() << "构造:  MovingAverageFilterAlgorithm"; }
@@ -91,4 +92,15 @@ IThermalAlgorithm::OutputType MovingAverageFilterAlgorithm::outputType() const
 {
     // 输出新曲线（滤波后的曲线）
     return OutputType::Curve;
+}
+
+AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
+{
+    AlgorithmDescriptor desc;
+    desc.name = name();
+    desc.interaction = AlgorithmInteraction::ParameterDialog;
+    desc.parameters = {
+        { QStringLiteral("window"), QStringLiteral("窗口大小"), QVariant::Int, m_window, true, { { QStringLiteral("min"), 1 } } },
+    };
+    return desc;
 }

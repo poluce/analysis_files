@@ -3,12 +3,18 @@
 
 #include "infrastructure/io/i_file_reader.h"
 #include <QVariantMap>
+#include <QVector>
+
+struct FilePreviewColumn {
+    int index = -1;
+    QString label;
+};
 
 // 定义一个简单的结构体来存储预览数据
 struct FilePreviewData {
     QString header;
     QString previewContent;
-    QStringList columns;
+    QVector<FilePreviewColumn> columns;
 };
 
 class TextFileReader : public IFileReader {

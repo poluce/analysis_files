@@ -38,6 +38,7 @@ public:
     QVariant execute(const QVariantMap& inputs) override;
     QString userPrompt() const override;
     QVariantMap configure(QWidget* parent = nullptr) override;
+    AlgorithmDescriptor descriptor() const override;
 
 private:
     /**

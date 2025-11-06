@@ -1,9 +1,12 @@
 #include "algorithm_manager.h"
 #include "application/curve/curve_manager.h"
+#include "application/history/add_curve_command.h"
+#include "application/history/history_manager.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "domain/model/thermal_curve.h"
 #include <QDebug>
 #include <QUuid>
+#include <memory>
 
 AlgorithmManager* AlgorithmManager::instance()
 {
@@ -151,8 +154,8 @@ void AlgorithmManager::handleAlgorithmResult(IThermalAlgorithm* algorithm, Therm
         }
 
         // 创建新曲线
-        QString newId = QUuid::createUuid().toString();
-        QString newName = algorithm->displayName();
+        const QString newId = QUuid::createUuid().toString();
+        const QString newName = algorithm->displayName();
         ThermalCurve newCurve(newId, newName);
 
         // 填充数据和元数据
@@ -165,11 +168,12 @@ void AlgorithmManager::handleAlgorithmResult(IThermalAlgorithm* algorithm, Therm
         newCurve.setInstrumentType(parentCurve->instrumentType());
         newCurve.setSignalType(algorithm->getOutputSignalType(parentCurve->signalType()));
 
-        // 添加并激活新曲线
-        m_curveManager->addCurve(newCurve);
-        m_curveManager->setActiveCurve(newId);
+        const QString description = QStringLiteral("执行 %1 算法").arg(algorithm->displayName());
+        auto command = std::make_unique<AddCurveCommand>(m_curveManager, newCurve, description);
+        if (!HistoryManager::instance().executeCommand(std::move(command))) {
+            qWarning() << "算法结果入栈失败，放弃添加新曲线";
+        }
 
-        qDebug() << "新曲线" << newName << "已创建（ID:" << newId << "）";
         break;
     }
 

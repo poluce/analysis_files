@@ -10,6 +10,8 @@ class MainController;
 class CurveViewController;
 class ChartView;
 class ProjectExplorerView;
+class AlgorithmContext;
+class AlgorithmCoordinator;
 
 /**
  * @brief ApplicationContext 统一管理应用启动时的 MVC 各实例创建顺序。
@@ -43,6 +45,8 @@ private:
     // Controller
     MainController* m_mainController { nullptr };
     CurveViewController* m_curveViewController { nullptr };
+    AlgorithmContext* m_algorithmContext { nullptr };
+    AlgorithmCoordinator* m_algorithmCoordinator { nullptr };
 };
 
 #endif // APPLICATION_CONTEXT_H

@@ -1,6 +1,7 @@
 #ifndef ITHERMALALGORITHM_H
 #define ITHERMALALGORITHM_H
 
+#include "domain/algorithm/algorithm_descriptor.h"
 #include "domain/model/thermal_curve.h"
 #include <QString>
 #include <QVariant>
@@ -15,24 +16,18 @@
  *  插件算法可复用这些标准字段，或在 "custom" map 中定义扩展字段。
  *
  *  基本输入：
- *   - "mainCurve"        当前选中曲线（Curve* 或 QLineSeries*）
+ *   - "mainCurve"        需要计算的主曲线的数据
  *   - "refCurve"         参考曲线（用于相交/积分类算法）
- *   - "points"           用户选中点集合 QVector<QPointF>
- *   - "x1", "x2"         选区范围边界
+ *   - "points"           用户选中的x轴点集合 QVector<float>
  *   - "region"           X区间范围 {x1, x2}
  *   - "baselineMode"     基线计算模式 ("linear", "poly")
  *   - "smoothWindow"     平滑算法窗口大小
  *   - "derivativeOrder"  微分阶数
- *   - "color"            新曲线颜色
- *   - "curveName"        生成曲线命名后缀
  *   - "annotationText"   标注内容
- *   - "meta"             附加元信息，如版本、来源
  *
  *  扩展输入：
  *   - "selectedCurves"   多曲线集合 QVector<Curve*>
  *   - "intersectionCurves" 相交曲线对
- *   - "highlightColor"   交互高亮颜色
- *   - "showAnnotation"   是否绘制文字标注
  *   - "custom"           插件自定义参数 QVariantMap
  *
  *  所有字段均为可选（除 mainCurve 外），由算法根据需要解析。
@@ -199,6 +194,30 @@ public:
             }
         }
         return QVariant();
+    }
+
+    /**
+     * @brief 返回算法的交互描述信息。
+     *
+     * 默认实现基于现有接口构造最小描述，但推荐算法自行覆盖以提供完整交互配置。
+     */
+    virtual AlgorithmDescriptor descriptor() const
+    {
+        AlgorithmDescriptor desc;
+        desc.name = name();
+        desc.interaction = [this]() {
+            switch (inputType()) {
+            case InputType::None:
+                return AlgorithmInteraction::None;
+            case InputType::PointSelection:
+                return AlgorithmInteraction::PointSelection;
+            default:
+                return AlgorithmInteraction::ParameterDialog;
+            }
+        }();
+        desc.requiredPointCount = 0;
+        desc.pointSelectionHint = userPrompt();
+        return desc;
     }
 
     /**

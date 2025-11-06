@@ -1,0 +1,6 @@
+#ifndef APPLICATION_ALGORITHM_DESCRIPTOR_H
+#define APPLICATION_ALGORITHM_DESCRIPTOR_H
+
+#include "domain/algorithm/algorithm_descriptor.h"
+
+#endif // APPLICATION_ALGORITHM_DESCRIPTOR_H

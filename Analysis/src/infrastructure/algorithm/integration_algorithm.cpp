@@ -81,3 +81,11 @@ IThermalAlgorithm::OutputType IntegrationAlgorithm::outputType() const
     // 输出新曲线（积分曲线）
     return OutputType::Curve;
 }
+
+AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
+{
+    AlgorithmDescriptor desc;
+    desc.name = name();
+    desc.interaction = AlgorithmInteraction::None;
+    return desc;
+}

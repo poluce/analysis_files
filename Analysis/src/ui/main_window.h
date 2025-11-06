@@ -29,8 +29,7 @@ signals:
     void dataImportRequested();
     void undoRequested();
     void redoRequested();
-    void peakAreaRequested();
-    void baselineRequested();
+    void newAlgorithmRequested(const QString& algorithmName);
     void algorithmRequested(const QString& algorithmName);
     void algorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params);
 
@@ -41,6 +40,7 @@ private slots:
     // 算法按钮
     void onSimpleAlgorithmActionTriggered();
     void onMovingAverageAction();
+    void onAlgorithmActionTriggered();
 
 private:
     // 初始化函数
@@ -68,8 +68,6 @@ private:
     // --- 操作 ---
     QAction* m_undoAction { nullptr };
     QAction* m_redoAction { nullptr };
-    QAction* m_peakAreaAction { nullptr };
-    QAction* m_baselineAction { nullptr };
 
     // --- 服务与控制器 ---
     HistoryManager* m_historyManager { nullptr };

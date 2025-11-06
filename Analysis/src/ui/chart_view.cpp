@@ -1,8 +1,9 @@
-﻿#include "chart_view.h"
+#include "chart_view.h"
 #include "domain/model/thermal_curve.h"
 #include <QDebug>
 #include <QEvent>
 #include <QGraphicsLineItem>
+#include <QCursor>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QSignalBlocker>
@@ -135,17 +136,19 @@ void ChartView::handleCurveSelectionClick(const QPointF& chartPos)
     }
 }
 
-void ChartView::handlePointSelectionClick(const QPointF &chartViewPos)
+void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
 {
-    // 收集选取的点,每收集一个就m_pickCount - 1；
-    // m_pickCount = 0 ，发送收集的数据，切换为视图模式
-    QPointF point = this->m_chartView->chart()->mapToValue(chartViewPos);
-    m_pickPoints.append(point.x());
-    m_pickCount--;
-    if(m_pickCount == 0)
-    {
+    if (m_pickCount <= 0 || !m_chartView || !m_chartView->chart()) {
+        return;
+    }
+
+    const QPointF valuePoint = m_chartView->chart()->mapToValue(chartViewPos);
+    m_pickPoints.append(valuePoint);
+
+    if (m_pickPoints.size() >= m_pickCount) {
         emit pickPoints(m_pickPoints);
-        qDebug()<<"发送用户选取的横坐标::"<<m_pickPoints;
+        qDebug() << "发送用户选取的点坐标:" << m_pickPoints;
+        m_pickCount = 0;
         setInteractionMode(InteractionMode::View);
     }
 }
@@ -233,10 +236,32 @@ void ChartView::setHitTestIncludePenWidth(bool enabled) { m_hitTestIncludePen = 
 
 bool ChartView::hitTestIncludePenWidth() const { return m_hitTestIncludePen; }
 
+void ChartView::setPickCount(int count)
+{
+    m_pickCount = qMax(0, count);
+    m_pickPoints.clear();
+}
+
 void ChartView::setInteractionMode(InteractionMode type)
 {
-    if (type == InteractionMode::Pick) {
+    if (m_mode == type) {
+        return;
+    }
+
+    m_mode = type;
+    m_pickPoints.clear();
+
+    if (m_mode == InteractionMode::Pick) {
         qDebug() << "视图进入选点模式";
+        if (m_chartView) {
+            m_chartView->setRubberBand(QChartView::NoRubberBand);
+        }
+        setCursor(Qt::CrossCursor);
+    } else {
+        if (m_chartView) {
+            m_chartView->setRubberBand(QChartView::RectangleRubberBand);
+        }
+        unsetCursor();
     }
 }
 

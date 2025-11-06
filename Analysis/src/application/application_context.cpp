@@ -1,5 +1,7 @@
 ﻿#include "application_context.h"
 
+#include "application/algorithm/algorithm_context.h"
+#include "application/algorithm/algorithm_coordinator.h"
 #include "application/algorithm/algorithm_manager.h"
 #include "application/curve/curve_manager.h"
 #include "application/history/history_manager.h"
@@ -23,6 +25,11 @@ ApplicationContext::ApplicationContext(QObject* parent)
     m_curveManager = new CurveManager(this);
     m_projectTreeManager = new ProjectTreeManager(m_curveManager, this);
 
+    // Algorithm coordination
+    m_algorithmContext = new AlgorithmContext(this);
+    m_algorithmCoordinator
+        = new AlgorithmCoordinator(AlgorithmManager::instance(), m_curveManager, m_algorithmContext, this);
+
     // 2. View
     m_chartView = new ChartView();
     m_projectExplorerView = new ProjectExplorerView();
@@ -32,10 +39,13 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 3. Controller
     m_mainController = new MainController(m_curveManager, this);
     m_mainController->setPlotWidget(m_chartView);
+    m_mainController->setAlgorithmCoordinator(m_algorithmCoordinator, m_algorithmContext);
     m_mainController->attachMainWindow(m_mainWindow);
 
     m_curveViewController
         = new CurveViewController(m_curveManager, m_chartView, m_projectTreeManager, m_projectExplorerView, this);
+    m_mainController->setCurveViewController(m_curveViewController);
+
 }
 
 ApplicationContext::~ApplicationContext()
@@ -52,5 +62,6 @@ void ApplicationContext::registerAlgorithms()
     manager->registerAlgorithm(new DifferentiationAlgorithm());
     manager->registerAlgorithm(new MovingAverageFilterAlgorithm());
     manager->registerAlgorithm(new IntegrationAlgorithm());
+
     manager->registerAlgorithm(new BaselineCorrectionAlgorithm());
 }

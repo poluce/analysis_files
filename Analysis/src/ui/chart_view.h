@@ -1,4 +1,4 @@
-﻿#ifndef CHARTVIEW_H
+#ifndef CHARTVIEW_H
 #define CHARTVIEW_H
 
 #include <QHash>
@@ -14,7 +14,6 @@
 class ThermalCurve;
 class QPainter;
 class QGraphicsLineItem;
-
 QT_CHARTS_USE_NAMESPACE
 
 /**
@@ -74,7 +73,7 @@ signals:
      *  - "x2" point2
      *  - "x3" point3
      */
-    void pickPoints(const QVector<float>& outputs);
+    void pickPoints(const QVector<QPointF>& outputs);
 
 private:
     void updateSeriesStyle(QLineSeries* series, bool selected);
@@ -134,9 +133,9 @@ private:
         QPointF end;
         QPen pen;
     };
-    InteractionMode m_mode; // 切换视图和拾取点的模式
-    int m_pickCount;
-    QVector<float> m_pickPoints;
+    InteractionMode m_mode = InteractionMode::View; // 切换视图和拾取点的模式
+    int m_pickCount = 0;
+    QVector<QPointF> m_pickPoints;
 
     QVector<AnnotationLine> m_annotations;
 };

@@ -21,9 +21,13 @@ QString BaselineCorrectionAlgorithm::displayName() const { return "基线"; }
 
 QString BaselineCorrectionAlgorithm::category() const { return "Preprocess"; }
 
-QVariantMap BaselineCorrectionAlgorithm::parameters() const { }
+QVariantMap BaselineCorrectionAlgorithm::parameters() const { return {}; }
 
-void BaselineCorrectionAlgorithm::setParameter(const QString& key, const QVariant& value) { }
+void BaselineCorrectionAlgorithm::setParameter(const QString& key, const QVariant& value)
+{
+    Q_UNUSED(key);
+    Q_UNUSED(value);
+}
 
 void BaselineCorrectionAlgorithm::setParameter(const QVariantMap& params)
 {
@@ -57,6 +61,16 @@ QVariantMap BaselineCorrectionAlgorithm::configure(QWidget* parent)
 {
     QMessageBox::information(parent, "提示", "在曲线上选择两个点");
     return {};
+}
+
+AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
+{
+    AlgorithmDescriptor desc;
+    desc.name = name();
+    desc.interaction = AlgorithmInteraction::PointSelection;
+    desc.requiredPointCount = 2;
+    desc.pointSelectionHint = userPrompt();
+    return desc;
 }
 
 QVariant BaselineCorrectionAlgorithm::execute(const QVariantMap& inputs)

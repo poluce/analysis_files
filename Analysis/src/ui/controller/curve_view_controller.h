@@ -2,6 +2,8 @@
 #define CURVEVIEWCONTROLLER_H
 
 #include <QObject>
+#include <QPointF>
+#include <QVector>
 #include <QString>
 
 // 前置声明
@@ -20,8 +22,7 @@ class ProjectExplorerView;
  * - 响应 CurveManager 的数据变化信号
  * - 不包含业务逻辑，只负责视图协调
  */
-class CurveViewController : public QObject
-{
+class CurveViewController : public QObject {
     Q_OBJECT
 
 public:
@@ -33,11 +34,9 @@ public:
      * @param projectExplorer 项目浏览器视图
      * @param parent 父对象
      */
-    explicit CurveViewController(CurveManager* curveManager,
-                                 ChartView* plotWidget,
-                                 ProjectTreeManager* treeManager,
-                                 ProjectExplorerView* projectExplorer,
-                                 QObject* parent = nullptr);
+    explicit CurveViewController(
+        CurveManager* curveManager, ChartView* plotWidget, ProjectTreeManager* treeManager, ProjectExplorerView* projectExplorer,
+        QObject* parent = nullptr);
 
     // --- 视图管理接口 ---
     /**
@@ -57,6 +56,7 @@ public:
      * @brief 更新所有曲线的显示
      */
     void updateAllCurves();
+    void setPickPointMode(int pickCount);
 
 private slots:
     // --- 响应 CurveManager 信号 ---
@@ -68,9 +68,13 @@ private slots:
 
     // --- 响应 ChartView 信号 ---
     void onCurveSelected(const QString& curveId);
+    void onPointSelected(const QVector<QPointF>& points);
 
     // --- 响应 ProjectTreeManager 信号 ---
     void onCurveCheckStateChanged(const QString& curveId, bool checked);
+
+signals:
+    void pointsPicked(const QVector<QPointF>& points);
 
 private:
     CurveManager* m_curveManager;

@@ -1,6 +1,7 @@
 #include "differentiation_algorithm.h"
 #include "domain/model/thermal_data_point.h"
 #include <QDebug>
+#include <QVariant>
 #include <cmath>
 
 /**
@@ -160,4 +161,17 @@ IThermalAlgorithm::OutputType DifferentiationAlgorithm::outputType() const
 {
     // 输出新曲线（微分曲线）
     return OutputType::Curve;
+}
+
+AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
+{
+    AlgorithmDescriptor desc;
+    desc.name = name();
+    desc.interaction = AlgorithmInteraction::ParameterDialog;
+    desc.parameters = {
+        { QStringLiteral("halfWin"), QStringLiteral("半窗口"), QVariant::Int, m_halfWin, true, { { QStringLiteral("min"), 1 } } },
+        { QStringLiteral("dt"), QStringLiteral("时间步长"), QVariant::Double, m_dt, true, { { QStringLiteral("min"), 1e-6 } } },
+        { QStringLiteral("enableDebug"), QStringLiteral("启用调试输出"), QVariant::Bool, m_enableDebug, false, {} },
+    };
+    return desc;
 }
