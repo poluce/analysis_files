@@ -147,9 +147,10 @@ signals:
     /**
      * @brief 交互状态改变信号
      *
-     * @param newState 新的交互状态
+     * @param newState 新的交互状态（int类型，对应InteractionState枚举值）
+     *        0=Idle, 1=WaitingForPoints, 2=PointsCompleted, 3=Executing
      */
-    void interactionStateChanged(InteractionState newState);
+    void interactionStateChanged(int newState);
 
 private:
     void updateSeriesStyle(QLineSeries* series, bool selected);

@@ -160,7 +160,7 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
     if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
         // 状态转换: WaitingForPoints → PointsCompleted
         m_interactionState = InteractionState::PointsCompleted;
-        emit interactionStateChanged(m_interactionState);
+        emit interactionStateChanged(static_cast<int>(m_interactionState));
 
         qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
                  << "交互完成，发送信号触发执行";
@@ -301,7 +301,7 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
 
     // 状态转换: Idle → WaitingForPoints
     m_interactionState = InteractionState::WaitingForPoints;
-    emit interactionStateChanged(m_interactionState);
+    emit interactionStateChanged(static_cast<int>(m_interactionState));
 
     // 切换到选点模式
     setInteractionMode(InteractionMode::Pick);
@@ -324,7 +324,7 @@ void ChartView::cancelAlgorithmInteraction()
 
     // 状态转换: 任意状态 → Idle
     m_interactionState = InteractionState::Idle;
-    emit interactionStateChanged(m_interactionState);
+    emit interactionStateChanged(static_cast<int>(m_interactionState));
 
     // 切换回视图模式
     setInteractionMode(InteractionMode::View);
