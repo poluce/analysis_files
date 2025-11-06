@@ -57,16 +57,31 @@ AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
 
 // ==================== 上下文驱动执行接口实现 ====================
 
-void BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
+bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
 {
     if (!context) {
-        return;
+        qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 上下文为空";
+        return false;
     }
 
-    // 基线校正算法需要用户选择点，在 prepareContext 阶段无需注入默认参数
-    // 点选数据将在用户交互后由 AlgorithmCoordinator 注入上下文
+    // 阶段1：验证必需数据是否存在
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) {
+        qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 缺少活动曲线";
+        return false;
+    }
 
-    qDebug() << "BaselineCorrectionAlgorithm::prepareContext - 参数已准备（等待点选）";
+    // 阶段2：验证交互式算法的选点数据
+    // 基线校正需要用户选择至少2个点
+    auto points = context->get<QVector<QPointF>>("selectedPoints");
+    if (!points.has_value() || points.value().size() < 2) {
+        qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 需要至少2个选点，当前"
+                   << (points.has_value() ? points.value().size() : 0) << "个";
+        return false;  // 数据不完整，等待用户选点
+    }
+
+    qDebug() << "BaselineCorrectionAlgorithm::prepareContext - 数据就绪，选点数:" << points.value().size();
+    return true;
 }
 
 QVariant BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext* context)

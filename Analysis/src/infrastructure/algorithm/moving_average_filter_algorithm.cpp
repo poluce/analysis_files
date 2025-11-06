@@ -58,18 +58,27 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
 
 // ==================== 上下文驱动执行接口实现 ====================
 
-void MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
+bool MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
 {
     if (!context) {
-        return;
+        qWarning() << "MovingAverageFilterAlgorithm::prepareContext - 上下文为空";
+        return false;
     }
 
-    // 如果上下文中没有参数，注入默认值
+    // 阶段1：验证必需数据是否存在
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) {
+        qWarning() << "MovingAverageFilterAlgorithm::prepareContext - 缺少活动曲线";
+        return false;
+    }
+
+    // 阶段2：注入默认参数（如果需要）
     if (!context->contains("param.window")) {
         context->setValue("param.window", m_window, "MovingAverageFilterAlgorithm::prepareContext");
     }
 
-    qDebug() << "MovingAverageFilterAlgorithm::prepareContext - 参数已准备";
+    qDebug() << "MovingAverageFilterAlgorithm::prepareContext - 数据就绪";
+    return true;
 }
 
 QVariant MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContext* context)

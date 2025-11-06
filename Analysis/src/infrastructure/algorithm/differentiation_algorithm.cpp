@@ -57,26 +57,35 @@ AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
     return desc;
 }
 
-// ==================== 上下文驱动执行接口实现 ====================
+// ==================== 上下文驱动执行接口实现（两阶段） ====================
 
-void DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
+bool DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
 {
     if (!context) {
-        return;
+        qWarning() << "DifferentiationAlgorithm::prepareContext - 上下文为空";
+        return false;
     }
 
-    // 如果上下文中没有参数，注入默认值
+    // 阶段1：验证必需数据是否存在
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) {
+        qWarning() << "DifferentiationAlgorithm::prepareContext - 缺少活动曲线";
+        return false;  // 数据不完整，无法执行
+    }
+
+    // 注入默认参数（如果上下文中不存在）
     if (!context->contains("param.halfWin")) {
-        context->setValue("param.halfWin", m_halfWin, "DifferentiationAlgorithm::prepareContext");
+        context->setValue("param.halfWin", m_halfWin, "DifferentiationAlgorithm");
     }
     if (!context->contains("param.dt")) {
-        context->setValue("param.dt", m_dt, "DifferentiationAlgorithm::prepareContext");
+        context->setValue("param.dt", m_dt, "DifferentiationAlgorithm");
     }
     if (!context->contains("param.enableDebug")) {
-        context->setValue("param.enableDebug", m_enableDebug, "DifferentiationAlgorithm::prepareContext");
+        context->setValue("param.enableDebug", m_enableDebug, "DifferentiationAlgorithm");
     }
 
-    qDebug() << "DifferentiationAlgorithm::prepareContext - 参数已准备";
+    qDebug() << "DifferentiationAlgorithm::prepareContext - 数据就绪，参数已准备";
+    return true;  // 数据完整，可以执行
 }
 
 QVariant DifferentiationAlgorithm::executeWithContext(AlgorithmContext* context)

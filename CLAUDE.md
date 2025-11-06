@@ -299,6 +299,48 @@ private:
 - ✅ **易于扩展**: 添加新参数无需修改函数签名
 - ✅ **架构统一**: 所有算法遵循相同的执行模式
 
+#### 两阶段执行机制 🔐
+
+**问题**：算法被选中时，必需的数据（如图表上的选点）可能不完整。如果算法在数据不完整时执行，会导致结果不准确或资源浪费。
+
+**解决方案**：采用两阶段执行确保算法只在接收到完整数据后才开始计算。
+
+| 阶段 | 方法 | 职责 | 数据状态 | 返回值 |
+|------|------|------|----------|--------|
+| **阶段1** | `prepareContext()` | 验证数据完整性，注入默认参数 | 可能不完整 | `bool` - 是否就绪 |
+| **阶段2** | `executeWithContext()` | 使用完整数据执行计算 | 完整且最终 | `QVariant` - 计算结果 |
+
+**阶段1示例（prepareContext）**：
+```cpp
+bool XXXAlgorithm::prepareContext(AlgorithmContext* context) {
+    // 1. 验证上下文本身
+    if (!context) return false;
+
+    // 2. 验证必需数据（activeCurve）
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) return false;
+
+    // 3. [交互算法] 验证用户交互数据（如选点）
+    auto points = context->get<QVector<QPointF>>("selectedPoints");
+    if (!points.has_value() || points.value().size() < 2) {
+        return false;  // 数据不完整，等待用户选点
+    }
+
+    // 4. 注入默认参数
+    if (!context->contains("param.xxx")) {
+        context->setValue("param.xxx", m_default);
+    }
+
+    return true;  // 数据完整，可以执行
+}
+```
+
+**核心优势**：
+- ✅ **防止过早执行**：算法只在数据完整时才执行计算
+- ✅ **明确的状态检查**：`prepareContext()` 返回值明确表示就绪状态
+- ✅ **保证数据一致性**：算法接收到的一定是用户完整交互后的数据
+- ✅ **易于调试**：清晰的日志输出指示数据缺失原因
+
 #### 执行流程
 
 ```
@@ -309,12 +351,21 @@ AlgorithmCoordinator::executeAlgorithm()
   → context->setValue("selectedPoints", points)  // 如需要
   ↓
 AlgorithmManager::executeWithContext(name, context)
-  → algorithm->prepareContext(context)  // 注入默认值
-  → algorithm->executeWithContext(context)  // 拉取数据并执行
+  ↓
+  【阶段1：数据完整性验证】
+  → bool isReady = algorithm->prepareContext(context)
+  → if (!isReady) {
+       qWarning() << "数据不完整，无法执行";
+       return;  // 提前终止，等待用户输入
+    }
+  ↓
+  【阶段2：执行计算】
+  → QVariant result = algorithm->executeWithContext(context)
     → auto curve = context->get<ThermalCurve*>("activeCurve")
     → int param = context->get<int>("param.xxx").value_or(default)
     → 执行核心算法逻辑
     → return QVariant::fromValue(result)
+  ↓
   → handleAlgorithmResult(...)  // 处理结果
   → emit algorithmResultReady(...)
 ```
@@ -530,6 +581,13 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
   - AlgorithmManager 只保留 `executeWithContext(name, context)` 唯一执行接口
   - 所有4个算法完成迁移：Differentiation, Integration, MovingAverage, BaselineCorrection
   - 算法从上下文拉取数据，零参数传递，单一数据源
+- ✅ **两阶段执行机制** (prepareContext 返回 bool)
+  - 阶段1（prepareContext）：验证数据完整性，返回就绪状态
+  - 阶段2（executeWithContext）：只在数据完整时执行计算
+  - AlgorithmManager 检查就绪状态，数据不完整时提前终止
+  - 防止算法在用户未完成交互时过早执行
+  - BaselineCorrectionAlgorithm 验证至少2个选点
+  - 所有算法实现数据完整性验证逻辑
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)

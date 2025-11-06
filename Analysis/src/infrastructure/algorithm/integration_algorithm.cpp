@@ -59,16 +59,25 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
 
 // ==================== 上下文驱动执行接口实现 ====================
 
-void IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
+bool IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
 {
     if (!context) {
-        return;
+        qWarning() << "IntegrationAlgorithm::prepareContext - 上下文为空";
+        return false;
+    }
+
+    // 阶段1：验证必需数据是否存在
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) {
+        qWarning() << "IntegrationAlgorithm::prepareContext - 缺少活动曲线";
+        return false;
     }
 
     // 积分算法暂无可配置参数，预留扩展
     // 未来可以添加：积分方法（梯形/辛普森）、归一化选项等
 
-    qDebug() << "IntegrationAlgorithm::prepareContext - 参数已准备（当前无参数）";
+    qDebug() << "IntegrationAlgorithm::prepareContext - 数据就绪";
+    return true;
 }
 
 QVariant IntegrationAlgorithm::executeWithContext(AlgorithmContext* context)

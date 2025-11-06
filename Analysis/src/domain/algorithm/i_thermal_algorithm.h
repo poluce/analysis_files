@@ -167,16 +167,30 @@ public:
     // ==================== 上下文驱动执行接口 ====================
 
     /**
-     * @brief 准备算法执行前的上下文（可选重写）。
+     * @brief 准备算法执行前的上下文并验证数据完整性（两阶段执行 - 阶段1）。
      *
-     * 算法可以重写此方法，在执行前向上下文注入所需的默认参数。
-     * 例如：微分算法可以设置默认的 halfWin 和 dt 参数。
+     * **两阶段执行机制**：
+     * - **阶段1（prepareContext）**：算法检查上下文中的数据是否完整，返回就绪状态
+     * - **阶段2（executeWithContext）**：只在数据完整时执行计算
+     *
+     * 此方法的职责：
+     * 1. 向上下文注入默认参数（如果缺失）
+     * 2. **验证所需数据是否完整**（核心）
+     * 3. 返回 true 表示数据就绪，可以执行；返回 false 表示需要等待用户交互
+     *
+     * 示例：
+     * - 简单算法（微分、积分）：只需要 activeCurve，立即返回 true
+     * - 交互算法（基线校正）：需要 selectedPoints，如果缺失返回 false
      *
      * 调用时机：在 executeWithContext() 之前调用。
      *
      * @param context 算法上下文。
+     * @return true - 数据完整，算法就绪；false - 数据不完整，等待用户输入
      */
-    virtual void prepareContext(AlgorithmContext* context) { (void)context; }
+    virtual bool prepareContext(AlgorithmContext* context) {
+        (void)context;
+        return true;  // 默认实现：无需额外数据，立即就绪
+    }
 
     /**
      * @brief 执行算法（上下文驱动，纯虚函数）。

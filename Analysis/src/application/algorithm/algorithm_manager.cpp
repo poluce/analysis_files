@@ -79,10 +79,19 @@ void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext*
     qDebug() << "输入类型:" << static_cast<int>(algorithm->inputType());
     qDebug() << "输出类型:" << static_cast<int>(algorithm->outputType());
 
-    // 允许算法准备上下文（注入默认参数等）
-    algorithm->prepareContext(context);
+    // ==================== 两阶段执行机制 ====================
+    // 阶段1：准备上下文并验证数据完整性
+    bool isReady = algorithm->prepareContext(context);
 
-    // 执行算法（算法从上下文拉取所需数据）
+    if (!isReady) {
+        qWarning() << "算法" << name << "数据不完整，无法执行";
+        qWarning() << "  可能原因：缺少必需的用户交互数据（如选点、参数）";
+        return;
+    }
+
+    qDebug() << "算法" << name << "数据就绪，开始执行";
+
+    // 阶段2：执行算法（算法从上下文拉取完整数据）
     QVariant result = algorithm->executeWithContext(context);
 
     if (result.isNull() || !result.isValid()) {

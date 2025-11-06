@@ -24,8 +24,8 @@ public:
     OutputType outputType() const override;
     AlgorithmDescriptor descriptor() const override;
 
-    // 上下文驱动执行接口
-    void prepareContext(AlgorithmContext* context) override;
+    // 上下文驱动执行接口（两阶段执行）
+    bool prepareContext(AlgorithmContext* context) override;
     QVariant executeWithContext(AlgorithmContext* context) override;
 
 private:

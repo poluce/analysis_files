@@ -25,7 +25,7 @@ public:
     AlgorithmDescriptor descriptor() const override;
 
     // 上下文驱动执行接口
-    void prepareContext(AlgorithmContext* context) override;
+    bool prepareContext(AlgorithmContext* context) override;
     QVariant executeWithContext(AlgorithmContext* context) override;
 };
 
