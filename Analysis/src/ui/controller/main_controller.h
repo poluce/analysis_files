@@ -48,10 +48,13 @@ public slots:
      * @brief 显示数据导入窗口。
      */
     void onShowDataImport();
-    void onAlgorithmRequested(const QString& algorithmName);    // 简单执行，无参数
-    void onNewAlgorithmRequested(const QString& algorithmName); // 简单执行，无参数
-    // 带参数执行算法（例如移动平均的窗口大小等）
-    void onAlgorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params);
+
+    /**
+     * @brief 执行算法（支持可选参数）
+     * @param algorithmName 算法名称
+     * @param params 算法参数（可选，默认为空）
+     */
+    void onAlgorithmRequested(const QString& algorithmName, const QVariantMap& params = QVariantMap());
 
     /**
      * @brief 撤销最近的操作。

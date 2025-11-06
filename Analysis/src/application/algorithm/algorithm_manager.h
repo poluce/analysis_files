@@ -52,6 +52,13 @@ private:
     void handleAlgorithmResult(
         IThermalAlgorithm* algorithm, ThermalCurve* parentCurve, const QVariant& result);
 
+    // 创建输出曲线的通用方法（封装重复逻辑）
+    void createAndAddOutputCurve(
+        IThermalAlgorithm* algorithm,
+        ThermalCurve* parentCurve,
+        const QVector<ThermalDataPoint>& outputData,
+        bool useHistoryManager = false);
+
     QMap<QString, IThermalAlgorithm*> m_algorithms;
     CurveManager* m_curveManager = nullptr;
 };
