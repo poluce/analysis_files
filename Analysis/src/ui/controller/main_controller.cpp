@@ -123,12 +123,7 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
 void MainController::setCurveViewController(CurveViewController* ViewController)
 {
     m_curveViewController = ViewController;
-
-    if (m_curveViewController) {
-        connect(
-            m_curveViewController, &CurveViewController::pointsPicked, this, &MainController::onPointsPickedFromView,
-            Qt::UniqueConnection);
-    }
+    // CurveViewController 不再负责选点功能，选点由 ChartView 状态机直接管理
 }
 
 void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, AlgorithmContext* context)
@@ -254,20 +249,6 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
     m_curveManager->removeCurve(curveId);
 }
 
-void MainController::onPointsPickedFromView(const QVector<QPointF>& points)
-{
-    // ==================== ⚠️ 遗留代码路径（向后兼容） ====================
-    // 注意：新架构使用 ChartView::algorithmInteractionCompleted 信号
-    // 此方法通过 CurveViewController::pointsPicked 信号触发，保留用于向后兼容
-    qDebug() << "MainController::onPointsPickedFromView - ⚠️ 使用旧的选点路径（CurveViewController）";
-    qDebug() << "  提示：新架构应直接使用 ChartView::algorithmInteractionCompleted 信号";
-
-    if (!m_algorithmCoordinator) {
-        qDebug() << "MainController::onPointsPickedFromView - 当前无算法协调器，忽略选点结果";
-        return;
-    }
-    m_algorithmCoordinator->handlePointSelectionResult(points);
-}
 
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)

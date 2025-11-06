@@ -69,7 +69,6 @@ public:
     qreal hitTestBasePixelThreshold() const;
 
     void setHitTestIncludePenWidth(bool enabled);
-    void setPickCount(int count);
     bool hitTestIncludePenWidth() const;
     void setInteractionMode(InteractionMode type);
 
@@ -136,16 +135,7 @@ signals:
     void curveSelected(const QString& curveId);
 
     /**
-     * @brief 在拾取点的模式中当用户拾取够了设置的点数时排序后发出。
-     * @param outputs 包含拾取点信息横轴位置：
-     *  - "x1" point1
-     *  - "x2" point2
-     *  - "x3" point3
-     */
-    void pickPoints(const QVector<QPointF>& outputs);
-
-    /**
-     * @brief 算法交互完成信号（新）
+     * @brief 算法交互完成信号
      *
      * 当用户完成所有必需的交互步骤后发出，包含算法名称和选择的点
      *
@@ -220,8 +210,6 @@ private:
         QPen pen;
     };
     InteractionMode m_mode = InteractionMode::View; // 切换视图和拾取点的模式
-    int m_pickCount = 0;
-    QVector<QPointF> m_pickPoints;
 
     // ==================== 交互状态管理 ====================
     InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态

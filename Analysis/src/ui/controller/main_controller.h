@@ -81,7 +81,6 @@ private slots:
      */
     void onImportTriggered();
     void onAlgorithmFinished(const QString& curveId); // 添加
-    void onPointsPickedFromView(const QVector<QPointF>& points);
     void onCoordinatorRequestPointSelection(const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);

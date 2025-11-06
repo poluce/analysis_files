@@ -17,10 +17,11 @@ class ProjectExplorerView;
  *
  * 职责：
  * - 协调 ChartView、ProjectExplorerView、ProjectTreeManager 的更新
- * - 封装点拾取交互流程（使用回调函数）
  * - 管理曲线可见性、选择、高亮状态
  * - 响应 CurveManager 的数据变化信号
  * - 不包含业务逻辑，只负责视图协调
+ *
+ * 注意：点选交互功能由 ChartView 的活动算法状态机管理
  */
 class CurveViewController : public QObject {
     Q_OBJECT
@@ -56,7 +57,6 @@ public:
      * @brief 更新所有曲线的显示
      */
     void updateAllCurves();
-    void setPickPointMode(int pickCount);
 
 private slots:
     // --- 响应 CurveManager 信号 ---
@@ -68,13 +68,9 @@ private slots:
 
     // --- 响应 ChartView 信号 ---
     void onCurveSelected(const QString& curveId);
-    void onPointSelected(const QVector<QPointF>& points);
 
     // --- 响应 ProjectTreeManager 信号 ---
     void onCurveCheckStateChanged(const QString& curveId, bool checked);
-
-signals:
-    void pointsPicked(const QVector<QPointF>& points);
 
 private:
     CurveManager* m_curveManager;

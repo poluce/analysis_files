@@ -144,43 +144,31 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
 
     const QPointF valuePoint = m_chartView->chart()->mapToValue(chartViewPos);
 
-    // ==================== 新架构：检查活动算法状态 ====================
-    if (m_activeAlgorithm.isValid() && m_interactionState == InteractionState::WaitingForPoints) {
-        // 添加选点到活动算法的选点列表
-        m_selectedPoints.append(valuePoint);
+    // 检查是否有活动算法等待交互
+    if (!m_activeAlgorithm.isValid() || m_interactionState != InteractionState::WaitingForPoints) {
+        qWarning() << "ChartView::handlePointSelectionClick - 没有活动算法等待选点，忽略点击";
+        return;
+    }
+
+    // 添加选点到活动算法的选点列表
+    m_selectedPoints.append(valuePoint);
+    qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
+             << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
+             << ", 点:" << valuePoint;
+
+    // 检查是否已收集足够的点
+    if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
+        // 状态转换: WaitingForPoints → PointsCompleted
+        m_interactionState = InteractionState::PointsCompleted;
+        emit interactionStateChanged(m_interactionState);
+
         qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
-                 << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
-                 << ", 点:" << valuePoint;
+                 << "交互完成，发送信号触发执行";
 
-        // 检查是否已收集足够的点
-        if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
-            // 状态转换: WaitingForPoints → PointsCompleted
-            m_interactionState = InteractionState::PointsCompleted;
-            emit interactionStateChanged(m_interactionState);
+        // 发出算法交互完成信号，触发算法执行
+        emit algorithmInteractionCompleted(m_activeAlgorithm.name, m_selectedPoints);
 
-            qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
-                     << "交互完成，发送信号触发执行";
-
-            // 发出算法交互完成信号，触发算法执行
-            emit algorithmInteractionCompleted(m_activeAlgorithm.name, m_selectedPoints);
-
-            // 切换回视图模式
-            setInteractionMode(InteractionMode::View);
-        }
-        return;
-    }
-
-    // ==================== 旧架构兼容：使用 pickCount 模式 ====================
-    if (m_pickCount <= 0) {
-        return;
-    }
-
-    m_pickPoints.append(valuePoint);
-
-    if (m_pickPoints.size() >= m_pickCount) {
-        emit pickPoints(m_pickPoints);
-        qDebug() << "发送用户选取的点坐标:" << m_pickPoints;
-        m_pickCount = 0;
+        // 切换回视图模式
         setInteractionMode(InteractionMode::View);
     }
 }
@@ -268,11 +256,6 @@ void ChartView::setHitTestIncludePenWidth(bool enabled) { m_hitTestIncludePen = 
 
 bool ChartView::hitTestIncludePenWidth() const { return m_hitTestIncludePen; }
 
-void ChartView::setPickCount(int count)
-{
-    m_pickCount = qMax(0, count);
-    m_pickPoints.clear();
-}
 
 void ChartView::setInteractionMode(InteractionMode type)
 {
@@ -281,7 +264,6 @@ void ChartView::setInteractionMode(InteractionMode type)
     }
 
     m_mode = type;
-    m_pickPoints.clear();
 
     if (m_mode == InteractionMode::Pick) {
         qDebug() << "视图进入选点模式";
@@ -323,7 +305,6 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
 
     // 切换到选点模式
     setInteractionMode(InteractionMode::Pick);
-    setPickCount(requiredPoints);  // 兼容旧架构的可视化反馈
 
     qDebug() << "ChartView: 算法" << displayName << "已进入等待用户选点状态";
 }
