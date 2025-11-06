@@ -74,9 +74,12 @@ Analysis.exe
 
 **算法服务** - `src/application/algorithm/`
 - **AlgorithmManager**: 算法管理器,管理算法注册表,执行算法并创建新曲线,自动设置父子关系
-- **AlgorithmContext**: 🆕 算法运行时上下文容器,统一管理算法执行所需的数据(参数、点选结果、曲线引用等),提供时间戳和数据来源追踪
-- **AlgorithmCoordinator**: 🆕 算法执行流程协调器,负责调度算法执行流程(参数收集、点选请求、算法执行、结果通知)
-- **AlgorithmDescriptor**: 🆕 算法参数定义和元数据描述
+- **AlgorithmCoordinator**: 🆕🧪 算法执行流程协调器,负责调度算法执行流程(参数收集、点选请求、算法执行、结果通知)
+  - ⚠️ **实验性组件**: 主要用于未来的交互式算法（基线绘制、峰面积计算等）
+  - 当前简单算法（微分、积分、移动平均）通过此组件统一调度
+  - 提供扩展性：支持参数对话框、点选交互、多步骤流程
+- **AlgorithmContext**: 🆕🧪 算法运行时上下文容器,统一管理算法执行所需的数据(参数、点选结果、曲线引用等),提供时间戳和数据来源追踪
+- **AlgorithmDescriptor**: 🆕🧪 算法参数定义和元数据描述
 
 **项目管理** - `src/application/project/`
 - **ProjectTreeManager**: 项目树管理器,管理树形视图结构,维护曲线的父子关系层级
@@ -340,6 +343,57 @@ params["dt"] = 0.1;            // 虚拟时间步长
 ### 调试日志说明
 项目包含调试日志说明文档: `调试日志说明.md`
 
+## AlgorithmCoordinator 使用策略 🧪
+
+### 设计理念
+
+**AlgorithmCoordinator** 是为未来的**交互式算法**设计的协调器，采用实验性架构。
+
+### 当前状态
+
+**✅ 已统一使用**:
+- 所有算法执行统一通过 `AlgorithmCoordinator::handleAlgorithmTriggered()`
+- MainController 中移除了旧的直接调用路径
+- 确保架构一致性，避免双重路径
+
+**⚠️ 实验性质**:
+- 当前简单算法（微分、积分、移动平均）**不需要**复杂的参数对话框和点选交互
+- AlgorithmCoordinator 为这些简单算法提供了统一入口，但其核心价值尚未完全体现
+
+### 何时体现价值
+
+AlgorithmCoordinator 将在以下场景中发挥关键作用：
+
+1. **基线校正** (Phase 3)
+   - 需要用户在图表上点选基线点
+   - 利用 `requestPointSelection()` 信号
+   - 使用 PendingRequest 管理点选状态
+
+2. **峰面积计算** (Phase 3)
+   - 需要参数对话框收集积分范围、基线类型等
+   - 需要点选峰的起止点
+   - 利用 ParameterThenPoint 流程
+
+3. **多步骤算法** (Phase 4)
+   - 如动力学分析需要多次用户交互
+   - 状态机管理复杂流程
+
+### 技术债务说明
+
+**保留原因**:
+- ✅ 为即将实现的基线和峰面积功能做准备
+- ✅ 避免重复设计和重构
+- ✅ 架构清晰，扩展性强
+
+**成本**:
+- 约 540 行代码 (AlgorithmCoordinator + Context + Descriptor)
+- 当前简单算法未充分利用其能力
+
+**建议**:
+- 保持现状，继续使用统一架构
+- Phase 3 实现交互功能时验证设计
+- 如发现设计问题，及时调整
+
 ## 已知限制和后续计划
 
 ### 最近完成 ✅
@@ -350,6 +404,9 @@ params["dt"] = 0.1;            // 虚拟时间步长
 - ✅ 基线校正算法实现
 - ✅ 命令模式框架 (AddCurveCommand 等)
 - ✅ 双枚举扩展 (SignalType 支持 Baseline 和 PeakArea)
+- ✅ 代码重构优化 (消除 150+ 行冗余代码，统一技术路线)
+- ✅ 性能优化 (HistoryManager O(n)→O(1)，AlgorithmCoordinator O(n²)→O(n))
+- ✅ 架构简化 (统一使用 AlgorithmCoordinator，移除双重路径)
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)

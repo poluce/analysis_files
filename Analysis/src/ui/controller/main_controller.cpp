@@ -157,48 +157,18 @@ void MainController::onImportTriggered()
 }
 
 // ========== 处理命令的槽函数（命令路径：UI → Controller → Service） ==========
-// TODO:目前是通过mainwindow 中直接调用，后续也改为信号槽链接
 void MainController::onAlgorithmRequested(const QString& algorithmName, const QVariantMap& params)
 {
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 优先使用新架构（AlgorithmCoordinator）
-    if (m_algorithmCoordinator) {
-        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
+    // 统一使用 AlgorithmCoordinator 架构
+    if (!m_algorithmCoordinator) {
+        qCritical() << "AlgorithmCoordinator 未初始化！无法执行算法：" << algorithmName;
         return;
     }
 
-    // 旧架构路径（向后兼容）
-    // 1. 业务规则检查
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        qWarning() << "没有可用的活动曲线来应用算法。";
-        return;
-    }
-
-    // 2. 获取算法
-    IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(algorithmName);
-    if (!algorithm) {
-        qWarning() << "找不到算法：" << algorithmName;
-        return;
-    }
-
-    // 3. 如果有参数，设置算法参数
-    if (!params.isEmpty()) {
-        for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
-            algorithm->setParameter(it.key(), it.value());
-        }
-    }
-
-    // 4. 创建算法命令
-    auto command = std::make_unique<AlgorithmCommand>(algorithm, activeCurve, m_curveManager, algorithmName);
-
-    // 5. 通过历史管理器执行命令（支持撤销/重做）
-    if (!m_historyManager->executeCommand(std::move(command))) {
-        qWarning() << "算法执行失败：" << algorithmName;
-    }
-    // 注意：新曲线的添加和UI更新由 CurveManager::curveAdded 信号自动触发
+    m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
 }
 
 void MainController::onAlgorithmFinished(const QString& curveId) { emit curveDataChanged(curveId); }
