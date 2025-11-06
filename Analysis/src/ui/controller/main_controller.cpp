@@ -249,9 +249,8 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
 {
-    Q_UNUSED(curveId);
-
     qDebug() << "MainController::onCoordinatorRequestPointSelection - 算法:" << algorithmName
+             << ", 曲线ID:" << curveId
              << ", 需要点数:" << requiredPoints;
 
     if (!m_plotWidget) {
@@ -269,8 +268,8 @@ void MainController::onCoordinatorRequestPointSelection(
         qWarning() << "MainController: 无法找到算法" << algorithmName << "，使用名称作为显示名";
     }
 
-    // 启动算法交互状态机
-    m_plotWidget->startAlgorithmInteraction(algorithmName, displayName, qMax(1, requiredPoints), hint);
+    // 启动算法交互状态机，传递曲线ID以确定选点标记应附着到哪个Y轴
+    m_plotWidget->startAlgorithmInteraction(algorithmName, displayName, qMax(1, requiredPoints), hint, curveId);
 
     // 显示提示信息（如果有）
     if (!hint.isEmpty()) {

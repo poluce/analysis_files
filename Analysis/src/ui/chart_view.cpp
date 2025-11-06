@@ -300,13 +300,14 @@ void ChartView::setInteractionMode(InteractionMode type)
 // ==================== 活动算法状态机实现 ====================
 
 void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QString& displayName,
-                                          int requiredPoints, const QString& hint)
+                                          int requiredPoints, const QString& hint, const QString& curveId)
 {
     qDebug() << "ChartView::startAlgorithmInteraction - 启动算法交互";
     qDebug() << "  算法名称:" << algorithmName;
     qDebug() << "  显示名称:" << displayName;
     qDebug() << "  需要点数:" << requiredPoints;
     qDebug() << "  提示信息:" << hint;
+    qDebug() << "  目标曲线ID:" << curveId;
 
     // 清空之前的状态
     m_selectedPoints.clear();
@@ -318,13 +319,49 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
         // 清空之前的点
         m_selectedPointsSeries->clear();
 
+        // ==================== 动态确定Y轴（关联到活动曲线的Y轴）====================
+        QValueAxis* targetYAxis = m_axisY_primary;  // 默认使用主Y轴
+
+        // 如果提供了曲线ID，则查找该曲线并获取其Y轴
+        if (!curveId.isEmpty()) {
+            QLineSeries* curveSeries = seriesForCurve(curveId);
+            if (curveSeries) {
+                // 获取该曲线附着的所有轴
+                const auto attachedAxes = curveSeries->attachedAxes();
+                for (QAbstractAxis* axis : attachedAxes) {
+                    QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
+                    if (valueAxis && valueAxis != m_axisX) {
+                        // 找到Y轴（非X轴的轴）
+                        targetYAxis = valueAxis;
+                        qDebug() << "ChartView: 选中点系列将附着到曲线" << curveId << "的Y轴";
+                        break;
+                    }
+                }
+            } else {
+                qWarning() << "ChartView: 未找到曲线" << curveId << "，使用默认主Y轴";
+            }
+        }
+
         // 如果还未添加到 chart，则添加
         if (!chart->series().contains(m_selectedPointsSeries)) {
             chart->addSeries(m_selectedPointsSeries);
-            // 关联到主坐标轴
+            // 关联到X轴和目标Y轴
             m_selectedPointsSeries->attachAxis(m_axisX);
-            m_selectedPointsSeries->attachAxis(m_axisY_primary);
-            qDebug() << "ChartView: 添加选中点高亮系列到图表";
+            m_selectedPointsSeries->attachAxis(targetYAxis);
+            qDebug() << "ChartView: 添加选中点高亮系列到图表，Y轴:"
+                     << (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
+        } else {
+            // 如果已存在，则更新其轴关联
+            // 先解除所有现有轴的关联
+            const auto existingAxes = m_selectedPointsSeries->attachedAxes();
+            for (QAbstractAxis* axis : existingAxes) {
+                m_selectedPointsSeries->detachAxis(axis);
+            }
+            // 重新关联到正确的轴
+            m_selectedPointsSeries->attachAxis(m_axisX);
+            m_selectedPointsSeries->attachAxis(targetYAxis);
+            qDebug() << "ChartView: 更新选中点高亮系列的轴关联，Y轴:"
+                     << (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
         }
     }
 

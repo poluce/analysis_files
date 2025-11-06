@@ -83,9 +83,10 @@ public:
      * @param displayName 显示名称
      * @param requiredPoints 需要的点数
      * @param hint 交互提示文本
+     * @param curveId 目标曲线ID（用于确定选点标记应附着到哪个Y轴）
      */
     void startAlgorithmInteraction(const QString& algorithmName, const QString& displayName,
-                                    int requiredPoints, const QString& hint);
+                                    int requiredPoints, const QString& hint, const QString& curveId);
 
     /**
      * @brief 取消当前算法交互
