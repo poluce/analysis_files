@@ -63,9 +63,16 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     connect(mainWindow, &MainWindow::curveDeleteRequested, this, &MainController::onCurveDeleteRequested, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::undoRequested, this, &MainController::onUndo, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::redoRequested, this, &MainController::onRedo, Qt::UniqueConnection);
-    // 算法接入（统一使用 onAlgorithmRequested，支持可选参数）
-    connect(mainWindow, &MainWindow::algorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
-    connect(mainWindow, &MainWindow::newAlgorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
+
+    // 算法接入（使用 lambda 适配不同参数的信号）
+    connect(mainWindow, &MainWindow::algorithmRequested, this, [this](const QString& name) {
+        onAlgorithmRequested(name, QVariantMap());
+    }, Qt::UniqueConnection);
+
+    connect(mainWindow, &MainWindow::newAlgorithmRequested, this, [this](const QString& name) {
+        onAlgorithmRequested(name, QVariantMap());
+    }, Qt::UniqueConnection);
+
     connect(mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
 }
 
