@@ -45,6 +45,17 @@ ChartView::ChartView(QWidget* parent)
     m_axisY_primary->setTitleText(tr("质量 (mg)"));
     chart->addAxis(m_axisY_primary, Qt::AlignLeft);
 
+    // ==================== 创建选中点高亮系列 ====================
+    // 用于在算法交互模式下显示用户选择的点（红色散点）
+    m_selectedPointsSeries = new QScatterSeries();
+    m_selectedPointsSeries->setName(tr("选中的点"));
+    m_selectedPointsSeries->setMarkerSize(12.0);  // 点的大小
+    m_selectedPointsSeries->setColor(Qt::red);     // 红色高亮
+    m_selectedPointsSeries->setBorderColor(Qt::darkRed);  // 深红色边框
+    m_selectedPointsSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    // 初始时不添加到 chart，只在需要时添加
+    // chart->addSeries(m_selectedPointsSeries);  // 将在 startAlgorithmInteraction 时添加
+
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_chartView);
@@ -152,6 +163,13 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
 
     // 添加选点到活动算法的选点列表
     m_selectedPoints.append(valuePoint);
+
+    // ==================== 在图表上显示选中的点（红色高亮） ====================
+    if (m_selectedPointsSeries) {
+        m_selectedPointsSeries->append(valuePoint);
+        qDebug() << "ChartView: 添加红色高亮点到图表:" << valuePoint;
+    }
+
     qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
              << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
              << ", 点:" << valuePoint;
@@ -293,6 +311,23 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
     // 清空之前的状态
     m_selectedPoints.clear();
 
+    // ==================== 设置选中点高亮系列 ====================
+    if (m_selectedPointsSeries && m_chartView && m_chartView->chart()) {
+        QChart* chart = m_chartView->chart();
+
+        // 清空之前的点
+        m_selectedPointsSeries->clear();
+
+        // 如果还未添加到 chart，则添加
+        if (!chart->series().contains(m_selectedPointsSeries)) {
+            chart->addSeries(m_selectedPointsSeries);
+            // 关联到主坐标轴
+            m_selectedPointsSeries->attachAxis(m_axisX);
+            m_selectedPointsSeries->attachAxis(m_axisY_primary);
+            qDebug() << "ChartView: 添加选中点高亮系列到图表";
+        }
+    }
+
     // 设置活动算法信息
     m_activeAlgorithm.name = algorithmName;
     m_activeAlgorithm.displayName = displayName;
@@ -321,6 +356,12 @@ void ChartView::cancelAlgorithmInteraction()
     // 清空活动算法信息
     m_activeAlgorithm.clear();
     m_selectedPoints.clear();
+
+    // ==================== 清除选中点高亮 ====================
+    if (m_selectedPointsSeries) {
+        m_selectedPointsSeries->clear();
+        qDebug() << "ChartView: 清除选中点高亮";
+    }
 
     // 状态转换: 任意状态 → Idle
     m_interactionState = InteractionState::Idle;

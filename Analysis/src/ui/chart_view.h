@@ -9,6 +9,7 @@
 #include <QWidget>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
+#include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
 
 class ThermalCurve;
@@ -216,6 +217,7 @@ private:
     InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态
     ActiveAlgorithmInfo m_activeAlgorithm;                        // 当前活动算法信息
     QVector<QPointF> m_selectedPoints;                            // 用户已选择的点
+    QScatterSeries* m_selectedPointsSeries = nullptr;             // 显示选中点的散点图系列（红色高亮）
 
     QVector<AnnotationLine> m_annotations;
 };
