@@ -510,10 +510,16 @@ MainController 接收信号
 - ✅ **可取消性**: `cancelAlgorithmInteraction()` 可随时中止交互
 - ✅ **松耦合**: ChartView 只负责交互管理，不知道算法具体逻辑
 
-**集成要点** (⚠️ 待完成):
-1. MainController 需要连接 `ChartView::algorithmInteractionCompleted()` 信号
-2. 修改 `onCoordinatorRequestPointSelection()` 调用 `ChartView::startAlgorithmInteraction()` 而非旧的 `setPickPointMode()`
-3. 在信号处理器中调用 `coordinator->handlePointSelectionResult(points)` 继续执行
+**集成要点** (✅ 已完成):
+1. ✅ MainController 连接了 `ChartView::algorithmInteractionCompleted()` 信号（在 `setPlotWidget()` 中）
+2. ✅ 修改了 `onCoordinatorRequestPointSelection()` 调用 `ChartView::startAlgorithmInteraction()`
+3. ✅ 信号处理器自动调用 `coordinator->handlePointSelectionResult(points)` 继续执行
+4. ✅ 添加了 `interactionStateChanged` 信号监听（用于调试和未来的UI反馈）
+
+**代码位置**:
+- 信号连接: `main_controller.cpp:62-95` (setPlotWidget 方法)
+- 状态机启动: `main_controller.cpp:266-296` (onCoordinatorRequestPointSelection 方法)
+- 旧路径标记: `main_controller.cpp:257-270` (onPointsPickedFromView 保留用于向后兼容)
 
 ## 编码约定和注意事项
 

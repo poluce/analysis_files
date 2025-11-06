@@ -49,7 +49,51 @@ MainController::~MainController()
     delete m_textFileReader;
 }
 
-void MainController::setPlotWidget(ChartView* plotWidget) { m_plotWidget = plotWidget; }
+void MainController::setPlotWidget(ChartView* plotWidget)
+{
+    m_plotWidget = plotWidget;
+
+    if (!m_plotWidget) {
+        return;
+    }
+
+    // ==================== 连接活动算法状态机信号 ====================
+    // 当用户完成算法交互（选点完成）时，自动触发算法执行
+    connect(m_plotWidget, &ChartView::algorithmInteractionCompleted, this,
+            [this](const QString& algorithmName, const QVector<QPointF>& points) {
+                qDebug() << "MainController: 接收到算法交互完成信号 -" << algorithmName
+                         << ", 选点数量:" << points.size();
+
+                if (!m_algorithmCoordinator) {
+                    qWarning() << "MainController: AlgorithmCoordinator 未初始化，无法处理选点结果";
+                    return;
+                }
+
+                // 将选点结果传递给协调器，继续算法执行流程
+                m_algorithmCoordinator->handlePointSelectionResult(points);
+            }, Qt::UniqueConnection);
+
+    // 监听交互状态变化（用于调试和未来的状态栏更新）
+    connect(m_plotWidget, &ChartView::interactionStateChanged, this,
+            [](ChartView::InteractionState newState) {
+                QString stateName;
+                switch (newState) {
+                case ChartView::InteractionState::Idle:
+                    stateName = "Idle";
+                    break;
+                case ChartView::InteractionState::WaitingForPoints:
+                    stateName = "WaitingForPoints";
+                    break;
+                case ChartView::InteractionState::PointsCompleted:
+                    stateName = "PointsCompleted";
+                    break;
+                case ChartView::InteractionState::Executing:
+                    stateName = "Executing";
+                    break;
+                }
+                qDebug() << "ChartView 交互状态变化:" << stateName;
+            }, Qt::UniqueConnection);
+}
 
 void MainController::attachMainWindow(MainWindow* mainWindow)
 {
@@ -212,6 +256,12 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
 
 void MainController::onPointsPickedFromView(const QVector<QPointF>& points)
 {
+    // ==================== ⚠️ 遗留代码路径（向后兼容） ====================
+    // 注意：新架构使用 ChartView::algorithmInteractionCompleted 信号
+    // 此方法通过 CurveViewController::pointsPicked 信号触发，保留用于向后兼容
+    qDebug() << "MainController::onPointsPickedFromView - ⚠️ 使用旧的选点路径（CurveViewController）";
+    qDebug() << "  提示：新架构应直接使用 ChartView::algorithmInteractionCompleted 信号";
+
     if (!m_algorithmCoordinator) {
         qDebug() << "MainController::onPointsPickedFromView - 当前无算法协调器，忽略选点结果";
         return;
@@ -222,16 +272,30 @@ void MainController::onPointsPickedFromView(const QVector<QPointF>& points)
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
 {
-    Q_UNUSED(algorithmName);
     Q_UNUSED(curveId);
 
-    if (!m_curveViewController) {
-        qWarning() << "MainController::onCoordinatorRequestPointSelection - 未绑定 CurveViewController";
+    qDebug() << "MainController::onCoordinatorRequestPointSelection - 算法:" << algorithmName
+             << ", 需要点数:" << requiredPoints;
+
+    if (!m_plotWidget) {
+        qWarning() << "MainController::onCoordinatorRequestPointSelection - 未绑定 ChartView";
         return;
     }
 
-    m_curveViewController->setPickPointMode(qMax(1, requiredPoints));
+    // ==================== 使用新的活动算法状态机 ====================
+    // 获取算法的显示名称
+    QString displayName = algorithmName;  // 默认使用算法名称
+    IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(algorithmName);
+    if (algorithm) {
+        displayName = algorithm->displayName();
+    } else {
+        qWarning() << "MainController: 无法找到算法" << algorithmName << "，使用名称作为显示名";
+    }
 
+    // 启动算法交互状态机
+    m_plotWidget->startAlgorithmInteraction(algorithmName, displayName, qMax(1, requiredPoints), hint);
+
+    // 显示提示信息（如果有）
     if (!hint.isEmpty()) {
         onCoordinatorShowMessage(hint);
     }
