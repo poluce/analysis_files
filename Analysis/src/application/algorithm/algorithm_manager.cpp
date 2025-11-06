@@ -1,4 +1,5 @@
 #include "algorithm_manager.h"
+#include "application/algorithm/algorithm_context.h"
 #include "application/curve/curve_manager.h"
 #include "application/history/add_curve_command.h"
 #include "application/history/history_manager.h"
@@ -102,6 +103,65 @@ void AlgorithmManager::executeWithInputs(const QString& name, const QVariantMap&
 
     // 根据输出类型处理结果
     handleAlgorithmResult(algorithm, mainCurve, result);
+
+    // 发出新信号
+    emit algorithmResultReady(name, algorithm->outputType(), result);
+}
+
+// ==================== 上下文驱动接口实现 ====================
+
+void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext* context)
+{
+    if (!context) {
+        qWarning() << "算法执行失败：上下文为空。";
+        return;
+    }
+
+    if (!m_curveManager) {
+        qWarning() << "算法执行失败：CurveManager 未设置。";
+        return;
+    }
+
+    IThermalAlgorithm* algorithm = getAlgorithm(name);
+    if (!algorithm) {
+        qWarning() << "算法执行失败：找不到算法" << name;
+        return;
+    }
+
+    // 从上下文获取主曲线
+    auto activeCurve = context->get<ThermalCurve*>("activeCurve");
+    if (!activeCurve.has_value()) {
+        auto mainCurve = context->get<ThermalCurve*>("mainCurve");
+        if (!mainCurve.has_value()) {
+            qWarning() << "算法执行失败：上下文中缺少主曲线（activeCurve 或 mainCurve）。";
+            return;
+        }
+        activeCurve = mainCurve;
+    }
+
+    ThermalCurve* curve = activeCurve.value();
+    if (!curve) {
+        qWarning() << "算法执行失败：主曲线为空指针。";
+        return;
+    }
+
+    qDebug() << "正在执行算法" << name << "（上下文驱动）于曲线" << curve->name();
+    qDebug() << "输入类型:" << static_cast<int>(algorithm->inputType());
+    qDebug() << "输出类型:" << static_cast<int>(algorithm->outputType());
+
+    // 允许算法准备上下文（注入默认参数等）
+    algorithm->prepareContext(context);
+
+    // 执行算法（算法从上下文拉取所需数据）
+    QVariant result = algorithm->executeWithContext(context);
+
+    if (result.isNull() || !result.isValid()) {
+        qWarning() << "算法" << name << "未生成有效结果。";
+        return;
+    }
+
+    // 根据输出类型处理结果
+    handleAlgorithmResult(algorithm, curve, result);
 
     // 发出新信号
     emit algorithmResultReady(name, algorithm->outputType(), result);

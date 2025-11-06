@@ -11,6 +11,7 @@
 // 前置声明
 class ThermalCurve;
 class CurveManager;
+class AlgorithmContext;
 
 /**
  * @brief 算法服务类 - 管理算法注册和执行
@@ -33,6 +34,9 @@ public:
 
     // 新接口：支持灵活输入/输出的算法执行
     void executeWithInputs(const QString& name, const QVariantMap& inputs);
+
+    // 最新接口：上下文驱动的算法执行（推荐使用）
+    void executeWithContext(const QString& name, AlgorithmContext* context);
 
 signals:
     void algorithmFinished(const QString& curveId);

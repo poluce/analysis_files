@@ -8,6 +8,9 @@
 #include <QVariantMap>
 #include <QVector>
 
+// 前置声明
+class AlgorithmContext;
+
 /*
  * ───────────────────────────────────────────────
  *  Algorithm Input Key Specification (v1.0)
@@ -163,7 +166,9 @@ public:
     virtual OutputType outputType() const { return OutputType::Curve; }
 
     /**
-     * @brief 执行算法（新接口，支持灵活输入/输出）。
+     * @brief 执行算法（旧接口，支持灵活输入/输出）。
+     *
+     * ⚠️ 已弃用：推荐使用 executeWithContext(AlgorithmContext*) 代替。
      *
      * 通过 QVariantMap 传递输入数据，支持复杂场景：
      * - "mainCurve": ThermalCurve* (主曲线)
@@ -195,6 +200,37 @@ public:
         }
         return QVariant();
     }
+
+    /**
+     * @brief 执行算法（上下文驱动接口）。
+     *
+     * ✅ 推荐使用的新接口：算法从上下文中拉取所需数据，避免繁琐的参数传递。
+     *
+     * 算法可以从上下文中获取：
+     * - 曲线数据：context->get<ThermalCurve*>("activeCurve")
+     * - 参数：context->get<int>("param.windowSize")
+     * - 选择的点：context->get<QVector<QPointF>>("selectedPoints")
+     * - 参考曲线：context->get<ThermalCurve*>("referenceCurve")
+     *
+     * 返回值根据 outputType() 决定（同 execute(QVariantMap)）。
+     *
+     * 默认实现：从上下文提取常用键并构建 QVariantMap，调用旧的 execute(QVariantMap)。
+     * 推荐算法重写此方法，直接从上下文拉取数据，实现真正的上下文驱动。
+     *
+     * @param context 算法上下文，包含所有运行时状态。
+     * @return 算法执行结果。
+     */
+    virtual QVariant executeWithContext(AlgorithmContext* context);
+
+    /**
+     * @brief 准备算法执行前的上下文（可选重写）。
+     *
+     * 算法可以重写此方法，在执行前向上下文注入所需的默认参数。
+     * 例如：微分算法可以设置默认的 halfWin 和 dt 参数。
+     *
+     * @param context 算法上下文。
+     */
+    virtual void prepareContext(AlgorithmContext* context) { (void)context; }
 
     /**
      * @brief 返回算法的交互描述信息。

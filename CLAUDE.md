@@ -215,7 +215,73 @@ signals:
 - 基线校正参数(6项): 校正类型、多项式次数、锚点等
 - 15个类别,共60+数据项
 
-### 8. 统一初始化模式 🆕
+### 8. 上下文驱动执行模式 🆕✨
+
+算法采用**拉取 (Pull)** 模式从上下文获取数据，而非传统的**推送 (Push)** 模式：
+
+```cpp
+// ❌ 旧模式：推送参数（繁琐的参数传递）
+QVariantMap inputs;
+inputs["mainCurve"] = curve;
+inputs["param1"] = value1;
+inputs["param2"] = value2;
+algorithm->execute(inputs);
+
+// ✅ 新模式：上下文驱动（算法自己拉取）
+context->setValue("activeCurve", curve);
+context->setValue("param.windowSize", 50);
+algorithm->executeWithContext(context);  // 算法内部拉取所需数据
+```
+
+**算法实现示例**:
+```cpp
+class DifferentiationAlgorithm : public IThermalAlgorithm {
+    // 准备上下文：注入默认参数
+    void prepareContext(AlgorithmContext* context) override {
+        if (!context->contains("param.halfWin")) {
+            context->setValue("param.halfWin", 50);
+        }
+    }
+
+    // 执行算法：从上下文拉取数据
+    QVariant executeWithContext(AlgorithmContext* context) override {
+        // 拉取曲线
+        auto curve = context->get<ThermalCurve*>("activeCurve").value();
+
+        // 拉取参数（带默认值fallback）
+        int halfWin = context->get<int>("param.halfWin").value_or(50);
+        double dt = context->get<double>("param.dt").value_or(0.1);
+
+        // 执行核心算法逻辑...
+        return result;
+    }
+};
+```
+
+**优势**:
+- ✅ **消除繁琐的参数传递**: 不再需要在每个调用点构造 QVariantMap
+- ✅ **避免调用顺序问题**: 数据在上下文中始终可用，无需担心设置顺序
+- ✅ **单一数据源**: 上下文是全局状态容器，所有组件共享
+- ✅ **类型安全**: `context->get<T>()` 提供编译时类型检查
+- ✅ **默认值支持**: `value_or(default)` 简化参数处理
+- ✅ **易于扩展**: 添加新参数只需在上下文中设置，无需修改函数签名
+
+**执行流程**:
+```
+AlgorithmCoordinator
+  → 清空上下文
+  → 设置 activeCurve 到上下文
+  → 设置参数到上下文 (param.*)
+  → 调用 AlgorithmManager::executeWithContext(name, context)
+    → 调用 algorithm->prepareContext(context) [注入默认值]
+    → 调用 algorithm->executeWithContext(context) [拉取数据]
+      → 算法从上下文拉取 activeCurve
+      → 算法从上下文拉取参数
+      → 执行核心逻辑
+      → 返回结果
+```
+
+### 9. 统一初始化模式 🆕
 使用 ApplicationContext 统一管理所有 MVC 实例的构造顺序:
 ```cpp
 class ApplicationContext {
@@ -264,36 +330,49 @@ class ApplicationContext {
     └─ ChartView (显示图表)
 ```
 
-### 算法执行流 (新架构) 🆕
+### 算法执行流 (上下文驱动架构) 🆕✨
 ```
 用户选择算法
   → MainWindow (菜单触发)
   → MainController (协调)
-  → AlgorithmCoordinator (流程编排)
-  → ├─ 创建 AlgorithmContext (上下文)
-    ├─ 设置活动曲线到上下文
+  → AlgorithmCoordinator::handleAlgorithmTriggered (流程编排)
+  → ├─ 获取活动曲线
     ├─ 触发参数收集对话框 (如需要)
-    │   → 用户输入参数 → 保存到上下文
+    │   → 用户输入参数 → 保存到 m_pending
     ├─ 请求点选 (如需要)
-    │   → 用户在图表上点选 → 保存到上下文
-    ├─ AlgorithmManager::execute(context)
-    │   → 从上下文获取参数和曲线
-    │   → 执行算法处理
-    │   → 创建新曲线
-    │   → 设置 parentId 和 signalType
-    │   → 添加到 CurveManager
-    └─ 发出算法完成信号
+    │   → 用户在图表上点选 → 保存到 m_pending
+    └─ AlgorithmCoordinator::executeAlgorithm
+      → 清空上下文中的旧数据
+      → 设置 activeCurve 到上下文
+      → 设置参数到上下文 (param.*)
+      → 设置选择的点到上下文 (selectedPoints)
+      → AlgorithmManager::executeWithContext(name, context)
+        ├─ 验证上下文中的 activeCurve
+        ├─ 调用 algorithm->prepareContext(context) [注入默认参数]
+        └─ 调用 algorithm->executeWithContext(context)
+          → 算法从上下文拉取 activeCurve
+          → 算法从上下文拉取参数 (param.*)
+          → 执行核心算法逻辑
+          → 返回结果
+        → handleAlgorithmResult(algorithm, curve, result)
+          → 根据 outputType 处理结果
+          → 创建新曲线 (OutputType::Curve)
+          → 设置 parentId 和 signalType
+          → 添加到 CurveManager (通过 HistoryManager)
+        → 发出 algorithmResultReady 信号
   → CurveManager 发出 curveAdded 信号
   → ├─ ProjectTreeManager (添加为子节点)
     ├─ ChartView (显示新曲线)
     └─ CurveViewController (同步状态)
 ```
 
-**关键改进**:
-- 使用 AlgorithmContext 统一管理所有算法数据
-- AlgorithmCoordinator 负责流程编排,解耦算法执行和UI交互
-- 支持灵活的参数收集和点选流程
-- 所有数据变化都有时间戳和来源追踪
+**关键特性**:
+- ✅ **上下文驱动**: 算法从 AlgorithmContext 拉取数据，避免繁琐的参数传递
+- ✅ **单一数据源**: 所有运行时数据集中在上下文中管理
+- ✅ **流程编排**: AlgorithmCoordinator 负责交互流程和数据收集
+- ✅ **类型安全**: `context->get<T>()` 提供类型安全的访问
+- ✅ **默认参数**: `prepareContext()` 注入算法默认值
+- ✅ **历史追踪**: 所有数据变化都有时间戳和来源记录
 
 ## 编码约定和注意事项
 
@@ -407,6 +486,12 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
 - ✅ 代码重构优化 (消除 150+ 行冗余代码，统一技术路线)
 - ✅ 性能优化 (HistoryManager O(n)→O(1)，AlgorithmCoordinator O(n²)→O(n))
 - ✅ 架构简化 (统一使用 AlgorithmCoordinator，移除双重路径)
+- ✅ **上下文驱动执行模式** (executeWithContext, prepareContext)
+  - 算法从上下文拉取数据，消除繁琐的参数传递
+  - IThermalAlgorithm 新增 `executeWithContext(AlgorithmContext*)` 接口
+  - AlgorithmManager 新增 `executeWithContext(name, context)` 方法
+  - DifferentiationAlgorithm 作为示范完成迁移
+  - 支持向后兼容，旧接口仍然有效
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)
