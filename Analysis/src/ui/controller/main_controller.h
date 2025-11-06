@@ -80,7 +80,6 @@ private slots:
      * @brief 处理最终的数据导入请求。
      */
     void onImportTriggered();
-    void onAlgorithmFinished(const QString& curveId); // 添加
     void onCoordinatorRequestPointSelection(const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);

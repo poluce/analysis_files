@@ -65,43 +65,9 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
     if (descriptor.interaction == AlgorithmInteraction::PointSelection && descriptor.requiredPointCount <= 0) {
         descriptor.requiredPointCount = 1;
     }
-    if (descriptor.pointSelectionHint.isEmpty()) {
-        descriptor.pointSelectionHint = algorithm->userPrompt();
-    }
 
-    // 合并算法参数图中的默认值
-    const QVariantMap currentParams = algorithm->parameters();
-    if (!currentParams.isEmpty()) {
-        // 第一步：更新已定义参数的默认值，并记录已存在的参数键
-        QSet<QString> definedKeys;
-        for (int i = 0; i < descriptor.parameters.size(); ++i) {
-            auto& param = descriptor.parameters[i];
-            definedKeys.insert(param.key);  // 记录键（O(1) 插入）
-
-            if (currentParams.contains(param.key)) {
-                const QVariant value = currentParams.value(param.key);
-                if (!param.defaultValue.isValid()) {
-                    param.defaultValue = value;
-                }
-                if (param.valueType == QVariant::Invalid) {
-                    param.valueType = static_cast<QVariant::Type>(value.type());
-                }
-            }
-        }
-
-        // 第二步：添加未定义的参数（使用 QSet 进行 O(1) 查找）
-        for (auto it = currentParams.constBegin(); it != currentParams.constEnd(); ++it) {
-            if (!definedKeys.contains(it.key())) {  // O(1) 查找
-                AlgorithmParameterDefinition def;
-                def.key = it.key();
-                def.label = it.key();
-                def.valueType = static_cast<QVariant::Type>(it.value().type());
-                def.defaultValue = it.value();
-                def.required = false;
-                descriptor.parameters.append(def);
-            }
-        }
-    }
+    // 注意：纯上下文驱动模式下，算法通过 descriptor() 提供所有元数据
+    // descriptor.parameters 已经包含完整的参数定义和默认值
 
     return descriptor;
 }

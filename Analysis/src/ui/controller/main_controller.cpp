@@ -38,9 +38,6 @@ MainController::MainController(CurveManager* curveManager, QObject* parent)
     // 命令路径：DataImportWidget → MainController
     connect(m_dataImportWidget, &DataImportWidget::previewRequested, this, &MainController::onPreviewRequested);
     connect(m_dataImportWidget, &DataImportWidget::importRequested, this, &MainController::onImportTriggered);
-
-    // 通知路径：AlgorithmManager → MainController（可选的转发）
-    connect(m_algorithmManager, &AlgorithmManager::algorithmFinished, this, &MainController::onAlgorithmFinished);
 }
 
 MainController::~MainController()
@@ -75,19 +72,19 @@ void MainController::setPlotWidget(ChartView* plotWidget)
 
     // 监听交互状态变化（用于调试和未来的状态栏更新）
     connect(m_plotWidget, &ChartView::interactionStateChanged, this,
-            [](ChartView::InteractionState newState) {
+            [](int newState) {
                 QString stateName;
                 switch (newState) {
-                case ChartView::InteractionState::Idle:
+                case 0: // Idle
                     stateName = "Idle";
                     break;
-                case ChartView::InteractionState::WaitingForPoints:
+                case 1: // WaitingForPoints
                     stateName = "WaitingForPoints";
                     break;
-                case ChartView::InteractionState::PointsCompleted:
+                case 2: // PointsCompleted
                     stateName = "PointsCompleted";
                     break;
-                case ChartView::InteractionState::Executing:
+                case 3: // Executing
                     stateName = "Executing";
                     break;
                 }
@@ -210,7 +207,6 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
 }
 
-void MainController::onAlgorithmFinished(const QString& curveId) { emit curveDataChanged(curveId); }
 
 void MainController::onUndo()
 {
