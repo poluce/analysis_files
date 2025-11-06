@@ -28,6 +28,38 @@ enum class InteractionMode {
     Pick  // 拾取模式：选择数据点、测量、显示坐标
 };
 
+/**
+ * @brief 图表交互状态
+ *
+ * 描述当前图表的交互状态和进度
+ */
+enum class InteractionState {
+    Idle,              // 空闲：无活动算法
+    WaitingForPoints,  // 等待用户选点
+    PointsCompleted,   // 选点完成，准备执行
+    Executing          // 算法执行中
+};
+
+/**
+ * @brief 活动算法信息
+ *
+ * 记录当前正在交互的算法的元数据
+ */
+struct ActiveAlgorithmInfo {
+    QString name;                // 算法名称（如 "baseline_correction"）
+    QString displayName;         // 显示名称（如 "基线校正"）
+    int requiredPointCount = 0;  // 需要的点数
+    QString hint;                // 交互提示（如 "请选择两个点定义基线范围"）
+
+    bool isValid() const { return !name.isEmpty(); }
+    void clear() {
+        name.clear();
+        displayName.clear();
+        requiredPointCount = 0;
+        hint.clear();
+    }
+};
+
 class ChartView : public QWidget {
     Q_OBJECT
 public:
@@ -40,6 +72,42 @@ public:
     void setPickCount(int count);
     bool hitTestIncludePenWidth() const;
     void setInteractionMode(InteractionMode type);
+
+    // ==================== 交互状态管理 ====================
+    /**
+     * @brief 启动算法交互（进入选点模式）
+     *
+     * 当用户选择某个算法时调用，图表进入"等待用户交互"状态
+     *
+     * @param algorithmName 算法名称
+     * @param displayName 显示名称
+     * @param requiredPoints 需要的点数
+     * @param hint 交互提示文本
+     */
+    void startAlgorithmInteraction(const QString& algorithmName, const QString& displayName,
+                                    int requiredPoints, const QString& hint);
+
+    /**
+     * @brief 取消当前算法交互
+     *
+     * 清空已选点，回到空闲状态
+     */
+    void cancelAlgorithmInteraction();
+
+    /**
+     * @brief 获取当前交互状态
+     */
+    InteractionState interactionState() const { return m_interactionState; }
+
+    /**
+     * @brief 获取当前活动算法信息
+     */
+    const ActiveAlgorithmInfo& activeAlgorithm() const { return m_activeAlgorithm; }
+
+    /**
+     * @brief 获取已选择的点
+     */
+    const QVector<QPointF>& selectedPoints() const { return m_selectedPoints; }
 
     void addAnnotationLine(
         const QString& id, const QString& curveId, const QPointF& start, const QPointF& end, const QPen& pen = QPen(Qt::red, 2));
@@ -66,6 +134,7 @@ protected:
 
 signals:
     void curveSelected(const QString& curveId);
+
     /**
      * @brief 在拾取点的模式中当用户拾取够了设置的点数时排序后发出。
      * @param outputs 包含拾取点信息横轴位置：
@@ -74,6 +143,23 @@ signals:
      *  - "x3" point3
      */
     void pickPoints(const QVector<QPointF>& outputs);
+
+    /**
+     * @brief 算法交互完成信号（新）
+     *
+     * 当用户完成所有必需的交互步骤后发出，包含算法名称和选择的点
+     *
+     * @param algorithmName 算法名称
+     * @param points 用户选择的点
+     */
+    void algorithmInteractionCompleted(const QString& algorithmName, const QVector<QPointF>& points);
+
+    /**
+     * @brief 交互状态改变信号
+     *
+     * @param newState 新的交互状态
+     */
+    void interactionStateChanged(InteractionState newState);
 
 private:
     void updateSeriesStyle(QLineSeries* series, bool selected);
@@ -136,6 +222,11 @@ private:
     InteractionMode m_mode = InteractionMode::View; // 切换视图和拾取点的模式
     int m_pickCount = 0;
     QVector<QPointF> m_pickPoints;
+
+    // ==================== 交互状态管理 ====================
+    InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态
+    ActiveAlgorithmInfo m_activeAlgorithm;                        // 当前活动算法信息
+    QVector<QPointF> m_selectedPoints;                            // 用户已选择的点
 
     QVector<AnnotationLine> m_annotations;
 };

@@ -53,7 +53,13 @@ Analysis.exe
 
 ### 1. 表示层 (Presentation Layer) - `src/ui/`
 - **MainWindow**: 主窗口,管理整体布局(菜单、工具栏、停靠面板),接收预构造的 ChartView 与 ProjectExplorerView,仅负责布局与信号转发
-- **ChartView**: 基于 Qt Charts 的图表组件,支持多曲线显示、缩放、交互选择
+- **ChartView**: 🆕 基于 Qt Charts 的图表组件,支持多曲线显示、缩放、交互选择
+  - **活动算法状态机**: 管理用户与算法的交互流程
+    - `InteractionState`: 交互状态枚举 (Idle/WaitingForPoints/PointsCompleted/Executing)
+    - `ActiveAlgorithmInfo`: 当前活动算法信息 (名称/显示名/所需点数/提示)
+    - `startAlgorithmInteraction()`: 启动算法交互,进入等待选点状态
+    - `cancelAlgorithmInteraction()`: 取消当前交互,回到空闲状态
+    - `algorithmInteractionCompleted(algorithmName, points)`: 当用户完成选点后自动发出,触发算法执行
 - **ProjectExplorerView**: 项目浏览器视图,树形结构展示曲线及其衍生关系(模型由 ProjectTreeManager 提供)
 - **DataImportWidget**: 数据导入对话框,智能列识别和预览
 
@@ -462,6 +468,52 @@ class ApplicationContext {
 - ✅ **类型安全**: `context->get<T>()` 提供类型安全的访问
 - ✅ **默认参数**: `prepareContext()` 注入算法默认值
 - ✅ **历史追踪**: 所有数据变化都有时间戳和来源记录
+
+### 🆕 活动算法状态机 (ChartView 交互管理) ✨
+
+**设计理念**: ChartView 维护"当前活动算法"状态，跟踪用户交互进度，当交互完成时自动触发算法执行。
+
+**状态机流程**:
+```
+用户选择算法 (如"基线校正")
+  → MainController::onAlgorithmRequested()
+  → AlgorithmCoordinator::handleAlgorithmTriggered()
+  → 发出 requestPointSelection(algorithmName, curveId, requiredPoints, hint)
+  → MainController::onCoordinatorRequestPointSelection()
+  → ChartView::startAlgorithmInteraction(algorithmName, displayName, requiredPoints, hint)
+    ├─ 设置 m_activeAlgorithm (记录当前算法信息)
+    ├─ 状态转换: Idle → WaitingForPoints
+    ├─ 发出 interactionStateChanged(WaitingForPoints)
+    └─ 切换到 Pick 模式 (十字光标)
+
+用户在图表上点击选点
+  → ChartView::handlePointSelectionClick()
+    ├─ 检查 m_activeAlgorithm.isValid() && state == WaitingForPoints
+    ├─ 添加点到 m_selectedPoints
+    ├─ 检查是否收集够所需点数 (size >= requiredPointCount)
+    └─ 如果完成:
+      ├─ 状态转换: WaitingForPoints → PointsCompleted
+      ├─ 发出 interactionStateChanged(PointsCompleted)
+      ├─ 发出 algorithmInteractionCompleted(algorithmName, selectedPoints) ⭐ 自动触发执行
+      └─ 切换回 View 模式
+
+MainController 接收信号
+  → 连接 ChartView::algorithmInteractionCompleted()
+  → 调用 AlgorithmCoordinator::handlePointSelectionResult(points)
+  → 算法执行流程继续 (见上方"算法执行流")
+```
+
+**核心优势**:
+- ✅ **状态追踪**: 始终知道哪个算法正在等待交互，进度如何
+- ✅ **自动执行**: 用户完成选点后无需手动点击"执行"按钮
+- ✅ **清晰反馈**: 可显示提示文本 "已选 1/2 点，请继续选择"
+- ✅ **可取消性**: `cancelAlgorithmInteraction()` 可随时中止交互
+- ✅ **松耦合**: ChartView 只负责交互管理，不知道算法具体逻辑
+
+**集成要点** (⚠️ 待完成):
+1. MainController 需要连接 `ChartView::algorithmInteractionCompleted()` 信号
+2. 修改 `onCoordinatorRequestPointSelection()` 调用 `ChartView::startAlgorithmInteraction()` 而非旧的 `setPickPointMode()`
+3. 在信号处理器中调用 `coordinator->handlePointSelectionResult(points)` 继续执行
 
 ## 编码约定和注意事项
 

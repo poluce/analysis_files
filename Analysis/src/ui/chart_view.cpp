@@ -138,11 +138,43 @@ void ChartView::handleCurveSelectionClick(const QPointF& chartPos)
 
 void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
 {
-    if (m_pickCount <= 0 || !m_chartView || !m_chartView->chart()) {
+    if (!m_chartView || !m_chartView->chart()) {
         return;
     }
 
     const QPointF valuePoint = m_chartView->chart()->mapToValue(chartViewPos);
+
+    // ==================== 新架构：检查活动算法状态 ====================
+    if (m_activeAlgorithm.isValid() && m_interactionState == InteractionState::WaitingForPoints) {
+        // 添加选点到活动算法的选点列表
+        m_selectedPoints.append(valuePoint);
+        qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
+                 << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
+                 << ", 点:" << valuePoint;
+
+        // 检查是否已收集足够的点
+        if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
+            // 状态转换: WaitingForPoints → PointsCompleted
+            m_interactionState = InteractionState::PointsCompleted;
+            emit interactionStateChanged(m_interactionState);
+
+            qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
+                     << "交互完成，发送信号触发执行";
+
+            // 发出算法交互完成信号，触发算法执行
+            emit algorithmInteractionCompleted(m_activeAlgorithm.name, m_selectedPoints);
+
+            // 切换回视图模式
+            setInteractionMode(InteractionMode::View);
+        }
+        return;
+    }
+
+    // ==================== 旧架构兼容：使用 pickCount 模式 ====================
+    if (m_pickCount <= 0) {
+        return;
+    }
+
     m_pickPoints.append(valuePoint);
 
     if (m_pickPoints.size() >= m_pickCount) {
@@ -263,6 +295,60 @@ void ChartView::setInteractionMode(InteractionMode type)
         }
         unsetCursor();
     }
+}
+
+// ==================== 活动算法状态机实现 ====================
+
+void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QString& displayName,
+                                          int requiredPoints, const QString& hint)
+{
+    qDebug() << "ChartView::startAlgorithmInteraction - 启动算法交互";
+    qDebug() << "  算法名称:" << algorithmName;
+    qDebug() << "  显示名称:" << displayName;
+    qDebug() << "  需要点数:" << requiredPoints;
+    qDebug() << "  提示信息:" << hint;
+
+    // 清空之前的状态
+    m_selectedPoints.clear();
+
+    // 设置活动算法信息
+    m_activeAlgorithm.name = algorithmName;
+    m_activeAlgorithm.displayName = displayName;
+    m_activeAlgorithm.requiredPointCount = requiredPoints;
+    m_activeAlgorithm.hint = hint;
+
+    // 状态转换: Idle → WaitingForPoints
+    m_interactionState = InteractionState::WaitingForPoints;
+    emit interactionStateChanged(m_interactionState);
+
+    // 切换到选点模式
+    setInteractionMode(InteractionMode::Pick);
+    setPickCount(requiredPoints);  // 兼容旧架构的可视化反馈
+
+    qDebug() << "ChartView: 算法" << displayName << "已进入等待用户选点状态";
+}
+
+void ChartView::cancelAlgorithmInteraction()
+{
+    if (!m_activeAlgorithm.isValid()) {
+        qDebug() << "ChartView::cancelAlgorithmInteraction - 没有活动算法，无需取消";
+        return;
+    }
+
+    qDebug() << "ChartView::cancelAlgorithmInteraction - 取消算法交互:" << m_activeAlgorithm.displayName;
+
+    // 清空活动算法信息
+    m_activeAlgorithm.clear();
+    m_selectedPoints.clear();
+
+    // 状态转换: 任意状态 → Idle
+    m_interactionState = InteractionState::Idle;
+    emit interactionStateChanged(m_interactionState);
+
+    // 切换回视图模式
+    setInteractionMode(InteractionMode::View);
+
+    qDebug() << "ChartView: 算法交互已取消，回到空闲状态";
 }
 
 void ChartView::setCurveVisible(const QString& curveId, bool visible)
