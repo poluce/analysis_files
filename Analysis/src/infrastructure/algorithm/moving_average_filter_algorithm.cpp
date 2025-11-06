@@ -1,76 +1,29 @@
 #include "moving_average_filter_algorithm.h"
+#include "application/algorithm/algorithm_context.h"
+#include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
 #include <QDebug>
 #include <QVariant>
 #include <QtGlobal>
 
-MovingAverageFilterAlgorithm::MovingAverageFilterAlgorithm() { qDebug() << "构造:  MovingAverageFilterAlgorithm"; }
-
-QVector<ThermalDataPoint> MovingAverageFilterAlgorithm::process(const QVector<ThermalDataPoint>& inputData)
+MovingAverageFilterAlgorithm::MovingAverageFilterAlgorithm()
 {
-    QVector<ThermalDataPoint> output;
-    const int n = inputData.size();
-    if (n == 0)
-        return output;
-
-    // 安全窗口（最少为1）
-    const int w = qMax(1, m_window);
-    const int half = w / 2; // 对称窗口
-
-    output.resize(n);
-    for (int i = 0; i < n; ++i) {
-        int left = qMax(0, i - half);
-        int right = qMin(n - 1, i + half);
-        // 当窗口为偶数时，右侧自然比左侧多1个元素，这里不强行平衡
-
-        double sum = 0.0;
-        int count = 0;
-        for (int j = left; j <= right; ++j) {
-            sum += inputData[j].value;
-            ++count;
-        }
-
-        ThermalDataPoint p;
-        p.temperature = inputData[i].temperature;
-        p.time = inputData[i].time;
-        p.value = (count > 0) ? (sum / count) : inputData[i].value;
-        output[i] = p;
-    }
-
-    return output;
+    qDebug() << "构造: MovingAverageFilterAlgorithm";
 }
 
-QString MovingAverageFilterAlgorithm::name() const { return "moving_average"; }
-
-QString MovingAverageFilterAlgorithm::displayName() const { return "滤波"; }
-
-QString MovingAverageFilterAlgorithm::category() const { return "Preprocess"; }
-
-QVariantMap MovingAverageFilterAlgorithm::parameters() const
+QString MovingAverageFilterAlgorithm::name() const
 {
-    QVariantMap params;
-    params.insert("window", m_window);
-    return params;
+    return "moving_average";
 }
 
-// 给算法设置参数
-void MovingAverageFilterAlgorithm::setParameter(const QString& key, const QVariant& value)
+QString MovingAverageFilterAlgorithm::displayName() const
 {
-    if (key == "window") {
-        bool ok = false;
-        int v = value.toInt(&ok);
-        if (ok && v >= 1) {
-            m_window = v;
-        }
-    }
+    return "滤波";
 }
 
-void MovingAverageFilterAlgorithm::setParameter(const QVariantMap& input)
+QString MovingAverageFilterAlgorithm::category() const
 {
-    int count = input["window"].value<int>();
-    if (count >= 1) {
-        m_window = count;
-    }
+    return "Preprocess";
 }
 
 SignalType MovingAverageFilterAlgorithm::getOutputSignalType(SignalType inputType) const
@@ -79,8 +32,6 @@ SignalType MovingAverageFilterAlgorithm::getOutputSignalType(SignalType inputTyp
     // 输出信号类型与输入信号类型相同
     return inputType;
 }
-
-// ==================== 新接口方法实现 ====================
 
 IThermalAlgorithm::InputType MovingAverageFilterAlgorithm::inputType() const
 {
@@ -103,4 +54,79 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
         { QStringLiteral("window"), QStringLiteral("窗口大小"), QVariant::Int, m_window, true, { { QStringLiteral("min"), 1 } } },
     };
     return desc;
+}
+
+// ==================== 上下文驱动执行接口实现 ====================
+
+void MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
+{
+    if (!context) {
+        return;
+    }
+
+    // 如果上下文中没有参数，注入默认值
+    if (!context->contains("param.window")) {
+        context->setValue("param.window", m_window, "MovingAverageFilterAlgorithm::prepareContext");
+    }
+
+    qDebug() << "MovingAverageFilterAlgorithm::prepareContext - 参数已准备";
+}
+
+QVariant MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContext* context)
+{
+    // 1. 验证上下文
+    if (!context) {
+        qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 上下文为空！";
+        return QVariant();
+    }
+
+    // 2. 拉取曲线
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) {
+        qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 无法获取活动曲线！";
+        return QVariant();
+    }
+
+    // 3. 拉取参数（使用 value_or() 提供默认值）
+    int window = context->get<int>("param.window").value_or(m_window);
+
+    // 4. 获取输入数据
+    const QVector<ThermalDataPoint>& inputData = curve.value()->getProcessedData();
+
+    // 5. 执行核心算法逻辑（移动平均滤波）
+    QVector<ThermalDataPoint> outputData;
+    const int n = inputData.size();
+    if (n == 0) {
+        qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 输入数据为空！";
+        return QVariant::fromValue(outputData);
+    }
+
+    // 安全窗口（最少为1）
+    const int w = qMax(1, window);
+    const int half = w / 2; // 对称窗口
+
+    outputData.resize(n);
+    for (int i = 0; i < n; ++i) {
+        int left = qMax(0, i - half);
+        int right = qMin(n - 1, i + half);
+        // 当窗口为偶数时，右侧自然比左侧多1个元素，这里不强行平衡
+
+        double sum = 0.0;
+        int count = 0;
+        for (int j = left; j <= right; ++j) {
+            sum += inputData[j].value;
+            ++count;
+        }
+
+        ThermalDataPoint p;
+        p.temperature = inputData[i].temperature;
+        p.time = inputData[i].time;
+        p.value = (count > 0) ? (sum / count) : inputData[i].value;
+        outputData[i] = p;
+    }
+
+    qDebug() << "MovingAverageFilterAlgorithm::executeWithContext - 完成，窗口大小:" << w << "，输出数据点数:" << outputData.size();
+
+    // 6. 返回结果
+    return QVariant::fromValue(outputData);
 }

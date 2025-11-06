@@ -39,7 +39,6 @@ SOURCES += \
     \
     # Domain Layer
     src/domain/model/thermal_curve.cpp \
-    src/domain/algorithm/i_thermal_algorithm.cpp \
     \
     # Infrastructure Layer
     src/infrastructure/io/text_file_reader.cpp \

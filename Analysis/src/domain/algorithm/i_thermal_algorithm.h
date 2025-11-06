@@ -83,44 +83,25 @@ public:
     // 接口必须有虚析构函数
     virtual ~IThermalAlgorithm() = default;
 
-    /**
-     * @brief 处理输入数据并返回结果。
-     * @param inputData 要处理的数据点向量。
-     * @return 处理后的数据点向量。
-     */
-    virtual QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) = 0;
+    // ==================== 核心接口方法 ====================
 
     /**
-     * @brief 返回算法的唯一名称。
-     * @return 算法名称。
+     * @brief 返回算法的唯一名称（用于注册和查找）。
+     * @return 算法名称（例如："differentiation", "integration"）。
      */
     virtual QString name() const = 0;
 
     /**
      * @brief 返回算法的中文显示名称。
-     * @return 算法的中文名称。
+     * @return 算法的中文名称（例如："微分", "积分"）。
      */
     virtual QString displayName() const = 0;
 
     /**
-     * @brief 返回算法的分类（如 "预处理", "分析"）。
-     * @return 算法分类。
+     * @brief 返回算法的分类。
+     * @return 算法分类（例如："Analysis", "Preprocessing"）。
      */
     virtual QString category() const = 0;
-
-    /**
-     * @brief 返回算法所需的参数定义。
-     * @return 包含参数信息的QVariantMap。
-     */
-    virtual QVariantMap parameters() const = 0;
-
-    /**
-     * @brief 设置算法参数。
-     * @param key 参数名称。
-     * @param value 参数值。
-     */
-    virtual void setParameter(const QString& key, const QVariant& value) = 0;
-    virtual void setParameter(const QVariantMap& key) = 0;
 
     /**
      * @brief 根据输入信号类型获取输出信号类型。
@@ -136,17 +117,8 @@ public:
      */
     virtual SignalType getOutputSignalType(SignalType inputType) const = 0;
 
-    // ==================== 新接口方法 (支持 A-E 类算法) ====================
     /**
-     * @brief 配置算法参数的弹窗
-     *
-     * 用户在此配置弹窗上选择有关算法的配置信息
-     *
-     * @return 算法的输入类型。
-     */
-    virtual QVariantMap configure(QWidget* parent = nullptr) { return {}; }
-    /**
-     * @brief 返回算法的输入类型。
+     * @brief 返回算法的输入类型（决定交互方式）。
      *
      * 决定算法是否需要用户交互（选点、选择曲线等）。
      * 默认实现返回 InputType::None（A类算法）。
@@ -156,7 +128,7 @@ public:
     virtual InputType inputType() const { return InputType::None; }
 
     /**
-     * @brief 返回算法的输出类型。
+     * @brief 返回算法的输出类型（决定结果形式）。
      *
      * 决定算法输出结果的形式（新曲线、面积、标注等）。
      * 默认实现返回 OutputType::Curve（输出新曲线）。
@@ -166,76 +138,12 @@ public:
     virtual OutputType outputType() const { return OutputType::Curve; }
 
     /**
-     * @brief 执行算法（旧接口，支持灵活输入/输出）。
+     * @brief 返回算法的交互描述信息（用于UI和流程控制）。
      *
-     * ⚠️ 已弃用：推荐使用 executeWithContext(AlgorithmContext*) 代替。
+     * 定义算法需要的参数、交互类型、提示信息等元数据。
+     * 推荐算法重写此方法以提供完整的交互配置。
      *
-     * 通过 QVariantMap 传递输入数据，支持复杂场景：
-     * - "mainCurve": ThermalCurve* (主曲线)
-     * - "points": QVector<QPointF> (选择的点)
-     * - "referenceCurve": ThermalCurve* (参考曲线，用于双曲线算法)
-     * - 其他自定义参数
-     *
-     * 返回值根据 outputType() 决定：
-     * - OutputType::Curve: QVector<ThermalDataPoint>
-     * - OutputType::Area: QVariantMap {"area": double, "series": QAreaSeries*}
-     * - OutputType::Intersection: QVector<QPointF>
-     * - OutputType::Annotation: QVariantList (标注信息)
-     * - OutputType::MultipleCurves: QVariantList (多条曲线)
-     *
-     * 默认实现调用旧的 process() 方法以保持向后兼容。
-     *
-     * @param inputs 输入数据映射。
-     * @return 算法执行结果。
-     */
-    virtual QVariant execute(const QVariantMap& inputs)
-    {
-        // 默认实现：从 inputs 中提取主曲线，调用旧的 process() 方法
-        if (inputs.contains("mainCurve")) {
-            auto curve = inputs["mainCurve"].value<ThermalCurve*>();
-            if (curve) {
-                auto result = process(curve->getProcessedData());
-                return QVariant::fromValue(result);
-            }
-        }
-        return QVariant();
-    }
-
-    /**
-     * @brief 执行算法（上下文驱动接口）。
-     *
-     * ✅ 推荐使用的新接口：算法从上下文中拉取所需数据，避免繁琐的参数传递。
-     *
-     * 算法可以从上下文中获取：
-     * - 曲线数据：context->get<ThermalCurve*>("activeCurve")
-     * - 参数：context->get<int>("param.windowSize")
-     * - 选择的点：context->get<QVector<QPointF>>("selectedPoints")
-     * - 参考曲线：context->get<ThermalCurve*>("referenceCurve")
-     *
-     * 返回值根据 outputType() 决定（同 execute(QVariantMap)）。
-     *
-     * 默认实现：从上下文提取常用键并构建 QVariantMap，调用旧的 execute(QVariantMap)。
-     * 推荐算法重写此方法，直接从上下文拉取数据，实现真正的上下文驱动。
-     *
-     * @param context 算法上下文，包含所有运行时状态。
-     * @return 算法执行结果。
-     */
-    virtual QVariant executeWithContext(AlgorithmContext* context);
-
-    /**
-     * @brief 准备算法执行前的上下文（可选重写）。
-     *
-     * 算法可以重写此方法，在执行前向上下文注入所需的默认参数。
-     * 例如：微分算法可以设置默认的 halfWin 和 dt 参数。
-     *
-     * @param context 算法上下文。
-     */
-    virtual void prepareContext(AlgorithmContext* context) { (void)context; }
-
-    /**
-     * @brief 返回算法的交互描述信息。
-     *
-     * 默认实现基于现有接口构造最小描述，但推荐算法自行覆盖以提供完整交互配置。
+     * @return 算法描述符。
      */
     virtual AlgorithmDescriptor descriptor() const
     {
@@ -252,21 +160,46 @@ public:
             }
         }();
         desc.requiredPointCount = 0;
-        desc.pointSelectionHint = userPrompt();
+        desc.pointSelectionHint = QString();
         return desc;
     }
 
+    // ==================== 上下文驱动执行接口 ====================
+
     /**
-     * @brief 返回用户交互提示信息。
+     * @brief 准备算法执行前的上下文（可选重写）。
      *
-     * 当算法需要用户交互时（inputType() != None），
-     * 返回给用户的提示信息（如 "请选择两个点定义基线范围"）。
+     * 算法可以重写此方法，在执行前向上下文注入所需的默认参数。
+     * 例如：微分算法可以设置默认的 halfWin 和 dt 参数。
      *
-     * 默认返回空字符串。
+     * 调用时机：在 executeWithContext() 之前调用。
      *
-     * @return 交互提示信息。
+     * @param context 算法上下文。
      */
-    virtual QString userPrompt() const { return QString(); }
+    virtual void prepareContext(AlgorithmContext* context) { (void)context; }
+
+    /**
+     * @brief 执行算法（上下文驱动，纯虚函数）。
+     *
+     * ✅ **核心执行接口**：算法从上下文中拉取所需数据，避免繁琐的参数传递。
+     *
+     * 算法从上下文中获取数据：
+     * - 曲线数据：context->get<ThermalCurve*>("activeCurve")
+     * - 参数：context->get<int>("param.windowSize")
+     * - 选择的点：context->get<QVector<QPointF>>("selectedPoints")
+     * - 参考曲线：context->get<ThermalCurve*>("referenceCurve")
+     *
+     * 返回值根据 outputType() 决定：
+     * - OutputType::Curve: QVector<ThermalDataPoint>
+     * - OutputType::Area: QVariantMap {"area": double, "series": QAreaSeries*}
+     * - OutputType::Intersection: QVector<QPointF>
+     * - OutputType::Annotation: QVariantList (标注信息)
+     * - OutputType::MultipleCurves: QVariantList (多条曲线)
+     *
+     * @param context 算法上下文，包含所有运行时状态。
+     * @return 算法执行结果。
+     */
+    virtual QVariant executeWithContext(AlgorithmContext* context) = 0;
 };
 
 #endif // ITHERMALALGORITHM_H

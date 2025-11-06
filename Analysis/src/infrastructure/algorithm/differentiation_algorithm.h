@@ -13,23 +13,18 @@ class AlgorithmContext;
  */
 class DifferentiationAlgorithm : public IThermalAlgorithm {
 public:
-    // 旧接口方法
     DifferentiationAlgorithm();
-    QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
+
+    // 核心接口方法
     QString name() const override;
     QString displayName() const override;
     QString category() const override;
-    QVariantMap parameters() const override;
-    void setParameter(const QString& key, const QVariant& value) override;
-    void setParameter(const QVariantMap& params) override;
     SignalType getOutputSignalType(SignalType inputType) const override;
-
-    // 新接口方法（A类算法：单曲线，无交互）
     InputType inputType() const override;
     OutputType outputType() const override;
     AlgorithmDescriptor descriptor() const override;
 
-    // 上下文驱动接口（推荐使用）
+    // 上下文驱动执行接口
     void prepareContext(AlgorithmContext* context) override;
     QVariant executeWithContext(AlgorithmContext* context) override;
 

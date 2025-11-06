@@ -33,82 +33,12 @@ void AlgorithmManager::registerAlgorithm(IThermalAlgorithm* algorithm)
     }
 }
 
-IThermalAlgorithm* AlgorithmManager::getAlgorithm(const QString& name) { return m_algorithms.value(name, nullptr); }
-
-void AlgorithmManager::execute(const QString& name, ThermalCurve* curve)
+IThermalAlgorithm* AlgorithmManager::getAlgorithm(const QString& name)
 {
-    if (!curve || !m_curveManager) {
-        qWarning() << "算法执行失败：" << (!curve ? "曲线为空" : "CurveManager 未设置");
-        return;
-    }
-
-    IThermalAlgorithm* algorithm = getAlgorithm(name);
-    if (!algorithm) {
-        qWarning() << "算法执行失败：找不到算法" << name;
-        return;
-    }
-
-    qDebug() << "正在执行算法" << name << "于曲线" << curve->name();
-
-    // 执行算法处理
-    const auto outputData = algorithm->process(curve->getProcessedData());
-
-    if (outputData.isEmpty()) {
-        qWarning() << "算法" << name << "未生成任何数据。";
-        return;
-    }
-
-    // 使用统一方法创建并添加输出曲线
-    createAndAddOutputCurve(algorithm, curve, outputData, false);
+    return m_algorithms.value(name, nullptr);
 }
 
-// ==================== 新接口方法实现 ====================
-
-void AlgorithmManager::executeWithInputs(const QString& name, const QVariantMap& inputs)
-{
-    if (!m_curveManager) {
-        qWarning() << "算法执行失败：CurveManager 未设置。";
-        return;
-    }
-
-    IThermalAlgorithm* algorithm = getAlgorithm(name);
-    if (!algorithm) {
-        qWarning() << "算法执行失败：找不到算法" << name;
-        return;
-    }
-
-    // 验证输入
-    if (!inputs.contains("mainCurve")) {
-        qWarning() << "算法执行失败：输入缺少主曲线（mainCurve）。";
-        return;
-    }
-
-    auto mainCurve = inputs["mainCurve"].value<ThermalCurve*>();
-    if (!mainCurve) {
-        qWarning() << "算法执行失败：主曲线为空。";
-        return;
-    }
-
-    qDebug() << "正在执行算法" << name << "（新接口）于曲线" << mainCurve->name();
-    qDebug() << "输入类型:" << static_cast<int>(algorithm->inputType());
-    qDebug() << "输出类型:" << static_cast<int>(algorithm->outputType());
-
-    // 执行算法
-    QVariant result = algorithm->execute(inputs);
-
-    if (result.isNull() || !result.isValid()) {
-        qWarning() << "算法" << name << "未生成有效结果。";
-        return;
-    }
-
-    // 根据输出类型处理结果
-    handleAlgorithmResult(algorithm, mainCurve, result);
-
-    // 发出新信号
-    emit algorithmResultReady(name, algorithm->outputType(), result);
-}
-
-// ==================== 上下文驱动接口实现 ====================
+// ==================== 上下文驱动执行实现 ====================
 
 void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext* context)
 {

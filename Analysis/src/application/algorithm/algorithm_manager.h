@@ -16,9 +16,7 @@ class AlgorithmContext;
 /**
  * @brief 算法服务类 - 管理算法注册和执行
  *
- * 支持两种执行模式：
- * 1. execute() - 旧接口，用于简单的单曲线算法（A类）
- * 2. executeWithInputs() - 新接口，支持复杂输入/输出（B-E类）
+ * 纯上下文驱动设计：所有算法通过 executeWithContext() 执行。
  */
 class AlgorithmManager : public QObject {
     Q_OBJECT
@@ -29,19 +27,24 @@ public:
     void registerAlgorithm(IThermalAlgorithm* algorithm);
     IThermalAlgorithm* getAlgorithm(const QString& name);
 
-    // 旧接口：简单的单曲线算法执行（保持向后兼容）
-    void execute(const QString& name, ThermalCurve* curve);
-
-    // 新接口：支持灵活输入/输出的算法执行
-    void executeWithInputs(const QString& name, const QVariantMap& inputs);
-
-    // 最新接口：上下文驱动的算法执行（推荐使用）
+    /**
+     * @brief 上下文驱动的算法执行（唯一执行接口）
+     *
+     * 算法从上下文中拉取所需数据，执行后返回结果。
+     *
+     * @param name 算法名称
+     * @param context 算法上下文（包含曲线、参数、选择的点等）
+     */
     void executeWithContext(const QString& name, AlgorithmContext* context);
 
 signals:
-    void algorithmFinished(const QString& curveId);
-
-    // 新信号：算法执行完成（包含输出类型和结果）
+    /**
+     * @brief 算法执行完成信号
+     *
+     * @param algorithmName 算法名称
+     * @param outputType 输出类型（Curve, Area, Annotation等）
+     * @param result 执行结果（类型根据outputType决定）
+     */
     void algorithmResultReady(
         const QString& algorithmName, IThermalAlgorithm::OutputType outputType,
         const QVariant& result);

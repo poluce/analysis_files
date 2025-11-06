@@ -215,70 +215,108 @@ signals:
 - 基线校正参数(6项): 校正类型、多项式次数、锚点等
 - 15个类别,共60+数据项
 
-### 8. 上下文驱动执行模式 🆕✨
+### 8. 纯上下文驱动执行模式 🆕✨
 
-算法采用**拉取 (Pull)** 模式从上下文获取数据，而非传统的**推送 (Push)** 模式：
+**核心理念**：算法采用**拉取 (Pull)** 模式从上下文获取数据，彻底消除参数传递。
+
+#### 设计原则
+
+本项目采用**纯上下文驱动**设计，**无向后兼容层**：
+
+❌ **已移除**：
+- `process(QVector<ThermalDataPoint>)` - 旧的数据处理接口
+- `setParameter(QString, QVariant)` - 旧的参数设置方法
+- `execute(QVariantMap)` - 旧的参数推送接口
+- `executeWithInputs(QVariantMap)` - AlgorithmManager 旧方法
+
+✅ **唯一接口**：
+- `executeWithContext(AlgorithmContext*)` - 算法从上下文拉取数据
+- `prepareContext(AlgorithmContext*)` - 注入默认参数（可选）
+
+#### 算法实现模板
 
 ```cpp
-// ❌ 旧模式：推送参数（繁琐的参数传递）
-QVariantMap inputs;
-inputs["mainCurve"] = curve;
-inputs["param1"] = value1;
-inputs["param2"] = value2;
-algorithm->execute(inputs);
+class XXXAlgorithm : public IThermalAlgorithm {
+public:
+    // 核心接口方法
+    QString name() const override;
+    QString displayName() const override;
+    QString category() const override;
+    SignalType getOutputSignalType(SignalType) const override;
+    AlgorithmDescriptor descriptor() const override;
 
-// ✅ 新模式：上下文驱动（算法自己拉取）
-context->setValue("activeCurve", curve);
-context->setValue("param.windowSize", 50);
-algorithm->executeWithContext(context);  // 算法内部拉取所需数据
-```
-
-**算法实现示例**:
-```cpp
-class DifferentiationAlgorithm : public IThermalAlgorithm {
-    // 准备上下文：注入默认参数
+    // 上下文驱动执行接口
     void prepareContext(AlgorithmContext* context) override {
-        if (!context->contains("param.halfWin")) {
-            context->setValue("param.halfWin", 50);
+        // 注入默认参数（如果上下文中不存在）
+        if (!context->contains("param.windowSize")) {
+            context->setValue("param.windowSize", m_defaultWindowSize);
         }
     }
 
-    // 执行算法：从上下文拉取数据
     QVariant executeWithContext(AlgorithmContext* context) override {
-        // 拉取曲线
-        auto curve = context->get<ThermalCurve*>("activeCurve").value();
+        // 1. 验证上下文
+        if (!context) return QVariant();
 
-        // 拉取参数（带默认值fallback）
-        int halfWin = context->get<int>("param.halfWin").value_or(50);
-        double dt = context->get<double>("param.dt").value_or(0.1);
+        // 2. 拉取曲线
+        auto curve = context->get<ThermalCurve*>("activeCurve");
+        if (!curve.has_value() || !curve.value()) return QVariant();
 
-        // 执行核心算法逻辑...
-        return result;
+        // 3. 拉取参数（value_or 提供 fallback）
+        int windowSize = context->get<int>("param.windowSize").value_or(m_defaultWindowSize);
+
+        // 4. 获取输入数据
+        const auto& inputData = curve.value()->getProcessedData();
+
+        // 5. 执行核心算法逻辑
+        QVector<ThermalDataPoint> outputData;
+        // ... 算法实现 ...
+
+        // 6. 返回结果
+        return QVariant::fromValue(outputData);
     }
+
+private:
+    int m_defaultWindowSize = 50;  // 仅作为 fallback
 };
 ```
 
-**优势**:
-- ✅ **消除繁琐的参数传递**: 不再需要在每个调用点构造 QVariantMap
-- ✅ **避免调用顺序问题**: 数据在上下文中始终可用，无需担心设置顺序
-- ✅ **单一数据源**: 上下文是全局状态容器，所有组件共享
+#### 已迁移的算法（100%完成）
+
+✅ **DifferentiationAlgorithm** - 微分（大窗口平滑中心差分法）
+✅ **IntegrationAlgorithm** - 积分（梯形法则）
+✅ **MovingAverageFilterAlgorithm** - 移动平均滤波
+✅ **BaselineCorrectionAlgorithm** - 基线校正（需要点选交互）
+
+所有算法均已完全迁移到纯上下文驱动模式，**无向后兼容层**。
+
+#### 核心优势
+
+- ✅ **零参数传递**: 不再需要在调用点构造 QVariantMap
+- ✅ **单一数据源**: AlgorithmContext 是唯一的数据容器
 - ✅ **类型安全**: `context->get<T>()` 提供编译时类型检查
 - ✅ **默认值支持**: `value_or(default)` 简化参数处理
-- ✅ **易于扩展**: 添加新参数只需在上下文中设置，无需修改函数签名
+- ✅ **调用顺序无关**: 数据在上下文中全局可用
+- ✅ **易于扩展**: 添加新参数无需修改函数签名
+- ✅ **架构统一**: 所有算法遵循相同的执行模式
 
-**执行流程**:
+#### 执行流程
+
 ```
-AlgorithmCoordinator
-  → 清空上下文
-  → 设置 activeCurve 到上下文
-  → 设置参数到上下文 (param.*)
-  → 调用 AlgorithmManager::executeWithContext(name, context)
-    → 调用 algorithm->prepareContext(context) [注入默认值]
-    → 调用 algorithm->executeWithContext(context) [拉取数据]
-      → 算法从上下文拉取 activeCurve
-      → 算法从上下文拉取参数
-      → 执行核心逻辑
-      → 返回结果
+AlgorithmCoordinator::executeAlgorithm()
+  → 清空上下文旧数据
+  → context->setValue("activeCurve", curve)
+  → context->setValue("param.*", values)
+  → context->setValue("selectedPoints", points)  // 如需要
+  ↓
+AlgorithmManager::executeWithContext(name, context)
+  → algorithm->prepareContext(context)  // 注入默认值
+  → algorithm->executeWithContext(context)  // 拉取数据并执行
+    → auto curve = context->get<ThermalCurve*>("activeCurve")
+    → int param = context->get<int>("param.xxx").value_or(default)
+    → 执行核心算法逻辑
+    → return QVariant::fromValue(result)
+  → handleAlgorithmResult(...)  // 处理结果
+  → emit algorithmResultReady(...)
 ```
 
 ### 9. 统一初始化模式 🆕
@@ -486,12 +524,12 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
 - ✅ 代码重构优化 (消除 150+ 行冗余代码，统一技术路线)
 - ✅ 性能优化 (HistoryManager O(n)→O(1)，AlgorithmCoordinator O(n²)→O(n))
 - ✅ 架构简化 (统一使用 AlgorithmCoordinator，移除双重路径)
-- ✅ **上下文驱动执行模式** (executeWithContext, prepareContext)
-  - 算法从上下文拉取数据，消除繁琐的参数传递
-  - IThermalAlgorithm 新增 `executeWithContext(AlgorithmContext*)` 接口
-  - AlgorithmManager 新增 `executeWithContext(name, context)` 方法
-  - DifferentiationAlgorithm 作为示范完成迁移
-  - 支持向后兼容，旧接口仍然有效
+- ✅ **纯上下文驱动执行模式** (executeWithContext, prepareContext)
+  - 彻底移除旧接口和向后兼容层（无 process/setParameter/execute）
+  - IThermalAlgorithm 只保留 `executeWithContext(AlgorithmContext*)` 纯虚函数
+  - AlgorithmManager 只保留 `executeWithContext(name, context)` 唯一执行接口
+  - 所有4个算法完成迁移：Differentiation, Integration, MovingAverage, BaselineCorrection
+  - 算法从上下文拉取数据，零参数传递，单一数据源
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)

@@ -1,61 +1,29 @@
 #include "integration_algorithm.h"
+#include "application/algorithm/algorithm_context.h"
+#include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
 #include <QDebug>
+#include <QVariant>
 #include <QtGlobal>
 
-IntegrationAlgorithm::IntegrationAlgorithm() { qDebug() << "构造:  IntegrationAlgorithm"; }
-
-QVector<ThermalDataPoint> IntegrationAlgorithm::process(const QVector<ThermalDataPoint>& inputData)
+IntegrationAlgorithm::IntegrationAlgorithm()
 {
-    QVector<ThermalDataPoint> out;
-    const int n = inputData.size();
-    if (n == 0)
-        return out;
-
-    out.resize(n);
-    double cum = 0.0;
-
-    // 第一个点的积分为0
-    out[0] = inputData[0];
-    out[0].value = 0.0;
-
-    for (int i = 1; i < n; ++i) {
-        const auto& p0 = inputData[i - 1];
-        const auto& p1 = inputData[i];
-        const double dx = (p1.temperature - p0.temperature);
-        if (!qFuzzyIsNull(dx)) {
-            const double area = 0.5 * (p0.value + p1.value) * dx; // 梯形法则
-            cum += area;
-        }
-        out[i] = p1;
-        out[i].value = cum;
-    }
-
-    return out;
+    qDebug() << "构造: IntegrationAlgorithm";
 }
 
-QString IntegrationAlgorithm::name() const { return "integration"; }
-
-QString IntegrationAlgorithm::displayName() const { return "积分"; }
-
-QString IntegrationAlgorithm::category() const { return "Analysis"; }
-
-QVariantMap IntegrationAlgorithm::parameters() const
+QString IntegrationAlgorithm::name() const
 {
-    // 暂无可配置参数，预留扩展（如方法/归一化等）
-    return QVariantMap();
+    return "integration";
 }
 
-void IntegrationAlgorithm::setParameter(const QString& key, const QVariant& value)
+QString IntegrationAlgorithm::displayName() const
 {
-    Q_UNUSED(key);
-    Q_UNUSED(value);
+    return "积分";
 }
 
-void IntegrationAlgorithm::setParameter(const QVariantMap& params)
+QString IntegrationAlgorithm::category() const
 {
-    // 积分算法暂无可配置参数
-    Q_UNUSED(params);
+    return "Analysis";
 }
 
 SignalType IntegrationAlgorithm::getOutputSignalType(SignalType inputType) const
@@ -67,8 +35,6 @@ SignalType IntegrationAlgorithm::getOutputSignalType(SignalType inputType) const
     // 如果输入已经是原始信号，则保持不变
     return inputType;
 }
-
-// ==================== 新接口方法实现 ====================
 
 IThermalAlgorithm::InputType IntegrationAlgorithm::inputType() const
 {
@@ -86,6 +52,72 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
 {
     AlgorithmDescriptor desc;
     desc.name = name();
-    desc.interaction = AlgorithmInteraction::None;
+    desc.interaction = AlgorithmInteraction::None;  // 简单算法，无需交互
+    // 暂无可配置参数，预留扩展（如方法/归一化等）
     return desc;
+}
+
+// ==================== 上下文驱动执行接口实现 ====================
+
+void IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
+{
+    if (!context) {
+        return;
+    }
+
+    // 积分算法暂无可配置参数，预留扩展
+    // 未来可以添加：积分方法（梯形/辛普森）、归一化选项等
+
+    qDebug() << "IntegrationAlgorithm::prepareContext - 参数已准备（当前无参数）";
+}
+
+QVariant IntegrationAlgorithm::executeWithContext(AlgorithmContext* context)
+{
+    // 1. 验证上下文
+    if (!context) {
+        qWarning() << "IntegrationAlgorithm::executeWithContext - 上下文为空！";
+        return QVariant();
+    }
+
+    // 2. 拉取曲线
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) {
+        qWarning() << "IntegrationAlgorithm::executeWithContext - 无法获取活动曲线！";
+        return QVariant();
+    }
+
+    // 3. 获取输入数据
+    const QVector<ThermalDataPoint>& inputData = curve.value()->getProcessedData();
+
+    // 4. 执行核心算法逻辑（梯形法则积分）
+    QVector<ThermalDataPoint> outputData;
+    const int n = inputData.size();
+    if (n == 0) {
+        qWarning() << "IntegrationAlgorithm::executeWithContext - 输入数据为空！";
+        return QVariant::fromValue(outputData);
+    }
+
+    outputData.resize(n);
+    double cum = 0.0;
+
+    // 第一个点的积分为0
+    outputData[0] = inputData[0];
+    outputData[0].value = 0.0;
+
+    for (int i = 1; i < n; ++i) {
+        const auto& p0 = inputData[i - 1];
+        const auto& p1 = inputData[i];
+        const double dx = (p1.temperature - p0.temperature);
+        if (!qFuzzyIsNull(dx)) {
+            const double area = 0.5 * (p0.value + p1.value) * dx; // 梯形法则
+            cum += area;
+        }
+        outputData[i] = p1;
+        outputData[i].value = cum;
+    }
+
+    qDebug() << "IntegrationAlgorithm::executeWithContext - 完成，输出数据点数:" << outputData.size();
+
+    // 5. 返回结果
+    return QVariant::fromValue(outputData);
 }
