@@ -4,7 +4,7 @@
 #include "domain/algorithm/i_command.h"
 #include <QObject>
 #include <memory>
-#include <vector>
+#include <deque>
 
 /**
  * @brief HistoryManager 管理命令的历史记录，支持撤销和重做。
@@ -102,9 +102,17 @@ private:
     // 限制历史栈的大小
     void enforceHistoryLimit();
 
-    std::vector<std::unique_ptr<ICommand>> m_undoStack; // 撤销栈（使用 vector 模拟栈）
-    std::vector<std::unique_ptr<ICommand>> m_redoStack; // 重做栈（使用 vector 模拟栈）
-    int m_historyLimit;                                 // 历史记录最大深度
+    // 通用的栈操作模板方法（消除 undo/redo 重复代码）
+    using CommandStack = std::deque<std::unique_ptr<ICommand>>;
+    bool performStackOperation(
+        CommandStack& sourceStack,
+        CommandStack& targetStack,
+        bool (ICommand::*operation)(),  // 指向成员函数的指针
+        const QString& operationName);
+
+    std::deque<std::unique_ptr<ICommand>> m_undoStack; // 撤销栈（使用 deque 实现 O(1) 操作）
+    std::deque<std::unique_ptr<ICommand>> m_redoStack; // 重做栈（使用 deque 实现 O(1) 操作）
+    int m_historyLimit;                                // 历史记录最大深度
 };
 
 #endif // HISTORYMANAGER_H

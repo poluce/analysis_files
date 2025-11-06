@@ -38,11 +38,12 @@ private slots:
     void onProjectTreeContextMenuRequested(const QPoint& pos);
 
     // 算法按钮
-    void onSimpleAlgorithmActionTriggered();
+    void onAlgorithmActionTriggered();  // 通用算法触发（简化版）
     void onMovingAverageAction();
-    void onAlgorithmActionTriggered();
 
 private:
+    // 辅助方法：从 QAction 提取算法名称并发射信号
+    void triggerAlgorithmFromAction(void (MainWindow::*signal)(const QString&));
     // 初始化函数
     void initRibbon();
     void initDockWidgets();
