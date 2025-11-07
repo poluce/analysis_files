@@ -71,7 +71,7 @@ private slots:
 
     // --- 响应 ProjectTreeManager 信号 ---
     void onCurveCheckStateChanged(const QString& curveId, bool checked);
-    void onCurveItemDoubleClicked(const QString& curveId);
+    void onCurveItemClicked(const QString& curveId);
 
 private:
     CurveManager* m_curveManager;

@@ -83,17 +83,17 @@ signals:
     void curveCheckStateChanged(const QString& curveId, bool checked);
 
     /**
-     * @brief 曲线项被双击时发射（用于选中曲线）
+     * @brief 曲线项被单击时发射（用于选中曲线）
      * @param curveId 曲线ID
      */
-    void curveItemDoubleClicked(const QString& curveId);
+    void curveItemClicked(const QString& curveId);
 
 public slots:
     /**
-     * @brief 处理曲线项双击事件
-     * @param index 被双击的项的索引
+     * @brief 处理曲线项单击事件
+     * @param index 被单击的项的索引
      */
-    void onCurveItemDoubleClicked(const QModelIndex& index);
+    void onCurveItemClicked(const QModelIndex& index);
 
 private slots:
     /**
