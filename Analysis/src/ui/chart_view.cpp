@@ -861,7 +861,7 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
     QChart* chart = m_chartView->chart();
 
     // ==================== 优先级1：SignalType 强制规则（最高优先级）====================
-    // 微分曲线必须使用次 Y 轴，无论是否有父曲线
+    // 微分曲线必须使用次 Y 轴，无论是否是辅助曲线或有无父曲线
     if (curve.signalType() == SignalType::Derivative) {
         if (!m_axisY_secondary) {
             m_axisY_secondary = new QValueAxis();
@@ -877,16 +877,17 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
         return m_axisY_secondary;
     }
 
-    // ==================== 优先级2：继承父曲线的 Y 轴 ====================
-    // 如果不是微分曲线，且有父曲线，则继承父曲线的 Y 轴
-    if (!curve.parentId().isEmpty()) {
+    // ==================== 优先级2：辅助曲线继承父曲线的 Y 轴 ====================
+    // 只有辅助曲线（如基线、滤波）才继承父曲线的 Y 轴
+    // 独立曲线（如积分）即使有父曲线也应该创建新的 Y 轴
+    if (curve.isAuxiliaryCurve() && !curve.parentId().isEmpty()) {
         QLineSeries* parentSeries = seriesForCurve(curve.parentId());
         if (parentSeries && !parentSeries->attachedAxes().isEmpty()) {
             // 查找父曲线的 Y 轴（非 X 轴）
             for (QAbstractAxis* axis : parentSeries->attachedAxes()) {
                 QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
                 if (valueAxis && valueAxis != m_axisX) {
-                    qDebug() << "ChartView: 曲线" << curve.name() << "继承父曲线的 Y 轴";
+                    qDebug() << "ChartView: 辅助曲线" << curve.name() << "继承父曲线的 Y 轴";
                     valueAxis->setTitleText(curve.getYAxisLabel());
                     return valueAxis;
                 }
@@ -895,6 +896,7 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
     }
 
     // ==================== 优先级3：默认分配主 Y 轴 ====================
+    // 独立曲线（如积分）或无父曲线的曲线使用主 Y 轴
     if (!m_axisY_primary) {
         m_axisY_primary = new QValueAxis();
         chart->addAxis(m_axisY_primary, Qt::AlignLeft);

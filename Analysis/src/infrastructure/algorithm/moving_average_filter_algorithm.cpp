@@ -57,6 +57,15 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
     return desc;
 }
 
+// ==================== 曲线属性声明接口实现 ====================
+
+bool MovingAverageFilterAlgorithm::isAuxiliaryCurve() const
+{
+    // 移动平均滤波曲线是辅助曲线
+    // 原因：平滑处理不改变数据类型，应该继承父曲线的Y轴以保持视觉一致性
+    return true;
+}
+
 // ==================== 上下文驱动执行接口实现 ====================
 
 bool MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
@@ -154,6 +163,7 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
     outputCurve.setParentId(inputCurve->id());
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
 
     // 填充结果
     result.setCurve(outputCurve);

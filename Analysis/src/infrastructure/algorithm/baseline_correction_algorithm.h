@@ -34,6 +34,9 @@ public:
     OutputType outputType() const override;
     AlgorithmDescriptor descriptor() const override;
 
+    // 曲线属性声明接口
+    bool isAuxiliaryCurve() const override;
+
     // 上下文驱动执行接口
     bool prepareContext(AlgorithmContext* context) override;
     AlgorithmResult executeWithContext(AlgorithmContext* context) override;

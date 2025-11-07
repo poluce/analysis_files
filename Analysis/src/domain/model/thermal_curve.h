@@ -81,6 +81,7 @@ public:
     const CurveMetadata& getMetadata() const;
     QString parentId() const;
     PlotStyle plotStyle() const;
+    bool isAuxiliaryCurve() const;
 
     // --- 设置器 ---
     void setName(const QString& name);
@@ -92,6 +93,7 @@ public:
     void setMetadata(const CurveMetadata& metadata);
     void setParentId(const QString& parentId);
     void setPlotStyle(PlotStyle style);
+    void setIsAuxiliaryCurve(bool isAuxiliary);
 
     // --- 辅助方法 ---
     /**

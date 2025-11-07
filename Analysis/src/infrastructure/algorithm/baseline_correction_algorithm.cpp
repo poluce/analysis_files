@@ -55,6 +55,15 @@ AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
     return desc;
 }
 
+// ==================== 曲线属性声明接口实现 ====================
+
+bool BaselineCorrectionAlgorithm::isAuxiliaryCurve() const
+{
+    // 基线曲线是辅助曲线
+    // 原因：基线用于参考和校正，应该继承父曲线的Y轴以便直观对比
+    return true;
+}
+
 // ==================== 上下文驱动执行接口实现 ====================
 
 bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
@@ -153,6 +162,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     outputCurve.setParentId(inputCurve->id());
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
 
     // 填充结果
     result.setCurve(outputCurve);

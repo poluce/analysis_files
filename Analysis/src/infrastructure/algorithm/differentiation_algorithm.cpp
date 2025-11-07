@@ -58,6 +58,15 @@ AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
     return desc;
 }
 
+// ==================== 曲线属性声明接口实现 ====================
+
+bool DifferentiationAlgorithm::isAuxiliaryCurve() const
+{
+    // 微分曲线是独立曲线，不是辅助曲线
+    // 原因：微分改变了数据类型（Raw → Derivative），应该创建新的Y轴
+    return false;
+}
+
 // ==================== 上下文驱动执行接口实现（两阶段） ====================
 
 bool DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
@@ -190,6 +199,7 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     outputCurve.setParentId(inputCurve->id());
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
 
     // 填充结果
     result.setCurve(outputCurve);

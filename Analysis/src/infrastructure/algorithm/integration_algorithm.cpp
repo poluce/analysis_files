@@ -58,6 +58,15 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
     return desc;
 }
 
+// ==================== 曲线属性声明接口实现 ====================
+
+bool IntegrationAlgorithm::isAuxiliaryCurve() const
+{
+    // 积分曲线是独立曲线，不是辅助曲线
+    // 原因：积分改变了数据类型（Derivative → Raw），应该创建新的Y轴
+    return false;
+}
+
 // ==================== 上下文驱动执行接口实现 ====================
 
 bool IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
@@ -145,6 +154,7 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     outputCurve.setParentId(inputCurve->id());
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
 
     // 填充结果
     result.setCurve(outputCurve);
