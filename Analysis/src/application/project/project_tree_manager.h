@@ -126,6 +126,20 @@ private:
      */
     QStandardItem* findOrCreateProjectItem(const QString& projectName);
 
+    // --- buildTree 辅助函数：拆分构建阶段 ---
+    void collectProjectNames(const QMap<QString, ThermalCurve>& curves, QSet<QString>& projectNames);
+    void createProjectNodes(const QSet<QString>& projectNames, QMap<QString, QStandardItem*>& projectNodes);
+    void addTopLevelCurves(const QMap<QString, ThermalCurve>& curves,
+                           const QMap<QString, QStandardItem*>& projectNodes,
+                           QMap<QString, QStandardItem*>& curveItems);
+    void addChildCurves(const QMap<QString, ThermalCurve>& curves,
+                        QMap<QString, QStandardItem*>& curveItems,
+                        QSet<QString>& processedCurves);
+    void handleOrphanCurves(const QMap<QString, ThermalCurve>& curves,
+                            const QMap<QString, QStandardItem*>& projectNodes,
+                            const QSet<QString>& processedCurves,
+                            QMap<QString, QStandardItem*>& curveItems);
+
     /**
      * @brief 递归查找指定曲线ID的 QStandardItem
      * @param curveId 曲线ID

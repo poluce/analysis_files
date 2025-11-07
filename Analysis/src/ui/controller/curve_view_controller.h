@@ -75,6 +75,11 @@ private slots:
     void onActiveCurveIndexChanged(const QModelIndex& index);
 
 private:
+    // --- 验证辅助函数 ---
+    bool validateComponents() const;
+    bool validatePlotWidget() const;
+    bool validateCurveId(const QString& curveId) const;
+
     CurveManager* m_curveManager;
     ChartView* m_plotWidget;
     ProjectTreeManager* m_treeManager;

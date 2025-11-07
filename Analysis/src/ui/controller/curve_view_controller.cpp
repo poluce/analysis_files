@@ -87,22 +87,23 @@ void CurveViewController::onCurveAdded(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveAdded - 曲线已添加:" << curveId;
 
-    if (!m_curveManager || !m_plotWidget) {
+    if (!validateComponents()) {
         return;
     }
 
-    if (ThermalCurve* curve = m_curveManager->getCurve(curveId)) {
-        m_plotWidget->addCurve(*curve);
-    } else {
+    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    if (!curve) {
         qWarning() << "CurveViewController::onCurveAdded - 未找到曲线数据，ID:" << curveId;
         return;
     }
+
+    m_plotWidget->addCurve(*curve);
 
     if (m_projectExplorer && m_projectExplorer->treeView()) {
         m_projectExplorer->treeView()->expandAll();
     }
 
-    // 例如：自动选中新添加的曲线
+    // 自动高亮新添加的活动曲线
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (activeCurve && activeCurve->id() == curveId) {
         highlightCurve(curveId);
@@ -113,9 +114,10 @@ void CurveViewController::onCurveRemoved(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveRemoved - 曲线已移除:" << curveId;
 
-    if (!m_plotWidget) {
+    if (!validatePlotWidget()) {
         return;
     }
+
     m_plotWidget->removeCurve(curveId);
 }
 
@@ -123,30 +125,33 @@ void CurveViewController::onCurveDataChanged(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveDataChanged - 曲线数据已变化:" << curveId;
 
-    if (!m_curveManager || !m_plotWidget) {
+    if (!validateComponents()) {
         return;
     }
 
-    if (ThermalCurve* curve = m_curveManager->getCurve(curveId)) {
-        m_plotWidget->updateCurve(*curve);
+    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    if (!curve) {
+        qWarning() << "CurveViewController::onCurveDataChanged - 未找到曲线数据，ID:" << curveId;
         return;
     }
 
-    qWarning() << "CurveViewController::onCurveDataChanged - 未找到曲线数据，ID:" << curveId;
+    m_plotWidget->updateCurve(*curve);
 }
 
 void CurveViewController::onActiveCurveChanged(const QString& curveId)
 {
     qDebug() << "CurveViewController::onActiveCurveChanged - 活动曲线已变化:" << curveId;
 
-    // 高亮活动曲线（在图表中加粗）
-    if (!curveId.isEmpty()) {
-        highlightCurve(curveId);
+    if (!validateCurveId(curveId)) {
+        return;
+    }
 
-        // 在项目浏览器中高亮选中项
-        if (m_treeManager) {
-            m_treeManager->setActiveCurve(curveId);
-        }
+    // 高亮活动曲线（在图表中加粗）
+    highlightCurve(curveId);
+
+    // 在项目浏览器中高亮选中项
+    if (m_treeManager) {
+        m_treeManager->setActiveCurve(curveId);
     }
 }
 
@@ -154,9 +159,10 @@ void CurveViewController::onCurvesCleared()
 {
     qDebug() << "CurveViewController::onCurvesCleared - 清空所有曲线";
 
-    if (!m_plotWidget) {
+    if (!validatePlotWidget()) {
         return;
     }
+
     m_plotWidget->clearCurves();
 }
 
@@ -199,10 +205,11 @@ void CurveViewController::onCurveItemClicked(const QString& curveId)
 {
     qDebug() << "CurveViewController::onCurveItemClicked - 曲线:" << curveId;
 
-    // 设置为活动曲线
-    if (!curveId.isEmpty()) {
-        m_curveManager->setActiveCurve(curveId);
+    if (!validateCurveId(curveId)) {
+        return;
     }
+
+    m_curveManager->setActiveCurve(curveId);
 }
 
 void CurveViewController::onActiveCurveIndexChanged(const QModelIndex& index)
@@ -216,4 +223,21 @@ void CurveViewController::onActiveCurveIndexChanged(const QModelIndex& index)
         m_projectExplorer->treeView()->setCurrentIndex(index);
         qDebug() << "CurveViewController::onActiveCurveIndexChanged - 在项目浏览器中高亮显示 index:" << index;
     }
+}
+
+// ==================== 验证辅助函数实现 ====================
+
+bool CurveViewController::validateComponents() const
+{
+    return m_curveManager != nullptr && m_plotWidget != nullptr;
+}
+
+bool CurveViewController::validatePlotWidget() const
+{
+    return m_plotWidget != nullptr;
+}
+
+bool CurveViewController::validateCurveId(const QString& curveId) const
+{
+    return !curveId.isEmpty();
 }

@@ -192,94 +192,24 @@ void ProjectTreeManager::buildTree()
     // 获取所有曲线
     const QMap<QString, ThermalCurve>& curves = m_curveManager->getAllCurves();
 
-    // 第一步:创建所有项目节点
-    QMap<QString, QStandardItem*> projectNodes;
+    // 存储构建过程中的数据结构
     QSet<QString> projectNames;
-
-    for (const ThermalCurve& curve : curves) {
-        if (!curve.projectName().isEmpty()) {
-            projectNames.insert(curve.projectName());
-        }
-    }
-
-    for (const QString& projectName : projectNames) {
-        QStandardItem* projectItem = new QStandardItem(projectName);
-        projectItem->setCheckable(false); // 项目节点不可勾选
-        projectItem->setEditable(false);  // 不可编辑
-        m_model->appendRow(projectItem);
-        projectNodes[projectName] = projectItem;
-    }
-
-    // 第二步:添加所有顶层曲线(没有父曲线的)
+    QMap<QString, QStandardItem*> projectNodes;
     QMap<QString, QStandardItem*> curveItems;
-
-    for (const ThermalCurve& curve : curves) {
-        if (curve.parentId().isEmpty()) {
-            QStandardItem* curveItem = createCurveItem(curve, false);
-
-            QStandardItem* projectItem = projectNodes.value(curve.projectName());
-            if (projectItem) {
-                projectItem->appendRow(curveItem);
-                curveItems[curve.id()] = curveItem;
-            } else {
-                qWarning() << "找不到项目节点" << curve.projectName() << ",跳过曲线" << curve.id();
-            }
-        }
-    }
-
-    // 第三步:使用迭代方式添加所有子节点,支持多层嵌套
     QSet<QString> processedCurves;
-    for (const QString& curveId : curveItems.keys()) {
-        processedCurves.insert(curveId);
-    }
 
-    bool hasUnprocessed = true;
-    int maxIterations = curves.size();
-    int iteration = 0;
+    // 第一步: 收集项目名称并创建项目节点
+    collectProjectNames(curves, projectNames);
+    createProjectNodes(projectNames, projectNodes);
 
-    while (hasUnprocessed && iteration < maxIterations) {
-        hasUnprocessed = false;
-        iteration++;
+    // 第二步: 添加顶层曲线（无父曲线）
+    addTopLevelCurves(curves, projectNodes, curveItems);
 
-        for (const ThermalCurve& curve : curves) {
-            // 跳过已处理的曲线
-            if (processedCurves.contains(curve.id())) {
-                continue;
-            }
+    // 第三步: 添加子曲线（支持多层嵌套）
+    addChildCurves(curves, curveItems, processedCurves);
 
-            // 跳过顶层曲线(已在第二步处理)
-            if (curve.parentId().isEmpty()) {
-                continue;
-            }
-
-            // 检查父节点是否已经被创建
-            QStandardItem* parentItem = curveItems.value(curve.parentId());
-            if (parentItem) {
-                // 找到了父节点,创建子节点
-                QStandardItem* childItem = createCurveItem(curve, false);
-                parentItem->appendRow(childItem);
-                curveItems[curve.id()] = childItem;
-                processedCurves.insert(curve.id());
-            } else {
-                // 父节点还未创建,本轮跳过,下一轮再处理
-                hasUnprocessed = true;
-            }
-        }
-    }
-
-    // 第四步:处理孤儿节点(父节点不存在的曲线)
-    for (const ThermalCurve& curve : curves) {
-        if (!processedCurves.contains(curve.id())) {
-            qWarning() << "找不到父曲线" << curve.parentId() << ",将曲线" << curve.id() << "添加到项目根节点";
-
-            QStandardItem* projectItem = projectNodes.value(curve.projectName());
-            if (projectItem) {
-                QStandardItem* item = createCurveItem(curve, false);
-                projectItem->appendRow(item);
-                curveItems[curve.id()] = item;
-            }
-        }
-    }
+    // 第四步: 处理孤儿曲线（父曲线不存在）
+    handleOrphanCurves(curves, projectNodes, processedCurves, curveItems);
 
     // 重新连接信号
     connect(m_model, &QStandardItemModel::itemChanged, this, &ProjectTreeManager::onItemChanged);
@@ -363,4 +293,103 @@ QStandardItem* ProjectTreeManager::createCurveItem(const ThermalCurve& curve, bo
     item->setData(curve.id(), Qt::UserRole);
 
     return item;
+}
+
+// ==================== buildTree 辅助函数实现 ====================
+
+void ProjectTreeManager::collectProjectNames(const QMap<QString, ThermalCurve>& curves, QSet<QString>& projectNames)
+{
+    for (const ThermalCurve& curve : curves) {
+        if (!curve.projectName().isEmpty()) {
+            projectNames.insert(curve.projectName());
+        }
+    }
+}
+
+void ProjectTreeManager::createProjectNodes(const QSet<QString>& projectNames, QMap<QString, QStandardItem*>& projectNodes)
+{
+    for (const QString& projectName : projectNames) {
+        QStandardItem* projectItem = new QStandardItem(projectName);
+        projectItem->setCheckable(false);
+        projectItem->setEditable(false);
+        m_model->appendRow(projectItem);
+        projectNodes[projectName] = projectItem;
+    }
+}
+
+void ProjectTreeManager::addTopLevelCurves(const QMap<QString, ThermalCurve>& curves,
+                                            const QMap<QString, QStandardItem*>& projectNodes,
+                                            QMap<QString, QStandardItem*>& curveItems)
+{
+    for (const ThermalCurve& curve : curves) {
+        if (curve.parentId().isEmpty()) {
+            QStandardItem* curveItem = createCurveItem(curve, false);
+            QStandardItem* projectItem = projectNodes.value(curve.projectName());
+
+            if (projectItem) {
+                projectItem->appendRow(curveItem);
+                curveItems[curve.id()] = curveItem;
+            } else {
+                qWarning() << "ProjectTreeManager::addTopLevelCurves - 找不到项目节点"
+                           << curve.projectName() << ",跳过曲线" << curve.id();
+            }
+        }
+    }
+}
+
+void ProjectTreeManager::addChildCurves(const QMap<QString, ThermalCurve>& curves,
+                                        QMap<QString, QStandardItem*>& curveItems,
+                                        QSet<QString>& processedCurves)
+{
+    // 初始化已处理集合
+    for (const QString& curveId : curveItems.keys()) {
+        processedCurves.insert(curveId);
+    }
+
+    bool hasUnprocessed = true;
+    int maxIterations = curves.size();
+    int iteration = 0;
+
+    while (hasUnprocessed && iteration < maxIterations) {
+        hasUnprocessed = false;
+        iteration++;
+
+        for (const ThermalCurve& curve : curves) {
+            // 跳过已处理的曲线和顶层曲线
+            if (processedCurves.contains(curve.id()) || curve.parentId().isEmpty()) {
+                continue;
+            }
+
+            // 检查父节点是否已经被创建
+            QStandardItem* parentItem = curveItems.value(curve.parentId());
+            if (parentItem) {
+                QStandardItem* childItem = createCurveItem(curve, false);
+                parentItem->appendRow(childItem);
+                curveItems[curve.id()] = childItem;
+                processedCurves.insert(curve.id());
+            } else {
+                hasUnprocessed = true;
+            }
+        }
+    }
+}
+
+void ProjectTreeManager::handleOrphanCurves(const QMap<QString, ThermalCurve>& curves,
+                                            const QMap<QString, QStandardItem*>& projectNodes,
+                                            const QSet<QString>& processedCurves,
+                                            QMap<QString, QStandardItem*>& curveItems)
+{
+    for (const ThermalCurve& curve : curves) {
+        if (!processedCurves.contains(curve.id())) {
+            qWarning() << "ProjectTreeManager::handleOrphanCurves - 找不到父曲线"
+                       << curve.parentId() << ",将曲线" << curve.id() << "添加到项目根节点";
+
+            QStandardItem* projectItem = projectNodes.value(curve.projectName());
+            if (projectItem) {
+                QStandardItem* item = createCurveItem(curve, false);
+                projectItem->appendRow(item);
+                curveItems[curve.id()] = item;
+            }
+        }
+    }
 }
