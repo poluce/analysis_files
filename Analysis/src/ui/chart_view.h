@@ -124,6 +124,7 @@ public slots:
     void setHorizontalCrosshairEnabled(bool enabled);
     void rescaleAxes();
     void setCurveVisible(const QString& curveId, bool visible);
+    void highlightCurve(const QString& curveId);
 
 public:
     bool verticalCrosshairEnabled() const { return m_verticalCrosshairEnabled; }

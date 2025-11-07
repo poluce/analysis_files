@@ -435,6 +435,35 @@ void ChartView::setCurveVisible(const QString& curveId, bool visible)
     rescaleAxes();
 }
 
+void ChartView::highlightCurve(const QString& curveId)
+{
+    // 查找对应的系列
+    QLineSeries* targetSeries = seriesForCurve(curveId);
+
+    if (!targetSeries) {
+        // 如果找不到系列，清除当前高亮
+        if (m_selectedSeries) {
+            updateSeriesStyle(m_selectedSeries, false);
+            m_selectedSeries = nullptr;
+        }
+        return;
+    }
+
+    // 如果已经是当前选中的曲线，不需要重复操作
+    if (m_selectedSeries == targetSeries) {
+        return;
+    }
+
+    // 取消之前选中曲线的高亮
+    if (m_selectedSeries) {
+        updateSeriesStyle(m_selectedSeries, false);
+    }
+
+    // 高亮新选中的曲线
+    m_selectedSeries = targetSeries;
+    updateSeriesStyle(m_selectedSeries, true);
+}
+
 void ChartView::setVerticalCrosshairEnabled(bool enabled)
 {
     if (m_verticalCrosshairEnabled == enabled) {

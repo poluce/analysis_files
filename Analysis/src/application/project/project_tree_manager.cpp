@@ -56,6 +56,23 @@ void ProjectTreeManager::setCurveChecked(const QString& curveId, bool checked)
     emit curveCheckStateChanged(curveId, checked);
 }
 
+void ProjectTreeManager::setActiveCurve(const QString& curveId)
+{
+    QStandardItem* item = findCurveItem(curveId);
+    if (!item) {
+        qDebug() << "ProjectTreeManager::setActiveCurve - 找不到曲线:" << curveId;
+        return;
+    }
+
+    // 获取该项的模型索引
+    QModelIndex index = item->index();
+
+    // 发射信号，让外部（如 CurveViewController）设置 TreeView 的当前索引
+    emit activeCurveIndexChanged(index);
+
+    qDebug() << "ProjectTreeManager::setActiveCurve - 曲线:" << curveId << ", index:" << index;
+}
+
 QString ProjectTreeManager::getCurveId(const QModelIndex& index) const
 {
     if (!index.isValid()) {

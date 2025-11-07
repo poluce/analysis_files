@@ -47,6 +47,12 @@ public:
     void setCurveChecked(const QString& curveId, bool checked);
 
     /**
+     * @brief 设置活动曲线（高亮显示）
+     * @param curveId 曲线ID
+     */
+    void setActiveCurve(const QString& curveId);
+
+    /**
      * @brief 获取指定索引对应的曲线ID
      * @param index 模型索引
      * @return 曲线ID,如果是项目节点则返回空字符串
@@ -87,6 +93,12 @@ signals:
      * @param curveId 曲线ID
      */
     void curveItemClicked(const QString& curveId);
+
+    /**
+     * @brief 活动曲线索引改变时发射（用于在树视图中高亮显示）
+     * @param index 活动曲线的模型索引
+     */
+    void activeCurveIndexChanged(const QModelIndex& index);
 
 public slots:
     /**

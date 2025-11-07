@@ -44,6 +44,7 @@ CurveViewController::CurveViewController(
     // 连接 ProjectTreeManager 的信号
     connect(m_treeManager, &ProjectTreeManager::curveCheckStateChanged, this, &CurveViewController::onCurveCheckStateChanged);
     connect(m_treeManager, &ProjectTreeManager::curveItemClicked, this, &CurveViewController::onCurveItemClicked);
+    connect(m_treeManager, &ProjectTreeManager::activeCurveIndexChanged, this, &CurveViewController::onActiveCurveIndexChanged);
 
     // 连接 ProjectExplorerView 的单击信号到 ProjectTreeManager
     connect(m_projectExplorer, &ProjectExplorerView::curveItemClicked, m_treeManager, &ProjectTreeManager::onCurveItemClicked);
@@ -62,8 +63,10 @@ void CurveViewController::highlightCurve(const QString& curveId)
 {
     qDebug() << "CurveViewController::highlightCurve - 曲线ID:" << curveId;
 
-    // 可以在这里添加高亮逻辑
-    // 例如：改变曲线线宽、颜色等
+    // 在图表视图中高亮曲线（加粗显示）
+    if (m_plotWidget) {
+        m_plotWidget->highlightCurve(curveId);
+    }
 }
 
 void CurveViewController::updateAllCurves()
@@ -136,9 +139,14 @@ void CurveViewController::onActiveCurveChanged(const QString& curveId)
 {
     qDebug() << "CurveViewController::onActiveCurveChanged - 活动曲线已变化:" << curveId;
 
-    // 高亮活动曲线
+    // 高亮活动曲线（在图表中加粗）
     if (!curveId.isEmpty()) {
         highlightCurve(curveId);
+
+        // 在项目浏览器中高亮选中项
+        if (m_treeManager) {
+            m_treeManager->setActiveCurve(curveId);
+        }
     }
 }
 
@@ -194,5 +202,18 @@ void CurveViewController::onCurveItemClicked(const QString& curveId)
     // 设置为活动曲线
     if (!curveId.isEmpty()) {
         m_curveManager->setActiveCurve(curveId);
+    }
+}
+
+void CurveViewController::onActiveCurveIndexChanged(const QModelIndex& index)
+{
+    if (!index.isValid()) {
+        return;
+    }
+
+    // 在树视图中设置当前选中项（高亮显示）
+    if (m_projectExplorer && m_projectExplorer->treeView()) {
+        m_projectExplorer->treeView()->setCurrentIndex(index);
+        qDebug() << "CurveViewController::onActiveCurveIndexChanged - 在项目浏览器中高亮显示 index:" << index;
     }
 }
