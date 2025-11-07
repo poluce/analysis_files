@@ -2,6 +2,7 @@
 #define ITHERMALALGORITHM_H
 
 #include "domain/algorithm/algorithm_descriptor.h"
+#include "domain/algorithm/algorithm_result.h"
 #include "domain/model/thermal_curve.h"
 #include <QString>
 #include <QVariant>
@@ -195,25 +196,41 @@ public:
     /**
      * @brief 执行算法（上下文驱动，纯虚函数）。
      *
-     * ✅ **核心执行接口**：算法从上下文中拉取所需数据，避免繁琐的参数传递。
+     * ✅ **核心执行接口**：算法从上下文中拉取所需数据，返回结构化的 AlgorithmResult。
      *
-     * 算法从上下文中获取数据：
+     * **输入**（从上下文拉取）：
      * - 曲线数据：context->get<ThermalCurve*>("activeCurve")
      * - 参数：context->get<int>("param.windowSize")
      * - 选择的点：context->get<QVector<QPointF>>("selectedPoints")
      * - 参考曲线：context->get<ThermalCurve*>("referenceCurve")
      *
-     * 返回值根据 outputType() 决定：
-     * - OutputType::Curve: QVector<ThermalDataPoint>
-     * - OutputType::Area: QVariantMap {"area": double, "series": QAreaSeries*}
-     * - OutputType::Intersection: QVector<QPointF>
-     * - OutputType::Annotation: QVariantList (标注信息)
-     * - OutputType::MultipleCurves: QVariantList (多条曲线)
+     * **输出**（返回 AlgorithmResult 容器）：
+     * - ResultType::Curve: 单曲线输出（如微分、积分）
+     * - ResultType::Marker: 标注点输出（如峰值、外推点）
+     * - ResultType::Region: 区域输出（如峰面积）
+     * - ResultType::ScalarValue: 数值输出（如温度、斜率）
+     * - ResultType::Composite: 混合输出（如峰面积=数值+曲线+区域）
      *
-     * @param context 算法上下文，包含所有运行时状态。
-     * @return 算法执行结果。
+     * **示例**：
+     * @code
+     * // 简单曲线输出
+     * AlgorithmResult result = AlgorithmResult::success("differentiation", curveId, ResultType::Curve);
+     * result.setCurve(outputCurve);
+     * result.setMeta("unit", "mg/min");
+     * return result;
+     *
+     * // 混合输出
+     * AlgorithmResult result = AlgorithmResult::success("peakArea", curveId, ResultType::Composite);
+     * result.addCurve(baselineCurve);
+     * result.setArea(area, "J/g");
+     * result.addRegion(areaPolygon);
+     * return result;
+     * @endcode
+     *
+     * @param context 算法上下文，包含所有运行时输入数据。
+     * @return AlgorithmResult - 结构化的算法执行结果（成功或失败）。
      */
-    virtual QVariant executeWithContext(AlgorithmContext* context) = 0;
+    virtual AlgorithmResult executeWithContext(AlgorithmContext* context) = 0;
 };
 
 #endif // ITHERMALALGORITHM_H

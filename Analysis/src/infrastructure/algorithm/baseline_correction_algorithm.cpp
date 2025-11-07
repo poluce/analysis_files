@@ -84,39 +84,42 @@ bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
     return true;
 }
 
-QVariant BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext* context)
+AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext* context)
 {
     // 1. 验证上下文
     if (!context) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 上下文为空！";
-        return QVariant();
+        return AlgorithmResult::failure("baseline_correction", "上下文为空");
     }
 
     // 2. 拉取曲线
     auto curve = context->get<ThermalCurve*>("activeCurve");
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 无法获取活动曲线！";
-        return QVariant();
+        return AlgorithmResult::failure("baseline_correction", "无法获取活动曲线");
     }
+
+    ThermalCurve* inputCurve = curve.value();
 
     // 3. 拉取选择的点
     auto pointsOpt = context->get<QVector<QPointF>>("selectedPoints");
     if (!pointsOpt.has_value()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 无法获取选择的点！";
-        return QVariant();
+        return AlgorithmResult::failure("baseline_correction", "无法获取选择的点");
     }
 
     QVector<QPointF> points = pointsOpt.value();
     if (points.size() < 2) {
-        qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 需要至少2个点，实际只有" << points.size() << "个点";
-        return QVariant();
+        QString error = QString("需要至少2个点，实际只有 %1 个点").arg(points.size());
+        qWarning() << "BaselineCorrectionAlgorithm::executeWithContext -" << error;
+        return AlgorithmResult::failure("baseline_correction", error);
     }
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& curveData = curve.value()->getProcessedData();
+    const QVector<ThermalDataPoint>& curveData = inputCurve->getProcessedData();
     if (curveData.isEmpty()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 曲线数据为空！";
-        return QVariant();
+        return AlgorithmResult::failure("baseline_correction", "曲线数据为空");
     }
 
     // 5. 使用前两个点生成基线
@@ -130,13 +133,41 @@ QVariant BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext* conte
 
     if (baseline.isEmpty()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 生成基线失败！";
-        return QVariant();
+        return AlgorithmResult::failure("baseline_correction", "生成基线失败");
     }
 
     qDebug() << "BaselineCorrectionAlgorithm::executeWithContext - 完成，生成基线数据点数:" << baseline.size();
 
-    // 7. 返回结果
-    return QVariant::fromValue(baseline);
+    // 7. 创建混合结果对象（曲线 + 标注点）
+    AlgorithmResult result = AlgorithmResult::success(
+        "baseline_correction",
+        inputCurve->id(),
+        ResultType::Composite  // 混合输出：曲线 + 标注点
+    );
+
+    // 创建输出曲线
+    ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
+    outputCurve.setProcessedData(baseline);
+    outputCurve.setInstrumentType(inputCurve->instrumentType());
+    outputCurve.setSignalType(SignalType::Baseline);
+    outputCurve.setParentId(inputCurve->id());
+    outputCurve.setProjectName(inputCurve->projectName());
+    outputCurve.setMetadata(inputCurve->getMetadata());
+
+    // 填充结果
+    result.setCurve(outputCurve);
+
+    // 添加标注点（用户选择的基线定义点）
+    result.addMarker(point1, "基线起点");
+    result.addMarker(point2, "基线终点");
+
+    // 添加元数据
+    result.setMeta("correctionType", "Linear");
+    result.setMeta("baselinePointCount", points.size());
+    result.setMeta("temperatureRange", QString("%1 - %2").arg(point1.x()).arg(point2.x()));
+    result.setMeta("label", "基线曲线");
+
+    return result;
 }
 
 QVector<ThermalDataPoint> BaselineCorrectionAlgorithm::generateBaseline(

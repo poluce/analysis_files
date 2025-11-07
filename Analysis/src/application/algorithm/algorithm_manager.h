@@ -42,12 +42,17 @@ signals:
      * @brief 算法执行完成信号
      *
      * @param algorithmName 算法名称
-     * @param outputType 输出类型（Curve, Area, Annotation等）
-     * @param result 执行结果（类型根据outputType决定）
+     * @param result 结构化的执行结果（AlgorithmResult）
      */
-    void algorithmResultReady(
-        const QString& algorithmName, IThermalAlgorithm::OutputType outputType,
-        const QVariant& result);
+    void algorithmResultReady(const QString& algorithmName, const AlgorithmResult& result);
+
+    /**
+     * @brief 算法执行失败信号
+     *
+     * @param algorithmName 算法名称
+     * @param errorMessage 错误信息
+     */
+    void algorithmExecutionFailed(const QString& algorithmName, const QString& errorMessage);
 
 private:
     explicit AlgorithmManager(QObject* parent = nullptr);
@@ -55,11 +60,13 @@ private:
     AlgorithmManager(const AlgorithmManager&) = delete;
     AlgorithmManager& operator=(const AlgorithmManager&) = delete;
 
-    // 根据输出类型处理算法结果
-    void handleAlgorithmResult(
-        IThermalAlgorithm* algorithm, ThermalCurve* parentCurve, const QVariant& result);
+    // 根据结果类型处理算法结果
+    void handleAlgorithmResult(const AlgorithmResult& result);
 
-    // 创建输出曲线的通用方法（封装重复逻辑）
+    // 添加曲线（使用历史管理）
+    void addCurveWithHistory(const ThermalCurve& curve);
+
+    // 创建输出曲线的通用方法（向后兼容，已废弃）
     void createAndAddOutputCurve(
         IThermalAlgorithm* algorithm,
         ThermalCurve* parentCurve,
@@ -68,6 +75,10 @@ private:
 
     QMap<QString, IThermalAlgorithm*> m_algorithms;
     CurveManager* m_curveManager = nullptr;
+    class HistoryManager* m_historyManager = nullptr;  // 历史管理器（可选）
+
+public:
+    void setHistoryManager(class HistoryManager* manager) { m_historyManager = manager; }
 };
 
 #endif // ALGORITHMANAGER_H

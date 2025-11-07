@@ -81,33 +81,35 @@ bool MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
     return true;
 }
 
-QVariant MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContext* context)
+AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContext* context)
 {
     // 1. 验证上下文
     if (!context) {
         qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 上下文为空！";
-        return QVariant();
+        return AlgorithmResult::failure("moving_average", "上下文为空");
     }
 
     // 2. 拉取曲线
     auto curve = context->get<ThermalCurve*>("activeCurve");
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 无法获取活动曲线！";
-        return QVariant();
+        return AlgorithmResult::failure("moving_average", "无法获取活动曲线");
     }
+
+    ThermalCurve* inputCurve = curve.value();
 
     // 3. 拉取参数（使用 value_or() 提供默认值）
     int window = context->get<int>("param.window").value_or(m_window);
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = curve.value()->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
 
     // 5. 执行核心算法逻辑（移动平均滤波）
     QVector<ThermalDataPoint> outputData;
     const int n = inputData.size();
     if (n == 0) {
         qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 输入数据为空！";
-        return QVariant::fromValue(outputData);
+        return AlgorithmResult::failure("moving_average", "输入数据为空");
     }
 
     // 安全窗口（最少为1）
@@ -136,6 +138,27 @@ QVariant MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContext* cont
 
     qDebug() << "MovingAverageFilterAlgorithm::executeWithContext - 完成，窗口大小:" << w << "，输出数据点数:" << outputData.size();
 
-    // 6. 返回结果
-    return QVariant::fromValue(outputData);
+    // 6. 创建结果对象
+    AlgorithmResult result = AlgorithmResult::success(
+        "moving_average",
+        inputCurve->id(),
+        ResultType::Curve
+    );
+
+    // 创建输出曲线
+    ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
+    outputCurve.setProcessedData(outputData);
+    outputCurve.setInstrumentType(inputCurve->instrumentType());
+    outputCurve.setSignalType(getOutputSignalType(inputCurve->signalType()));
+    outputCurve.setParentId(inputCurve->id());
+    outputCurve.setProjectName(inputCurve->projectName());
+    outputCurve.setMetadata(inputCurve->getMetadata());
+
+    // 填充结果
+    result.setCurve(outputCurve);
+    result.setMeta("method", "Moving Average");
+    result.setMeta("windowSize", w);
+    result.setMeta("label", "滤波曲线");
+
+    return result;
 }

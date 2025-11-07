@@ -92,75 +92,123 @@ void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext*
     qDebug() << "算法" << name << "数据就绪，开始执行";
 
     // 阶段2：执行算法（算法从上下文拉取完整数据）
-    QVariant result = algorithm->executeWithContext(context);
+    AlgorithmResult result = algorithm->executeWithContext(context);
 
-    if (result.isNull() || !result.isValid()) {
-        qWarning() << "算法" << name << "未生成有效结果。";
+    // 检查执行状态
+    if (result.hasError()) {
+        qWarning() << "算法" << name << "执行失败:" << result.errorMessage();
+        emit algorithmExecutionFailed(name, result.errorMessage());
         return;
     }
+
+    qDebug() << result.toString();
 
     // 根据输出类型处理结果
-    handleAlgorithmResult(algorithm, curve, result);
+    handleAlgorithmResult(result);
 
-    // 发出新信号
-    emit algorithmResultReady(name, algorithm->outputType(), result);
+    // 发出成功信号
+    emit algorithmResultReady(name, result);
 }
 
-void AlgorithmManager::handleAlgorithmResult(IThermalAlgorithm* algorithm, ThermalCurve* parentCurve, const QVariant& result)
+void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 {
-    if (!algorithm || !parentCurve || !m_curveManager) {
+    if (!result.isSuccess() || !m_curveManager) {
         return;
     }
 
-    auto outputType = algorithm->outputType();
+    auto resultType = result.type();
 
-    switch (outputType) {
-    case IThermalAlgorithm::OutputType::Curve: {
+    switch (resultType) {
+    case ResultType::Curve: {
         // 输出为新曲线（最常见情况）
-        auto outputData = result.value<QVector<ThermalDataPoint>>();
-        if (outputData.isEmpty()) {
-            qWarning() << "算法输出曲线数据为空。";
+        if (!result.hasCurves()) {
+            qWarning() << "算法结果中没有曲线数据";
             return;
         }
 
-        // 使用统一方法创建并添加输出曲线（使用历史管理）
-        createAndAddOutputCurve(algorithm, parentCurve, outputData, true);
+        // 添加所有输出曲线
+        for (const ThermalCurve& curve : result.curves()) {
+            addCurveWithHistory(curve);
+        }
         break;
     }
 
-    case IThermalAlgorithm::OutputType::Area: {
-        // 输出为面积值（如峰面积）
-        // 结果应该是 QVariantMap {"area": double, "unit": QString, ...}
-        qDebug() << "面积计算结果:" << result;
-        // TODO: 在后续实现中，这里可以创建一个标注对象或面积结果对象
-        // 目前仅输出日志
+    case ResultType::Marker: {
+        // 输出为标注点
+        qDebug() << "标注点数量:" << result.markerCount();
+        for (int i = 0; i < result.markerCount(); ++i) {
+            qDebug() << "  标注点" << i << ":" << result.markers()[i];
+        }
+        // TODO: 发送标注点到 ChartView
         break;
     }
 
-    case IThermalAlgorithm::OutputType::Intersection: {
-        // 输出为交点集合
-        qDebug() << "交点计算结果:" << result;
-        // TODO: 处理交点结果
+    case ResultType::Region: {
+        // 输出为区域
+        qDebug() << "区域数量:" << result.regionCount();
+        // TODO: 发送区域到 ChartView（用于阴影填充）
         break;
     }
 
-    case IThermalAlgorithm::OutputType::Annotation: {
-        // 输出为标注（如峰位置、切线等）
-        qDebug() << "标注结果:" << result;
-        // TODO: 处理标注结果
+    case ResultType::ScalarValue: {
+        // 输出为标量值
+        qDebug() << "标量结果:";
+        for (auto it = result.allMeta().constBegin(); it != result.allMeta().constEnd(); ++it) {
+            qDebug() << "  " << it.key() << ":" << it.value();
+        }
+        // TODO: 显示结果对话框或状态栏
         break;
     }
 
-    case IThermalAlgorithm::OutputType::MultipleCurves: {
-        // 输出为多条曲线
-        qDebug() << "多曲线输出结果:" << result;
-        // TODO: 处理多曲线输出
+    case ResultType::Composite: {
+        // 混合输出：依次处理所有输出
+        qDebug() << "混合结果:";
+
+        if (result.hasCurves()) {
+            qDebug() << "  包含" << result.curveCount() << "条曲线";
+            for (const ThermalCurve& curve : result.curves()) {
+                addCurveWithHistory(curve);
+            }
+        }
+
+        if (result.hasMarkers()) {
+            qDebug() << "  包含" << result.markerCount() << "个标注点";
+            // TODO: 发送标注点到 ChartView
+        }
+
+        if (result.hasRegions()) {
+            qDebug() << "  包含" << result.regionCount() << "个区域";
+            // TODO: 发送区域到 ChartView
+        }
+
+        if (result.hasMeta("area")) {
+            qDebug() << "  面积:" << result.area() << result.meta("unit").toString();
+        }
         break;
     }
 
     default:
-        qWarning() << "未知的输出类型:" << static_cast<int>(outputType);
+        qWarning() << "未知的结果类型:" << static_cast<int>(resultType);
         break;
+    }
+}
+
+void AlgorithmManager::addCurveWithHistory(const ThermalCurve& curve)
+{
+    if (!m_curveManager) {
+        qWarning() << "CurveManager 为空，无法添加曲线";
+        return;
+    }
+
+    // 使用历史管理添加曲线
+    if (m_historyManager) {
+        auto command = new AddCurveCommand(m_curveManager, curve);
+        m_historyManager->executeCommand(command);
+        qDebug() << "通过历史管理添加曲线:" << curve.name() << "ID:" << curve.id();
+    } else {
+        m_curveManager->addCurve(curve);
+        m_curveManager->setActiveCurve(curve.id());
+        qDebug() << "直接添加曲线:" << curve.name() << "ID:" << curve.id();
     }
 }
 

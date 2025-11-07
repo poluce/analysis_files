@@ -36,7 +36,7 @@ public:
 
     // 上下文驱动执行接口
     bool prepareContext(AlgorithmContext* context) override;
-    QVariant executeWithContext(AlgorithmContext* context) override;
+    AlgorithmResult executeWithContext(AlgorithmContext* context) override;
 
 private:
     /**
