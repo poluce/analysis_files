@@ -82,6 +82,7 @@ public:
     QString parentId() const;
     PlotStyle plotStyle() const;
     bool isAuxiliaryCurve() const;
+    bool isStronglyBound() const;
 
     // --- 设置器 ---
     void setName(const QString& name);
@@ -94,6 +95,7 @@ public:
     void setParentId(const QString& parentId);
     void setPlotStyle(PlotStyle style);
     void setIsAuxiliaryCurve(bool isAuxiliary);
+    void setIsStronglyBound(bool isStronglyBound);
 
     // --- 辅助方法 ---
     /**
@@ -121,6 +123,7 @@ private:
     SignalType m_signalType;                 // 信号处理类型
     QString m_parentId;                      // 父曲线ID（用于算法生成的曲线）
     bool m_isAuxiliaryCurve;                 // 判断是否是辅助曲线
+    bool m_isStronglyBound;                  // 判断是否是强绑定曲线（强绑定曲线不在树中显示，且随父曲线隐藏）
     PlotStyle m_plotStyle = PlotStyle::Line; // 默认折线
 
     QVector<ThermalDataPoint> m_rawData;       // 原始数据 (只读)

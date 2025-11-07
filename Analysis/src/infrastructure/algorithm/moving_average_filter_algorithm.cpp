@@ -66,6 +66,13 @@ bool MovingAverageFilterAlgorithm::isAuxiliaryCurve() const
     return true;
 }
 
+bool MovingAverageFilterAlgorithm::isStronglyBound() const
+{
+    // 滤波曲线是非强绑定曲线
+    // 原因：滤波后的曲线可以作为独立的分析对象，应该在树中独立显示
+    return false;
+}
+
 // ==================== 上下文驱动执行接口实现 ====================
 
 bool MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
@@ -164,6 +171,7 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
+    outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 
     // 填充结果
     result.setCurve(outputCurve);

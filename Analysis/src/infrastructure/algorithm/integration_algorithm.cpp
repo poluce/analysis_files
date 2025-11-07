@@ -67,6 +67,13 @@ bool IntegrationAlgorithm::isAuxiliaryCurve() const
     return false;
 }
 
+bool IntegrationAlgorithm::isStronglyBound() const
+{
+    // 积分曲线是非强绑定曲线
+    // 原因：积分曲线是重要的分析结果，应该在树中独立显示，可独立操作
+    return false;
+}
+
 // ==================== 上下文驱动执行接口实现 ====================
 
 bool IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
@@ -155,6 +162,7 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
+    outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 
     // 填充结果
     result.setCurve(outputCurve);

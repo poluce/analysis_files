@@ -169,4 +169,16 @@ void CurveViewController::onCurveCheckStateChanged(const QString& curveId, bool 
 
     // 更新 ChartView 的曲线可见性
     setCurveVisible(curveId, checked);
+
+    // ==================== 强绑定子曲线联动逻辑 ====================
+    // 当父曲线被隐藏时，强绑定的子曲线也应该被隐藏
+    // 当父曲线显示时，强绑定的子曲线也应该显示
+    const auto allCurves = m_curveManager->getAllCurves();
+    for (const ThermalCurve* childCurve : allCurves) {
+        // 查找所有强绑定到当前曲线的子曲线
+        if (childCurve && childCurve->isStronglyBound() && childCurve->parentId() == curveId) {
+            qDebug() << "  联动强绑定子曲线:" << childCurve->name() << "(id:" << childCurve->id() << ") -> visible:" << checked;
+            setCurveVisible(childCurve->id(), checked);
+        }
+    }
 }

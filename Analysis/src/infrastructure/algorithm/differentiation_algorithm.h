@@ -26,6 +26,7 @@ public:
 
     // 曲线属性声明接口
     bool isAuxiliaryCurve() const override;
+    bool isStronglyBound() const override;
 
     // 上下文驱动执行接口（两阶段执行）
     bool prepareContext(AlgorithmContext* context) override;

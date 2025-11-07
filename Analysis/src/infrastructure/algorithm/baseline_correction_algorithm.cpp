@@ -64,6 +64,13 @@ bool BaselineCorrectionAlgorithm::isAuxiliaryCurve() const
     return true;
 }
 
+bool BaselineCorrectionAlgorithm::isStronglyBound() const
+{
+    // 基线曲线是强绑定曲线
+    // 原因：基线仅作为父曲线的辅助参考，不应独立显示，随父曲线隐藏
+    return true;
+}
+
 // ==================== 上下文驱动执行接口实现 ====================
 
 bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
@@ -163,6 +170,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     outputCurve.setProjectName(inputCurve->projectName());
     outputCurve.setMetadata(inputCurve->getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
+    outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 
     // 填充结果
     result.setCurve(outputCurve);

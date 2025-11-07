@@ -79,6 +79,12 @@ void ProjectTreeManager::onCurveAdded(const QString& curveId)
         return;
     }
 
+    // 强绑定曲线不在树中显示（如基线曲线）
+    if (curve->isStronglyBound()) {
+        qDebug() << "跳过强绑定曲线:" << curve->name() << "(id:" << curveId << ")";
+        return;
+    }
+
     // 查找或创建项目节点
     QStandardItem* projectItem = findOrCreateProjectItem(curve->projectName());
 
