@@ -860,8 +860,25 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
 {
     QChart* chart = m_chartView->chart();
 
-    // ==================== 策略1：继承父曲线的 Y 轴 ====================
-    // 如果曲线有父曲线，则使用与父曲线相同的 Y 轴
+    // ==================== 优先级1：SignalType 强制规则（最高优先级）====================
+    // 微分曲线必须使用次 Y 轴，无论是否有父曲线
+    if (curve.signalType() == SignalType::Derivative) {
+        if (!m_axisY_secondary) {
+            m_axisY_secondary = new QValueAxis();
+            QPen pen = m_axisY_secondary->linePen();
+            pen.setColor(Qt::red);
+            m_axisY_secondary->setLinePen(pen);
+            m_axisY_secondary->setLabelsColor(Qt::red);
+            m_axisY_secondary->setTitleBrush(QBrush(Qt::red));
+            chart->addAxis(m_axisY_secondary, Qt::AlignRight);
+        }
+        m_axisY_secondary->setTitleText(curve.getYAxisLabel());
+        qDebug() << "ChartView: 曲线" << curve.name() << "使用次 Y 轴（Derivative 强制规则）";
+        return m_axisY_secondary;
+    }
+
+    // ==================== 优先级2：继承父曲线的 Y 轴 ====================
+    // 如果不是微分曲线，且有父曲线，则继承父曲线的 Y 轴
     if (!curve.parentId().isEmpty()) {
         QLineSeries* parentSeries = seriesForCurve(curve.parentId());
         if (parentSeries && !parentSeries->attachedAxes().isEmpty()) {
@@ -877,25 +894,12 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
         }
     }
 
-    // ==================== 策略2：根据 SignalType 分配 Y 轴 ====================
-    if (curve.signalType() == SignalType::Derivative) {
-        if (!m_axisY_secondary) {
-            m_axisY_secondary = new QValueAxis();
-            QPen pen = m_axisY_secondary->linePen();
-            pen.setColor(Qt::red);
-            m_axisY_secondary->setLinePen(pen);
-            m_axisY_secondary->setLabelsColor(Qt::red);
-            m_axisY_secondary->setTitleBrush(QBrush(Qt::red));
-            chart->addAxis(m_axisY_secondary, Qt::AlignRight);
-        }
-        m_axisY_secondary->setTitleText(curve.getYAxisLabel());
-        return m_axisY_secondary;
-    }
-
+    // ==================== 优先级3：默认分配主 Y 轴 ====================
     if (!m_axisY_primary) {
         m_axisY_primary = new QValueAxis();
         chart->addAxis(m_axisY_primary, Qt::AlignLeft);
     }
     m_axisY_primary->setTitleText(curve.getYAxisLabel());
+    qDebug() << "ChartView: 曲线" << curve.name() << "使用主 Y 轴（默认）";
     return m_axisY_primary;
 }
