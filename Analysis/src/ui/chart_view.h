@@ -51,6 +51,7 @@ struct ActiveAlgorithmInfo {
     QString displayName;         // 显示名称（如 "基线校正"）
     int requiredPointCount = 0;  // 需要的点数
     QString hint;                // 交互提示（如 "请选择两个点定义基线范围"）
+    QString targetCurveId;       // 目标曲线ID（用于获取曲线数据）
 
     bool isValid() const { return !name.isEmpty(); }
     void clear() {
@@ -58,13 +59,22 @@ struct ActiveAlgorithmInfo {
         displayName.clear();
         requiredPointCount = 0;
         hint.clear();
+        targetCurveId.clear();
     }
 };
+
+class CurveManager;  // 前置声明
 
 class ChartView : public QWidget {
     Q_OBJECT
 public:
     explicit ChartView(QWidget* parent = nullptr);
+
+    /**
+     * @brief 设置曲线管理器（用于获取曲线数据）
+     * @param manager CurveManager 指针
+     */
+    void setCurveManager(CurveManager* manager);
 
     void setHitTestBasePixelThreshold(qreal px);
     qreal hitTestBasePixelThreshold() const;
@@ -206,6 +216,8 @@ private:
     QValueAxis* m_axisX = nullptr;
     QValueAxis* m_axisY_primary = nullptr;
     QValueAxis* m_axisY_secondary = nullptr;
+
+    CurveManager* m_curveManager = nullptr;  // 曲线管理器（用于获取曲线数据）
 
     qreal m_hitTestBasePx = 8.0;
     bool m_hitTestIncludePen = true;

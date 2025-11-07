@@ -1,5 +1,6 @@
 #include "chart_view.h"
 #include "domain/model/thermal_curve.h"
+#include "application/curve/curve_manager.h"
 #include <QDebug>
 #include <QEvent>
 #include <QGraphicsLineItem>
@@ -76,6 +77,11 @@ ChartView::ChartView(QWidget* parent)
     m_horizontalCrosshairLine->setZValue(chart->zValue() + 10.0);
 
     updateCrosshairVisibility();
+}
+
+void ChartView::setCurveManager(CurveManager* manager)
+{
+    m_curveManager = manager;
 }
 
 void ChartView::addCurve(const ThermalCurve& curve)
@@ -159,23 +165,57 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
         return;
     }
 
-    // 转换坐标
-    QPointF valuePoint = convertToValueCoordinates(chartViewPos);
+    // 转换鼠标坐标到图表坐标
+    QPointF rawValuePoint = convertToValueCoordinates(chartViewPos);
 
-    // 添加选点到活动算法的选点列表
-    m_selectedPoints.append(valuePoint);
+    // ==================== 从目标曲线数据中查找最接近的点 ====================
+    QPointF actualValuePoint = rawValuePoint;  // 默认使用原始转换点
+
+    if (m_curveManager && !m_activeAlgorithm.targetCurveId.isEmpty()) {
+        ThermalCurve* targetCurve = m_curveManager->getCurve(m_activeAlgorithm.targetCurveId);
+        if (targetCurve) {
+            const auto& curveData = targetCurve->getProcessedData();
+            if (!curveData.isEmpty()) {
+                // 查找最接近鼠标X坐标（温度）的数据点
+                double targetTemp = rawValuePoint.x();
+                int closestIndex = 0;
+                double minDist = qAbs(curveData[0].temperature - targetTemp);
+
+                for (int i = 1; i < curveData.size(); ++i) {
+                    double dist = qAbs(curveData[i].temperature - targetTemp);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestIndex = i;
+                    }
+                }
+
+                // 使用曲线实际数据点的坐标
+                actualValuePoint.setX(curveData[closestIndex].temperature);
+                actualValuePoint.setY(curveData[closestIndex].value);
+
+                qDebug() << "ChartView: 从目标曲线" << targetCurve->name()
+                         << "找到最接近点 - 原始选点:" << rawValuePoint
+                         << "-> 实际数据点:" << actualValuePoint;
+            }
+        } else {
+            qWarning() << "ChartView: 无法获取目标曲线" << m_activeAlgorithm.targetCurveId;
+        }
+    }
+
+    // 添加选点到活动算法的选点列表（使用实际数据点）
+    m_selectedPoints.append(actualValuePoint);
 
     // 在图表上显示选中的点（红色高亮）
     if (m_selectedPointsSeries) {
-        m_selectedPointsSeries->append(valuePoint);
-        qDebug() << "ChartView: 添加红色高亮点到图表:" << valuePoint;
+        m_selectedPointsSeries->append(actualValuePoint);
+        qDebug() << "ChartView: 添加红色高亮点到图表:" << actualValuePoint;
     } else {
         qWarning() << "ChartView: 选点系列为空，无法显示高亮点";
     }
 
     qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
              << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
-             << ", 点:" << valuePoint;
+             << ", 点:" << actualValuePoint;
 
     // 检查是否已收集足够的点
     if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
@@ -314,6 +354,7 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
     m_activeAlgorithm.displayName = displayName;
     m_activeAlgorithm.requiredPointCount = requiredPoints;
     m_activeAlgorithm.hint = hint;
+    m_activeAlgorithm.targetCurveId = curveId;  // 保存目标曲线ID
 
     // 状态转换: Idle → WaitingForPoints
     transitionToState(InteractionState::WaitingForPoints);
