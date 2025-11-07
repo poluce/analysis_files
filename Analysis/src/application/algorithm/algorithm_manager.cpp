@@ -59,9 +59,9 @@ void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext*
     }
 
     // 从上下文获取主曲线
-    auto activeCurve = context->get<ThermalCurve*>("activeCurve");
+    auto activeCurve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
     if (!activeCurve.has_value()) {
-        auto mainCurve = context->get<ThermalCurve*>("mainCurve");
+        auto mainCurve = context->get<ThermalCurve*>(ContextKeys::MainCurve);
         if (!mainCurve.has_value()) {
             qWarning() << "算法执行失败：上下文中缺少主曲线（activeCurve 或 mainCurve）。";
             return;

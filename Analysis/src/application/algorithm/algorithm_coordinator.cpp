@@ -297,30 +297,30 @@ void AlgorithmCoordinator::executeAlgorithm(
     }
 
     // 清空上下文中的算法相关数据，准备新的执行
-    m_context->remove("activeCurve");
-    m_context->remove("baselineCurves");
-    m_context->remove("mainCurve");
-    m_context->remove("selectedPoints");
+    m_context->remove(ContextKeys::ActiveCurve);
+    m_context->remove(ContextKeys::BaselineCurves);
+    m_context->remove(ContextKeys::MainCurve);
+    m_context->remove(ContextKeys::SelectedPoints);
     QStringList paramKeys = m_context->keys("param.");
     for (const QString& key : paramKeys) {
         m_context->remove(key);
     }
 
     // 将主曲线设置到上下文
-    m_context->setValue("activeCurve", QVariant::fromValue(curve), "AlgorithmCoordinator");
+    m_context->setValue(ContextKeys::ActiveCurve, QVariant::fromValue(curve), "AlgorithmCoordinator");
 
     // 自动查找并注入活动曲线的基线（如果存在）
     QVector<ThermalCurve*> baselines = m_curveManager->getBaselines(curve->id());
 
     if (!baselines.isEmpty()) {
         // 注入所有基线，由算法自己决定如何使用
-        m_context->setValue("baselineCurves", QVariant::fromValue(baselines), "AlgorithmCoordinator");
+        m_context->setValue(ContextKeys::BaselineCurves, QVariant::fromValue(baselines), "AlgorithmCoordinator");
 
         qDebug() << "AlgorithmCoordinator::executeAlgorithm - 找到" << baselines.size()
                  << "条基线曲线，由算法决定使用哪条";
     } else {
         // 确保清除之前可能存在的基线
-        m_context->remove("baselineCurves");
+        m_context->remove(ContextKeys::BaselineCurves);
     }
 
     // 将参数设置到上下文（使用 param. 前缀）
@@ -330,7 +330,7 @@ void AlgorithmCoordinator::executeAlgorithm(
 
     // 将选择的点设置到上下文（如果有）
     if (!points.isEmpty()) {
-        m_context->setValue("selectedPoints", QVariant::fromValue(points), "AlgorithmCoordinator");
+        m_context->setValue(ContextKeys::SelectedPoints, QVariant::fromValue(points), "AlgorithmCoordinator");
     }
 
     // 保存历史记录

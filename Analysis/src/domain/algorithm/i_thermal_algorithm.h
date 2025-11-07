@@ -246,11 +246,13 @@ public:
      *
      * ✅ **核心执行接口**：算法从上下文中拉取所需数据，返回结构化的 AlgorithmResult。
      *
+     * @note 使用 ContextKeys 常量需要包含：#include "application/algorithm/algorithm_context.h"
+     *
      * **输入**（从上下文拉取）：
-     * - 曲线数据：context->get<ThermalCurve*>("activeCurve")
-     * - 参数：context->get<int>("param.windowSize")
-     * - 选择的点：context->get<QVector<QPointF>>("selectedPoints")
-     * - 参考曲线：context->get<ThermalCurve*>("referenceCurve")
+     * - 曲线数据：context->get<ThermalCurve*>(ContextKeys::ActiveCurve)
+     * - 参数：context->get<int>(ContextKeys::ParamWindow)
+     * - 选择的点：context->get<QVector<QPointF>>(ContextKeys::SelectedPoints)
+     * - 参考曲线：context->get<ThermalCurve*>(ContextKeys::InputCurve)
      *
      * **输出**（返回 AlgorithmResult 容器）：
      * - ResultType::Curve: 单曲线输出（如微分、积分）
