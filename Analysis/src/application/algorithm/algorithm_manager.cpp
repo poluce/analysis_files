@@ -202,8 +202,8 @@ void AlgorithmManager::addCurveWithHistory(const ThermalCurve& curve)
 
     // 使用历史管理添加曲线
     if (m_historyManager) {
-        auto command = new AddCurveCommand(m_curveManager, curve);
-        m_historyManager->executeCommand(command);
+        auto command = std::make_unique<AddCurveCommand>(m_curveManager, curve);
+        m_historyManager->executeCommand(std::move(command));
         qDebug() << "通过历史管理添加曲线:" << curve.name() << "ID:" << curve.id();
     } else {
         m_curveManager->addCurve(curve);
