@@ -859,6 +859,25 @@ void ChartView::updateCrosshairVisibility()
 QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
 {
     QChart* chart = m_chartView->chart();
+
+    // ==================== 策略1：继承父曲线的 Y 轴 ====================
+    // 如果曲线有父曲线，则使用与父曲线相同的 Y 轴
+    if (!curve.parentId().isEmpty()) {
+        QLineSeries* parentSeries = seriesForCurve(curve.parentId());
+        if (parentSeries && !parentSeries->attachedAxes().isEmpty()) {
+            // 查找父曲线的 Y 轴（非 X 轴）
+            for (QAbstractAxis* axis : parentSeries->attachedAxes()) {
+                QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
+                if (valueAxis && valueAxis != m_axisX) {
+                    qDebug() << "ChartView: 曲线" << curve.name() << "继承父曲线的 Y 轴";
+                    valueAxis->setTitleText(curve.getYAxisLabel());
+                    return valueAxis;
+                }
+            }
+        }
+    }
+
+    // ==================== 策略2：根据 SignalType 分配 Y 轴 ====================
     if (curve.signalType() == SignalType::Derivative) {
         if (!m_axisY_secondary) {
             m_axisY_secondary = new QValueAxis();
