@@ -298,7 +298,6 @@ void AlgorithmCoordinator::executeAlgorithm(
 
     // 清空上下文中的算法相关数据，准备新的执行
     m_context->remove("activeCurve");
-    m_context->remove("baselineCurve");
     m_context->remove("baselineCurves");
     m_context->remove("mainCurve");
     m_context->remove("selectedPoints");
@@ -311,20 +310,16 @@ void AlgorithmCoordinator::executeAlgorithm(
     m_context->setValue("activeCurve", QVariant::fromValue(curve), "AlgorithmCoordinator");
 
     // 自动查找并注入活动曲线的基线（如果存在）
-    QVector<ThermalCurve*> allBaselines = m_curveManager->getBaselines(curve->id());
+    QVector<ThermalCurve*> baselines = m_curveManager->getBaselines(curve->id());
 
-    if (!allBaselines.isEmpty()) {
-        // 注入第一条基线（向后兼容，简单算法使用）
-        m_context->setValue("baselineCurve", QVariant::fromValue(allBaselines[0]), "AlgorithmCoordinator");
+    if (!baselines.isEmpty()) {
+        // 注入所有基线，由算法自己决定如何使用
+        m_context->setValue("baselineCurves", QVariant::fromValue(baselines), "AlgorithmCoordinator");
 
-        // 注入所有基线（高级算法使用，支持多基线对比）
-        m_context->setValue("baselineCurves", QVariant::fromValue(allBaselines), "AlgorithmCoordinator");
-
-        qDebug() << "AlgorithmCoordinator::executeAlgorithm - 找到" << allBaselines.size()
-                 << "条基线曲线，默认使用第一条:" << allBaselines[0]->name();
+        qDebug() << "AlgorithmCoordinator::executeAlgorithm - 找到" << baselines.size()
+                 << "条基线曲线，由算法决定使用哪条";
     } else {
         // 确保清除之前可能存在的基线
-        m_context->remove("baselineCurve");
         m_context->remove("baselineCurves");
     }
 

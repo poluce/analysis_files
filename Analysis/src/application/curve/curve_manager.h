@@ -91,21 +91,17 @@ public:
     ThermalCurve* getActiveCurve();
 
     /**
-     * @brief 获取指定曲线的第一条基线曲线
-     * @param curveId 父曲线ID
-     * @return 基线曲线指针，如果不存在返回 nullptr
-     *
-     * 查找条件：parentId == curveId && signalType == SignalType::Baseline
-     * 注意：如果有多条基线，只返回第一条。若需获取所有基线，请使用 getBaselines()
-     */
-    ThermalCurve* getBaseline(const QString& curveId);
-
-    /**
      * @brief 获取指定曲线的所有基线曲线
      * @param curveId 父曲线ID
      * @return 基线曲线指针列表，如果不存在返回空列表
      *
      * 查找条件：parentId == curveId && signalType == SignalType::Baseline
+     *
+     * 说明：返回所有基线，由算法自己决定如何使用：
+     * - 使用第一条：baselines[0] 或 baselines.first()
+     * - 使用最新的：baselines.last()
+     * - 遍历所有：for (auto* baseline : baselines)
+     * - 让用户选择：通过UI选择特定基线
      */
     QVector<ThermalCurve*> getBaselines(const QString& curveId);
 
