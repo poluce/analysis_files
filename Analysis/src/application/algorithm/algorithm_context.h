@@ -37,6 +37,9 @@ namespace ContextKeys {
     /** 输出曲线 (ThermalCurve*) - 算法生成的新曲线 */
     inline constexpr const char* OutputCurve = "outputCurve";
 
+    /** 活动曲线的基线曲线 (ThermalCurve*) - 由 AlgorithmCoordinator 自动注入 */
+    inline constexpr const char* BaselineCurve = "baselineCurve";
+
     /** 目标曲线ID (QString) - 用于标识特定曲线 */
     inline constexpr const char* TargetCurveId = "targetCurveId";
 
@@ -242,8 +245,9 @@ namespace ContextKeys {
  * | 键名常量                          | 数据类型                  | 说明                    |
  * |-----------------------------------|---------------------------|-------------------------|
  * | `ContextKeys::ActiveCurve`        | `ThermalCurve*`           | 当前活动曲线            |
+ * | `ContextKeys::BaselineCurve`      | `ThermalCurve*`           | 活动曲线的基线（自动注入） |
  * | `ContextKeys::SelectedPoints`     | `QVector<QPointF>`        | 用户选择的点集合        |
- * | `ContextKeys::ParamWindowSize`    | `int`                     | 窗口大小（移动平均等）  |
+ * | `ContextKeys::ParamWindow`        | `int`                     | 窗口大小（移动平均）    |
  * | `ContextKeys::ParamThreshold`     | `double`                  | 阈值（峰值检测等）      |
  * | `ContextKeys::BaselineType`       | `int`                     | 基线类型 (0=线性, 1=多项式) |
  * | `ContextKeys::FilterType`         | `QString`                 | 滤波类型 ("FFT", "MovingAverage") |

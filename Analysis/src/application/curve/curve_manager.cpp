@@ -124,3 +124,15 @@ ThermalCurve* CurveManager::getActiveCurve()
     }
     return getCurve(m_activeCurveId);
 }
+
+ThermalCurve* CurveManager::getBaseline(const QString& curveId)
+{
+    // 查找条件：parentId == curveId && signalType == Baseline
+    for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
+        ThermalCurve& curve = it.value();
+        if (curve.parentId() == curveId && curve.signalType() == SignalType::Baseline) {
+            return &curve;
+        }
+    }
+    return nullptr;  // 未找到基线
+}

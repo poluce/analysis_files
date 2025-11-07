@@ -298,6 +298,7 @@ void AlgorithmCoordinator::executeAlgorithm(
 
     // 清空上下文中的算法相关数据，准备新的执行
     m_context->remove("activeCurve");
+    m_context->remove("baselineCurve");
     m_context->remove("mainCurve");
     m_context->remove("selectedPoints");
     QStringList paramKeys = m_context->keys("param.");
@@ -307,6 +308,15 @@ void AlgorithmCoordinator::executeAlgorithm(
 
     // 将主曲线设置到上下文
     m_context->setValue("activeCurve", QVariant::fromValue(curve), "AlgorithmCoordinator");
+
+    // 自动查找并注入活动曲线的基线（如果存在）
+    ThermalCurve* baseline = m_curveManager->getBaseline(curve->id());
+    if (baseline) {
+        m_context->setValue("baselineCurve", QVariant::fromValue(baseline), "AlgorithmCoordinator");
+        qDebug() << "AlgorithmCoordinator::executeAlgorithm - 找到基线曲线:" << baseline->name();
+    } else {
+        m_context->remove("baselineCurve");  // 确保清除之前可能存在的基线
+    }
 
     // 将参数设置到上下文（使用 param. 前缀）
     for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it) {

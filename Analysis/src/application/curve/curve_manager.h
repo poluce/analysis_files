@@ -90,6 +90,15 @@ public:
      */
     ThermalCurve* getActiveCurve();
 
+    /**
+     * @brief 获取指定曲线的基线曲线
+     * @param curveId 父曲线ID
+     * @return 基线曲线指针，如果不存在返回 nullptr
+     *
+     * 查找条件：parentId == curveId && signalType == SignalType::Baseline
+     */
+    ThermalCurve* getBaseline(const QString& curveId);
+
 signals:
     /**
      * @brief 当新曲线被添加时发射
