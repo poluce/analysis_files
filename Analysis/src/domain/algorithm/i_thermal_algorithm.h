@@ -14,27 +14,25 @@ class AlgorithmContext;
 
 /*
  * ───────────────────────────────────────────────
- *  Algorithm Input Key Specification (v1.0)
+ *  Algorithm Context Keys Specification (v2.0)
  * ───────────────────────────────────────────────
- *  这些 key 用于在 Algorithm::execute(inputs) 的参数输入中传递数据。
- *  插件算法可复用这些标准字段，或在 "custom" map 中定义扩展字段。
+ *  算法通过 AlgorithmContext 从上下文中拉取数据。
+ *  所有标准键名定义在 ContextKeys 命名空间中（algorithm_context.h）。
  *
- *  基本输入：
- *   - "mainCurve"        需要计算的主曲线的数据
- *   - "refCurve"         参考曲线（用于相交/积分类算法）
- *   - "points"           用户选中的x轴点集合 QVector<float>
- *   - "region"           X区间范围 {x1, x2}
- *   - "baselineMode"     基线计算模式 ("linear", "poly")
- *   - "smoothWindow"     平滑算法窗口大小
- *   - "derivativeOrder"  微分阶数
- *   - "annotationText"   标注内容
+ *  核心曲线数据：
+ *   - ContextKeys::ActiveCurve      当前活动曲线 (ThermalCurve*)
+ *   - ContextKeys::InputCurve       输入曲线 (ThermalCurve*)
+ *   - ContextKeys::BaselineCurves   基线曲线列表 (QVector<ThermalCurve*>)
  *
- *  扩展输入：
- *   - "selectedCurves"   多曲线集合 QVector<Curve*>
- *   - "intersectionCurves" 相交曲线对
- *   - "custom"           插件自定义参数 QVariantMap
+ *  用户交互数据：
+ *   - ContextKeys::SelectedPoints   用户选择的点 (QVector<QPointF>)
  *
- *  所有字段均为可选（除 mainCurve 外），由算法根据需要解析。
+ *  通用参数：
+ *   - ContextKeys::ParamWindow      窗口大小 (int)
+ *   - ContextKeys::ParamHalfWin     半窗口大小 (int)
+ *   - ContextKeys::ParamThreshold   阈值 (double)
+ *
+ *  详见：application/algorithm/algorithm_context.h 中的 ContextKeys 命名空间
  *  ───────────────────────────────────────────────
  */
 
@@ -246,11 +244,13 @@ public:
      *
      * ✅ **核心执行接口**：算法从上下文中拉取所需数据，返回结构化的 AlgorithmResult。
      *
+     * @note 使用 ContextKeys 常量需要包含：#include "application/algorithm/algorithm_context.h"
+     *
      * **输入**（从上下文拉取）：
-     * - 曲线数据：context->get<ThermalCurve*>("activeCurve")
-     * - 参数：context->get<int>("param.windowSize")
-     * - 选择的点：context->get<QVector<QPointF>>("selectedPoints")
-     * - 参考曲线：context->get<ThermalCurve*>("referenceCurve")
+     * - 曲线数据：context->get<ThermalCurve*>(ContextKeys::ActiveCurve)
+     * - 参数：context->get<int>(ContextKeys::ParamWindow)
+     * - 选择的点：context->get<QVector<QPointF>>(ContextKeys::SelectedPoints)
+     * - 参考曲线：context->get<ThermalCurve*>(ContextKeys::InputCurve)
      *
      * **输出**（返回 AlgorithmResult 容器）：
      * - ResultType::Curve: 单曲线输出（如微分、积分）

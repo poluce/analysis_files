@@ -81,7 +81,7 @@ bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>("activeCurve");
+    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 缺少活动曲线";
         return false;
@@ -89,7 +89,7 @@ bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
 
     // 阶段2：验证交互式算法的选点数据
     // 基线校正需要用户选择至少2个点
-    auto points = context->get<QVector<QPointF>>("selectedPoints");
+    auto points = context->get<QVector<QPointF>>(ContextKeys::SelectedPoints);
     if (!points.has_value() || points.value().size() < 2) {
         qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 需要至少2个选点，当前"
                    << (points.has_value() ? points.value().size() : 0) << "个";
@@ -109,7 +109,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     }
 
     // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>("activeCurve");
+    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("baseline_correction", "无法获取活动曲线");
@@ -118,7 +118,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     ThermalCurve* inputCurve = curve.value();
 
     // 3. 拉取选择的点
-    auto pointsOpt = context->get<QVector<QPointF>>("selectedPoints");
+    auto pointsOpt = context->get<QVector<QPointF>>(ContextKeys::SelectedPoints);
     if (!pointsOpt.has_value()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 无法获取选择的点！";
         return AlgorithmResult::failure("baseline_correction", "无法获取选择的点");

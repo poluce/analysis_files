@@ -28,9 +28,22 @@ public:
     explicit ApplicationContext(QObject* parent = nullptr);
     ~ApplicationContext() override;
 
+    /**
+     * @brief 启动应用程序，初始化所有组件并显示主窗口
+     *
+     * 按照正确的依赖顺序创建所有 MVC 实例：
+     * 1. 数据层（CurveManager、ProjectTreeManager）
+     * 2. 视图层（MainWindow、ChartView、ProjectExplorerView）
+     * 3. 控制层（MainController、CurveViewController、AlgorithmCoordinator）
+     */
     void start();
 
 private:
+    /**
+     * @brief 注册所有内置算法到 AlgorithmManager
+     *
+     * 包括：微分、积分、移动平均滤波、基线校正等
+     */
     void registerAlgorithms();
 
     // Model

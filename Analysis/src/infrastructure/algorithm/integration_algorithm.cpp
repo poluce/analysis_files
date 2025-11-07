@@ -84,7 +84,7 @@ bool IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>("activeCurve");
+    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "IntegrationAlgorithm::prepareContext - 缺少活动曲线";
         return false;
@@ -106,7 +106,7 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     }
 
     // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>("activeCurve");
+    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "IntegrationAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("integration", "无法获取活动曲线");

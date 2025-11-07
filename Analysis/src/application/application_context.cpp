@@ -35,6 +35,7 @@ ApplicationContext::ApplicationContext(QObject* parent)
 
     // 2. View
     m_chartView = new ChartView();
+    m_chartView->setCurveManager(m_curveManager);  // 设置曲线管理器，用于获取曲线数据
     m_projectExplorerView = new ProjectExplorerView();
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
     m_mainWindow->bindHistoryManager(*HistoryManager::instance());
