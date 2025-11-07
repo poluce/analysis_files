@@ -135,6 +135,18 @@ void ProjectTreeManager::onCurvesCleared()
 
 void ProjectTreeManager::refresh() { buildTree(); }
 
+void ProjectTreeManager::onCurveItemDoubleClicked(const QModelIndex& index)
+{
+    // 从索引中提取曲线 ID
+    QString curveId = getCurveId(index);
+
+    // 如果是曲线节点（不是项目节点），发出信号
+    if (!curveId.isEmpty()) {
+        qDebug() << "ProjectTreeManager: 曲线项被双击 -" << curveId;
+        emit curveItemDoubleClicked(curveId);
+    }
+}
+
 void ProjectTreeManager::onItemChanged(QStandardItem* item)
 {
     // 只处理曲线节点的勾选状态变化

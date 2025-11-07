@@ -43,6 +43,10 @@ CurveViewController::CurveViewController(
 
     // 连接 ProjectTreeManager 的信号
     connect(m_treeManager, &ProjectTreeManager::curveCheckStateChanged, this, &CurveViewController::onCurveCheckStateChanged);
+    connect(m_treeManager, &ProjectTreeManager::curveItemDoubleClicked, this, &CurveViewController::onCurveItemDoubleClicked);
+
+    // 连接 ProjectExplorerView 的双击信号到 ProjectTreeManager
+    connect(m_projectExplorer, &ProjectExplorerView::curveItemDoubleClicked, m_treeManager, &ProjectTreeManager::onCurveItemDoubleClicked);
 }
 
 // ========== 视图管理接口 ==========
@@ -180,5 +184,15 @@ void CurveViewController::onCurveCheckStateChanged(const QString& curveId, bool 
             qDebug() << "  联动强绑定子曲线:" << childCurve.name() << "(id:" << childCurve.id() << ") -> visible:" << checked;
             setCurveVisible(childCurve.id(), checked);
         }
+    }
+}
+
+void CurveViewController::onCurveItemDoubleClicked(const QString& curveId)
+{
+    qDebug() << "CurveViewController::onCurveItemDoubleClicked - 曲线:" << curveId;
+
+    // 设置为活动曲线
+    if (!curveId.isEmpty()) {
+        m_curveManager->setActiveCurve(curveId);
     }
 }
