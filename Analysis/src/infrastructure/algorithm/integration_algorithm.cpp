@@ -4,6 +4,7 @@
 #include "domain/model/thermal_data_point.h"
 #include <QDebug>
 #include <QVariant>
+#include <QUuid>
 #include <QtGlobal>
 
 IntegrationAlgorithm::IntegrationAlgorithm()

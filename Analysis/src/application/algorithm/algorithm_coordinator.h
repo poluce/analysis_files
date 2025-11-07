@@ -13,6 +13,7 @@ class AlgorithmContext;
 class AlgorithmManager;
 class CurveManager;
 class ThermalCurve;
+class AlgorithmResult;
 
 /**
  * @brief AlgorithmCoordinator
@@ -41,8 +42,7 @@ signals:
     void algorithmSucceeded(const QString& algorithmName);
 
 private slots:
-    void onAlgorithmResultReady(
-        const QString& algorithmName, IThermalAlgorithm::OutputType outputType, const QVariant& result);
+    void onAlgorithmResultReady(const QString& algorithmName, const AlgorithmResult& result);
 
 private:
     enum class PendingPhase {

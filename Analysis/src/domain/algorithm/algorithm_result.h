@@ -8,6 +8,7 @@
 #include <QVariantMap>
 #include <QVariant>
 #include <QDateTime>
+#include <QUuid>
 #include "domain/model/thermal_curve.h"
 
 /**
@@ -126,9 +127,10 @@ public:
 
     /**
      * @brief 获取第一条曲线（用于单曲线输出）
+     * @return 如果有曲线返回第一条，否则返回空指针
      */
-    ThermalCurve primaryCurve() const {
-        return m_curves.isEmpty() ? ThermalCurve() : m_curves.first();
+    const ThermalCurve* primaryCurve() const {
+        return m_curves.isEmpty() ? nullptr : &m_curves.first();
     }
 
     bool hasCurves() const { return !m_curves.isEmpty(); }
@@ -267,5 +269,8 @@ private:
         }
     }
 };
+
+Q_DECLARE_METATYPE(AlgorithmResult)
+Q_DECLARE_METATYPE(ResultType)
 
 #endif // ALGORITHMRESULT_H
