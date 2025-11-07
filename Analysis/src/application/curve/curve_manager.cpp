@@ -139,3 +139,30 @@ QVector<ThermalCurve*> CurveManager::getBaselines(const QString& curveId)
 
     return baselines;
 }
+
+bool CurveManager::hasChildren(const QString& curveId) const
+{
+    // 遍历所有曲线，查找是否有任何曲线的 parentId 等于 curveId
+    for (auto it = m_curves.constBegin(); it != m_curves.constEnd(); ++it) {
+        const ThermalCurve& curve = it.value();
+        if (curve.parentId() == curveId) {
+            return true; // 找到至少一个子曲线
+        }
+    }
+    return false; // 没有找到子曲线
+}
+
+QVector<ThermalCurve*> CurveManager::getChildren(const QString& curveId)
+{
+    QVector<ThermalCurve*> children;
+
+    // 查找所有 parentId 等于 curveId 的曲线
+    for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
+        ThermalCurve& curve = it.value();
+        if (curve.parentId() == curveId) {
+            children.append(&curve);
+        }
+    }
+
+    return children;
+}
