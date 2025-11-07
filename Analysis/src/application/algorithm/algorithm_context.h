@@ -37,9 +37,6 @@ namespace ContextKeys {
     /** 输出曲线 (ThermalCurve*) - 算法生成的新曲线 */
     inline constexpr const char* OutputCurve = "outputCurve";
 
-    /** 主曲线 (ThermalCurve*) - 向后兼容的曲线引用（优先使用 ActiveCurve） */
-    inline constexpr const char* MainCurve = "mainCurve";
-
     /** 活动曲线的基线曲线列表 (QVector<ThermalCurve*>) - 由 AlgorithmCoordinator 自动注入
      *
      * 说明：可能包含多条基线（线性、多项式、样条等），由算法决定如何使用：

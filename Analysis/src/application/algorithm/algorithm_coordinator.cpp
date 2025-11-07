@@ -299,7 +299,6 @@ void AlgorithmCoordinator::executeAlgorithm(
     // 清空上下文中的算法相关数据，准备新的执行
     m_context->remove(ContextKeys::ActiveCurve);
     m_context->remove(ContextKeys::BaselineCurves);
-    m_context->remove(ContextKeys::MainCurve);
     m_context->remove(ContextKeys::SelectedPoints);
     QStringList paramKeys = m_context->keys("param.");
     for (const QString& key : paramKeys) {
