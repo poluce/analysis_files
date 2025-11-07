@@ -31,7 +31,7 @@ ApplicationContext::ApplicationContext(QObject* parent)
         = new AlgorithmCoordinator(AlgorithmManager::instance(), m_curveManager, m_algorithmContext, this);
 
     // 设置 AlgorithmManager 的历史管理器（用于撤销/重做）
-    AlgorithmManager::instance()->setHistoryManager(HistoryManager::instance());
+    AlgorithmManager::instance()->setHistoryManager(&HistoryManager::instance());
 
     // 2. View
     m_chartView = new ChartView();
