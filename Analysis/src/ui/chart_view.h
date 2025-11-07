@@ -30,6 +30,18 @@ enum class InteractionMode {
 };
 
 /**
+ * @brief 定义横轴显示模式
+ *
+ * 控制图表横轴使用的自变量：
+ * - Temperature: 以温度为横轴（默认）
+ * - Time: 以时间为横轴
+ */
+enum class XAxisMode {
+    Temperature, // 温度为横轴（默认）
+    Time         // 时间为横轴
+};
+
+/**
  * @brief 图表交互状态
  *
  * 描述当前图表的交互状态和进度
@@ -82,6 +94,16 @@ public:
     void setHitTestIncludePenWidth(bool enabled);
     bool hitTestIncludePenWidth() const;
     void setInteractionMode(InteractionMode type);
+
+    /**
+     * @brief 获取当前横轴模式
+     */
+    XAxisMode xAxisMode() const { return m_xAxisMode; }
+
+    /**
+     * @brief 切换横轴模式（温度 ↔ 时间）
+     */
+    void toggleXAxisMode();
 
     // ==================== 交互状态管理 ====================
     /**
@@ -142,6 +164,7 @@ public:
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+    void contextMenuEvent(QContextMenuEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 signals:
@@ -235,6 +258,7 @@ private:
         QPen pen;
     };
     InteractionMode m_mode = InteractionMode::View; // 切换视图和拾取点的模式
+    XAxisMode m_xAxisMode = XAxisMode::Temperature;  // 横轴模式（默认温度）
 
     // ==================== 交互状态管理 ====================
     InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态
