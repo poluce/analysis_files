@@ -266,7 +266,7 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
         // 构建子曲线列表消息
         QString childrenList;
         for (int i = 0; i < children.size() && i < 5; ++i) {  // 最多显示5个
-            childrenList += QString("  - %1\n").arg(children[i]->getName());
+            childrenList += QString("  - %1\n").arg(children[i]->name());
         }
         if (children.size() > 5) {
             childrenList += QString("  - ... (还有 %1 个)\n").arg(children.size() - 5);
@@ -278,7 +278,7 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
             tr("无法删除曲线"),
             tr("曲线 \"%1\" 不能被删除，因为它有 %2 个子曲线依赖于它：\n\n%3\n"
                "请先删除这些子曲线，然后再删除父曲线。")
-                .arg(curve->getName())
+                .arg(curve->name())
                 .arg(children.size())
                 .arg(childrenList)
         );
