@@ -37,6 +37,8 @@ bool ThermalCurve::isAuxiliaryCurve() const { return m_isAuxiliaryCurve; }
 
 bool ThermalCurve::isStronglyBound() const { return m_isStronglyBound; }
 
+bool ThermalCurve::isMainCurve() const { return m_isMainCurve; }
+
 void ThermalCurve::setName(const QString& name) { m_name = name; }
 
 void ThermalCurve::setProjectName(const QString& projectName) { m_projectName = projectName; }
@@ -62,6 +64,8 @@ void ThermalCurve::setPlotStyle(PlotStyle style) { m_plotStyle = style; }
 void ThermalCurve::setIsAuxiliaryCurve(bool isAuxiliary) { m_isAuxiliaryCurve = isAuxiliary; }
 
 void ThermalCurve::setIsStronglyBound(bool isStronglyBound) { m_isStronglyBound = isStronglyBound; }
+
+void ThermalCurve::setIsMainCurve(bool isMainCurve) { m_isMainCurve = isMainCurve; }
 
 void ThermalCurve::resetToRaw() { m_processedData = m_rawData; }
 

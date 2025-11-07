@@ -259,8 +259,7 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
     }
 
     // 2. 禁止删除主曲线（数据源）
-    // 主曲线特征：parentId 为空 且 signalType 为 Raw（从文件导入的原始数据）
-    if (curve->parentId().isEmpty() && curve->signalType() == SignalType::Raw) {
+    if (curve->isMainCurve()) {
         QMessageBox::warning(
             m_mainWindow,
             tr("无法删除主曲线"),
