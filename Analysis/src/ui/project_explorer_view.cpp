@@ -27,7 +27,7 @@ ProjectExplorerView::ProjectExplorerView(QWidget* parent)
     m_treeView->addAction(deleteAction);
 
     connect(deleteAction, &QAction::triggered, this, &ProjectExplorerView::deleteActionClicked);
-//    connect(m_treeView, &QTreeView::doubleClicked, this, &ProjectExplorerView::fileDoubleClicked);
+    connect(m_treeView, &QTreeView::clicked, this, &ProjectExplorerView::curveItemClicked);
 }
 
 void ProjectExplorerView::setModel(QAbstractItemModel* model) { m_treeView->setModel(model); }

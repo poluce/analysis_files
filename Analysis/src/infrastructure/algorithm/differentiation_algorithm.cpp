@@ -4,6 +4,7 @@
 #include "domain/model/thermal_data_point.h"
 #include <QDebug>
 #include <QVariant>
+#include <QUuid>
 #include <cmath>
 
 DifferentiationAlgorithm::DifferentiationAlgorithm()
@@ -57,6 +58,22 @@ AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
     return desc;
 }
 
+// ==================== 曲线属性声明接口实现 ====================
+
+bool DifferentiationAlgorithm::isAuxiliaryCurve() const
+{
+    // 微分曲线是独立曲线，不是辅助曲线
+    // 原因：微分改变了数据类型（Raw → Derivative），应该创建新的Y轴
+    return false;
+}
+
+bool DifferentiationAlgorithm::isStronglyBound() const
+{
+    // 微分曲线是非强绑定曲线
+    // 原因：微分曲线是重要的分析结果，应该在树中独立显示，可独立操作
+    return false;
+}
+
 // ==================== 上下文驱动执行接口实现（两阶段） ====================
 
 bool DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
@@ -88,19 +105,21 @@ bool DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
     return true;  // 数据完整，可以执行
 }
 
-QVariant DifferentiationAlgorithm::executeWithContext(AlgorithmContext* context)
+AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* context)
 {
     if (!context) {
         qWarning() << "DifferentiationAlgorithm::executeWithContext - 上下文为空！";
-        return QVariant();
+        return AlgorithmResult::failure("differentiation", "上下文为空");
     }
 
     // 从上下文拉取活动曲线
     auto curve = context->get<ThermalCurve*>("activeCurve");
     if (!curve.has_value() || !curve.value()) {
         qWarning() << "DifferentiationAlgorithm::executeWithContext - 无法获取活动曲线！";
-        return QVariant();
+        return AlgorithmResult::failure("differentiation", "无法获取活动曲线");
     }
+
+    ThermalCurve* inputCurve = curve.value();
 
     // 从上下文拉取参数（使用默认值作为fallback）
     int halfWin = context->get<int>("param.halfWin").value_or(m_halfWin);
@@ -108,15 +127,17 @@ QVariant DifferentiationAlgorithm::executeWithContext(AlgorithmContext* context)
     bool enableDebug = context->get<bool>("param.enableDebug").value_or(m_enableDebug);
 
     // 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = curve.value()->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
 
     // 执行微分算法（核心逻辑）
     QVector<ThermalDataPoint> outputData;
 
     const int minPoints = 2 * halfWin + 1;
     if (inputData.size() < minPoints) {
-        qWarning() << "微分算法: 数据点不足! 需要至少" << minPoints << "个点，实际只有" << inputData.size() << "个点";
-        return QVariant::fromValue(outputData);
+        QString error = QString("数据点不足! 需要至少 %1 个点，实际只有 %2 个点")
+                            .arg(minPoints).arg(inputData.size());
+        qWarning() << "微分算法:" << error;
+        return AlgorithmResult::failure("differentiation", error);
     }
 
     if (enableDebug) {
@@ -170,5 +191,32 @@ QVariant DifferentiationAlgorithm::executeWithContext(AlgorithmContext* context)
         qDebug() << "========== 微分算法结束 ==========\n";
     }
 
-    return QVariant::fromValue(outputData);
+    // 创建结果对象
+    AlgorithmResult result = AlgorithmResult::success(
+        "differentiation",
+        inputCurve->id(),
+        ResultType::Curve
+    );
+
+    // 创建输出曲线
+    ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
+    outputCurve.setProcessedData(outputData);
+    outputCurve.setInstrumentType(inputCurve->instrumentType());
+    outputCurve.setSignalType(getOutputSignalType(inputCurve->signalType()));
+    outputCurve.setParentId(inputCurve->id());
+    outputCurve.setProjectName(inputCurve->projectName());
+    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
+    outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
+
+    // 填充结果
+    result.setCurve(outputCurve);
+    result.setSignalType(SignalType::Derivative);
+    result.setMeta("unit", "mg/min");
+    result.setMeta("label", "DTG");
+    result.setMeta("windowSize", halfWin * 2 + 1);
+    result.setMeta("halfWin", halfWin);
+    result.setMeta("dt", dt);
+
+    return result;
 }

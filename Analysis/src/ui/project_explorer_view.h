@@ -16,6 +16,7 @@ public:
 
 signals:
     void fileDoubleClicked(const QModelIndex& index);
+    void curveItemClicked(const QModelIndex& index);
     void deleteActionClicked();
 
 private:

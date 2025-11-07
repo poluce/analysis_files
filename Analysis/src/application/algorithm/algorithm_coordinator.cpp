@@ -3,6 +3,7 @@
 #include "application/algorithm/algorithm_context.h"
 #include "application/algorithm/algorithm_manager.h"
 #include "application/curve/curve_manager.h"
+#include "domain/algorithm/algorithm_result.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "domain/model/thermal_curve.h"
 #include <QDebug>
@@ -23,6 +24,8 @@ AlgorithmCoordinator::AlgorithmCoordinator(
     qRegisterMetaType<AlgorithmDescriptor>("AlgorithmDescriptor");
     qRegisterMetaType<AlgorithmParameterDefinition>("AlgorithmParameterDefinition");
     qRegisterMetaType<QVector<QPointF>>("QVector<QPointF>");
+    qRegisterMetaType<AlgorithmResult>("AlgorithmResult");
+    qRegisterMetaType<ResultType>("ResultType");
 
     connect(
         m_algorithmManager, &AlgorithmManager::algorithmResultReady, this,
@@ -234,12 +237,19 @@ void AlgorithmCoordinator::cancelPendingRequest()
 }
 
 void AlgorithmCoordinator::onAlgorithmResultReady(
-    const QString& algorithmName, IThermalAlgorithm::OutputType outputType, const QVariant& result)
+    const QString& algorithmName, const AlgorithmResult& result)
 {
-    m_context->setValue(QStringLiteral("result/%1/latest").arg(algorithmName), result, QStringLiteral("AlgorithmCoordinator"));
+    // Store the entire result object in context
+    m_context->setValue(QStringLiteral("result/%1/latest").arg(algorithmName),
+                       QVariant::fromValue(result),
+                       QStringLiteral("AlgorithmCoordinator"));
+
+    // Store the result type for quick access
     m_context->setValue(
-        QStringLiteral("result/%1/outputType").arg(algorithmName), QVariant::fromValue(static_cast<int>(outputType)),
+        QStringLiteral("result/%1/resultType").arg(algorithmName),
+        QVariant::fromValue(static_cast<int>(result.type())),
         QStringLiteral("AlgorithmCoordinator"));
+
     emit algorithmSucceeded(algorithmName);
 }
 

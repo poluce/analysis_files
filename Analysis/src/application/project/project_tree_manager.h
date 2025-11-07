@@ -47,6 +47,12 @@ public:
     void setCurveChecked(const QString& curveId, bool checked);
 
     /**
+     * @brief 设置活动曲线（高亮显示）
+     * @param curveId 曲线ID
+     */
+    void setActiveCurve(const QString& curveId);
+
+    /**
      * @brief 获取指定索引对应的曲线ID
      * @param index 模型索引
      * @return 曲线ID,如果是项目节点则返回空字符串
@@ -82,6 +88,25 @@ signals:
      */
     void curveCheckStateChanged(const QString& curveId, bool checked);
 
+    /**
+     * @brief 曲线项被单击时发射（用于选中曲线）
+     * @param curveId 曲线ID
+     */
+    void curveItemClicked(const QString& curveId);
+
+    /**
+     * @brief 活动曲线索引改变时发射（用于在树视图中高亮显示）
+     * @param index 活动曲线的模型索引
+     */
+    void activeCurveIndexChanged(const QModelIndex& index);
+
+public slots:
+    /**
+     * @brief 处理曲线项单击事件
+     * @param index 被单击的项的索引
+     */
+    void onCurveItemClicked(const QModelIndex& index);
+
 private slots:
     /**
      * @brief 监听 QStandardItem 变化(主要是 checkbox 状态)
@@ -100,6 +125,20 @@ private:
      * @return 项目节点
      */
     QStandardItem* findOrCreateProjectItem(const QString& projectName);
+
+    // --- buildTree 辅助函数：拆分构建阶段 ---
+    void collectProjectNames(const QMap<QString, ThermalCurve>& curves, QSet<QString>& projectNames);
+    void createProjectNodes(const QSet<QString>& projectNames, QMap<QString, QStandardItem*>& projectNodes);
+    void addTopLevelCurves(const QMap<QString, ThermalCurve>& curves,
+                           const QMap<QString, QStandardItem*>& projectNodes,
+                           QMap<QString, QStandardItem*>& curveItems);
+    void addChildCurves(const QMap<QString, ThermalCurve>& curves,
+                        QMap<QString, QStandardItem*>& curveItems,
+                        QSet<QString>& processedCurves);
+    void handleOrphanCurves(const QMap<QString, ThermalCurve>& curves,
+                            const QMap<QString, QStandardItem*>& projectNodes,
+                            const QSet<QString>& processedCurves,
+                            QMap<QString, QStandardItem*>& curveItems);
 
     /**
      * @brief 递归查找指定曲线ID的 QStandardItem

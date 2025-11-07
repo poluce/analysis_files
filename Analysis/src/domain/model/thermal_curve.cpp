@@ -6,7 +6,9 @@ ThermalCurve::ThermalCurve(QString id, QString name)
     , m_name(std::move(name))
     , m_instrumentType(InstrumentType::TGA)
     ,                             // 默认仪器类型
-    m_signalType(SignalType::Raw) // 默认为原始信号
+    m_signalType(SignalType::Raw), // 默认为原始信号
+    m_isAuxiliaryCurve(false),    // 默认为非辅助曲线
+    m_isStronglyBound(false)      // 默认为非强绑定曲线
 {
     qDebug() << "构造:  ThermalCurve";
 }
@@ -31,6 +33,10 @@ QString ThermalCurve::parentId() const { return m_parentId; }
 
 PlotStyle ThermalCurve::plotStyle() const { return m_plotStyle; }
 
+bool ThermalCurve::isAuxiliaryCurve() const { return m_isAuxiliaryCurve; }
+
+bool ThermalCurve::isStronglyBound() const { return m_isStronglyBound; }
+
 void ThermalCurve::setName(const QString& name) { m_name = name; }
 
 void ThermalCurve::setProjectName(const QString& projectName) { m_projectName = projectName; }
@@ -52,6 +58,10 @@ void ThermalCurve::setMetadata(const CurveMetadata& metadata) { m_metadata = met
 void ThermalCurve::setParentId(const QString& parentId) { m_parentId = parentId; }
 
 void ThermalCurve::setPlotStyle(PlotStyle style) { m_plotStyle = style; }
+
+void ThermalCurve::setIsAuxiliaryCurve(bool isAuxiliary) { m_isAuxiliaryCurve = isAuxiliary; }
+
+void ThermalCurve::setIsStronglyBound(bool isStronglyBound) { m_isStronglyBound = isStronglyBound; }
 
 void ThermalCurve::resetToRaw() { m_processedData = m_rawData; }
 

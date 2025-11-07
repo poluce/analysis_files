@@ -25,9 +25,13 @@ public:
     OutputType outputType() const override;
     AlgorithmDescriptor descriptor() const override;
 
+    // 曲线属性声明接口
+    bool isAuxiliaryCurve() const override;
+    bool isStronglyBound() const override;
+
     // 上下文驱动执行接口
     bool prepareContext(AlgorithmContext* context) override;
-    QVariant executeWithContext(AlgorithmContext* context) override;
+    AlgorithmResult executeWithContext(AlgorithmContext* context) override;
 
 private:
     int m_window = 5; // 滤波窗口大小（点数）

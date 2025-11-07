@@ -176,9 +176,22 @@ QToolBar* MainWindow::createFileToolBar()
 QToolBar* MainWindow::createViewToolBar()
 {
     QToolBar* toolbar = new QToolBar(tr("视图"));
-    toolbar->addAction(style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton), tr("放大"));
-    toolbar->addAction(style()->standardIcon(QStyle::SP_ToolBarVerticalExtensionButton), tr("缩小"));
-    toolbar->addAction(style()->standardIcon(QStyle::SP_BrowserReload), tr("适应视图"));
+
+    // 放大按钮
+    QAction* zoomInAction = toolbar->addAction(
+        style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton), tr("放大"));
+    connect(zoomInAction, &QAction::triggered, this, &MainWindow::zoomInRequested);
+
+    // 缩小按钮
+    QAction* zoomOutAction = toolbar->addAction(
+        style()->standardIcon(QStyle::SP_ToolBarVerticalExtensionButton), tr("缩小"));
+    connect(zoomOutAction, &QAction::triggered, this, &MainWindow::zoomOutRequested);
+
+    // 适应视图按钮
+    QAction* fitViewAction = toolbar->addAction(
+        style()->standardIcon(QStyle::SP_BrowserReload), tr("适应视图"));
+    connect(fitViewAction, &QAction::triggered, this, &MainWindow::fitViewRequested);
+
     toolbar->addSeparator();
     toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     return toolbar;

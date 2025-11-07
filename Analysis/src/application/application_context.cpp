@@ -30,11 +30,14 @@ ApplicationContext::ApplicationContext(QObject* parent)
     m_algorithmCoordinator
         = new AlgorithmCoordinator(AlgorithmManager::instance(), m_curveManager, m_algorithmContext, this);
 
+    // 设置 AlgorithmManager 的历史管理器（用于撤销/重做）
+    AlgorithmManager::instance()->setHistoryManager(HistoryManager::instance());
+
     // 2. View
     m_chartView = new ChartView();
     m_projectExplorerView = new ProjectExplorerView();
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
-    m_mainWindow->bindHistoryManager(HistoryManager::instance());
+    m_mainWindow->bindHistoryManager(*HistoryManager::instance());
 
     // 3. Controller
     m_mainController = new MainController(m_curveManager, this);

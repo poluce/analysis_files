@@ -124,6 +124,7 @@ public slots:
     void setHorizontalCrosshairEnabled(bool enabled);
     void rescaleAxes();
     void setCurveVisible(const QString& curveId, bool visible);
+    void highlightCurve(const QString& curveId);
 
 public:
     bool verticalCrosshairEnabled() const { return m_verticalCrosshairEnabled; }
@@ -163,6 +164,15 @@ private:
     void handlePointSelectionClick(const QPointF& chartViewPos);
     QPointF mapToChartCoordinates(const QPoint& widgetPos) const;
     QLineSeries* findSeriesNearPoint(const QPointF& chartPos, qreal& outDistance) const;
+
+    // --- 算法交互辅助函数 ---
+    void clearInteractionState();
+    QValueAxis* findYAxisForCurve(const QString& curveId);
+    void setupSelectedPointsSeries(QValueAxis* targetYAxis);
+    void transitionToState(InteractionState newState);
+    QPointF convertToValueCoordinates(const QPointF& chartViewPos);
+    void completePointSelection();
+
     // --- 曲线系列管理：封装 QLineSeries 的创建、数据填充与映射维护 ---
     QLineSeries* seriesForCurve(const QString& curveId) const;
     // 根据 ThermalCurve 构建新的系列实例并写入基础属性
