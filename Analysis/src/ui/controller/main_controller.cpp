@@ -24,7 +24,7 @@ MainController::MainController(CurveManager* curveManager, QObject* parent)
     , m_dataImportWidget(new DataImportWidget())
     , m_textFileReader(new TextFileReader())
     , m_algorithmManager(AlgorithmManager::instance())
-    , m_historyManager(&HistoryManager::instance())
+    , m_historyManager(HistoryManager::instance())
 {
     Q_ASSERT(m_curveManager);
     Q_ASSERT(m_algorithmManager);

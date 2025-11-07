@@ -19,9 +19,9 @@ public:
     /**
      * @brief 获取 HistoryManager 的单例实例。
      * @param parent 父对象（仅在首次调用时有效）。
-     * @return HistoryManager 单例实例的引用。
+     * @return HistoryManager 单例实例的指针。
      */
-    static HistoryManager& instance(QObject* parent = nullptr);
+    static HistoryManager* instance(QObject* parent = nullptr);
 
     /**
      * @brief 执行命令并将其添加到历史记录。

@@ -242,7 +242,7 @@ void AlgorithmManager::createAndAddOutputCurve(
     if (useHistoryManager) {
         const QString description = QStringLiteral("执行 %1 算法").arg(algorithm->displayName());
         auto command = std::make_unique<AddCurveCommand>(m_curveManager, newCurve, description);
-        if (!HistoryManager::instance().executeCommand(std::move(command))) {
+        if (!HistoryManager::instance()->executeCommand(std::move(command))) {
             qWarning() << "算法结果入栈失败，放弃添加新曲线";
         }
     } else {
