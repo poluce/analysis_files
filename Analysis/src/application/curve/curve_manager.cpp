@@ -128,6 +128,7 @@ ThermalCurve* CurveManager::getActiveCurve()
 ThermalCurve* CurveManager::getBaseline(const QString& curveId)
 {
     // 查找条件：parentId == curveId && signalType == Baseline
+    // 注意：如果有多条基线，只返回第一条
     for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
         ThermalCurve& curve = it.value();
         if (curve.parentId() == curveId && curve.signalType() == SignalType::Baseline) {
@@ -135,4 +136,19 @@ ThermalCurve* CurveManager::getBaseline(const QString& curveId)
         }
     }
     return nullptr;  // 未找到基线
+}
+
+QVector<ThermalCurve*> CurveManager::getBaselines(const QString& curveId)
+{
+    QVector<ThermalCurve*> baselines;
+
+    // 查找所有符合条件的基线
+    for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
+        ThermalCurve& curve = it.value();
+        if (curve.parentId() == curveId && curve.signalType() == SignalType::Baseline) {
+            baselines.append(&curve);
+        }
+    }
+
+    return baselines;
 }
