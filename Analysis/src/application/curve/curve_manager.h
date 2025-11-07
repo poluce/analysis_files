@@ -9,6 +9,15 @@
 #include <memory>
 #include <vector>
 
+/**
+ * @brief CurveManager 管理应用中的所有热分析曲线
+ *
+ * 职责：
+ * - 曲线的增删改查
+ * - 活动曲线管理
+ * - 从文件加载曲线
+ * - 发射曲线状态变化信号
+ */
 class CurveManager : public QObject {
     Q_OBJECT
 
@@ -17,25 +26,106 @@ public:
     ~CurveManager();
 
     // 管理曲线
+
+    /**
+     * @brief 添加新曲线
+     * @param curve 要添加的曲线对象
+     *
+     * 添加后会发射 curveAdded 信号
+     */
     void addCurve(const ThermalCurve& curve);
+
+    /**
+     * @brief 从文件加载曲线
+     * @param filePath 文件路径
+     * @return 加载成功返回 true，失败返回 false
+     *
+     * 自动选择合适的文件读取器进行读取
+     */
     bool loadCurveFromFile(const QString& filePath);
+
+    /**
+     * @brief 根据ID获取曲线
+     * @param curveId 曲线ID
+     * @return 曲线指针，如果不存在返回 nullptr
+     */
     ThermalCurve* getCurve(const QString& curveId);
+
+    /**
+     * @brief 获取所有曲线的映射表
+     * @return 曲线ID到曲线对象的映射表
+     */
     const QMap<QString, ThermalCurve>& getAllCurves() const;
+
+    /**
+     * @brief 清空所有曲线
+     *
+     * 清空后会发射 curvesCleared 信号
+     */
     void clearCurves();
+
+    /**
+     * @brief 移除指定曲线
+     * @param curveId 曲线ID
+     * @return 移除成功返回 true，曲线不存在返回 false
+     *
+     * 移除后会发射 curveRemoved 信号
+     */
     bool removeCurve(const QString& curveId);
 
     // 活动曲线管理
+
+    /**
+     * @brief 设置活动曲线
+     * @param curveId 曲线ID
+     *
+     * 活动曲线通常是用户当前选中或操作的曲线。
+     * 设置后会发射 activeCurveChanged 信号
+     */
     void setActiveCurve(const QString& curveId);
+
+    /**
+     * @brief 获取活动曲线
+     * @return 活动曲线指针，如果没有活动曲线返回 nullptr
+     */
     ThermalCurve* getActiveCurve();
 
 signals:
+    /**
+     * @brief 当新曲线被添加时发射
+     * @param curveId 新添加的曲线ID
+     */
     void curveAdded(const QString& curveId);
+
+    /**
+     * @brief 当活动曲线改变时发射
+     * @param curveId 新的活动曲线ID
+     */
     void activeCurveChanged(const QString& curveId);
-    void curveDataChanged(const QString& curveId); // 曲线数据被修改时发射
+
+    /**
+     * @brief 当曲线数据被修改时发射
+     * @param curveId 被修改的曲线ID
+     */
+    void curveDataChanged(const QString& curveId);
+
+    /**
+     * @brief 当所有曲线被清空时发射
+     */
     void curvesCleared();
+
+    /**
+     * @brief 当曲线被移除时发射
+     * @param curveId 被移除的曲线ID
+     */
     void curveRemoved(const QString& curveId);
 
 private:
+    /**
+     * @brief 注册默认的文件读取器
+     *
+     * 当前注册 TextFileReader 用于读取 .txt 和 .csv 文件
+     */
     void registerDefaultReaders();
 
     QMap<QString, ThermalCurve> m_curves;
