@@ -197,10 +197,24 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
                  << "交互完成，发送信号触发执行";
 
         // 发出算法交互完成信号，触发算法执行
-        emit algorithmInteractionCompleted(m_activeAlgorithm.name, m_selectedPoints);
+        QString completedAlgorithmName = m_activeAlgorithm.name;
+        QVector<QPointF> completedPoints = m_selectedPoints;
+        emit algorithmInteractionCompleted(completedAlgorithmName, completedPoints);
+
+        // ==================== 清理状态 ====================
+        // 清空活动算法信息（算法执行完成后不需要保留交互状态）
+        m_activeAlgorithm.clear();
+        // 注意：不清除 m_selectedPoints，因为红色高亮点可能还需要显示
+        // 但清除 m_selectedPointsSeries 会在下次算法交互开始时自动清理
+
+        // 状态转换: PointsCompleted → Idle
+        m_interactionState = InteractionState::Idle;
+        emit interactionStateChanged(static_cast<int>(m_interactionState));
 
         // 切换回视图模式
         setInteractionMode(InteractionMode::View);
+
+        qDebug() << "ChartView: 算法交互状态已清理，回到空闲状态";
     }
 }
 
@@ -297,14 +311,17 @@ void ChartView::setInteractionMode(InteractionMode type)
     m_mode = type;
 
     if (m_mode == InteractionMode::Pick) {
-        qDebug() << "视图进入选点模式";
+        qDebug() << "ChartView: 进入选点模式（Pick）";
         if (m_chartView) {
             m_chartView->setRubberBand(QChartView::NoRubberBand);
         }
         setCursor(Qt::CrossCursor);
     } else {
+        qDebug() << "ChartView: 进入视图模式（View）";
         if (m_chartView) {
-            m_chartView->setRubberBand(QChartView::RectangleRubberBand);
+            // 禁用 RubberBand，避免单击时触发框选缩放
+            // 用户可以通过菜单或快捷键手动触发缩放功能
+            m_chartView->setRubberBand(QChartView::NoRubberBand);
         }
         unsetCursor();
     }
