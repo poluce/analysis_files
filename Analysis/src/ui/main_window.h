@@ -33,6 +33,11 @@ signals:
     void algorithmRequested(const QString& algorithmName);
     void algorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params);
 
+    // 视图操作信号
+    void zoomInRequested();
+    void zoomOutRequested();
+    void fitViewRequested();
+
 private slots:
     void on_toolButtonOpen_clicked();
     void onProjectTreeContextMenuRequested(const QPoint& pos);

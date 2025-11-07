@@ -105,6 +105,14 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     connect(mainWindow, &MainWindow::undoRequested, this, &MainController::onUndo, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::redoRequested, this, &MainController::onRedo, Qt::UniqueConnection);
 
+    // 视图操作连接
+    if (m_plotWidget) {
+        connect(mainWindow, &MainWindow::fitViewRequested, m_plotWidget, &ChartView::rescaleAxes, Qt::UniqueConnection);
+        // TODO: 放大和缩小功能需要在 ChartView 中实现
+        // connect(mainWindow, &MainWindow::zoomInRequested, m_plotWidget, &ChartView::zoomIn, Qt::UniqueConnection);
+        // connect(mainWindow, &MainWindow::zoomOutRequested, m_plotWidget, &ChartView::zoomOut, Qt::UniqueConnection);
+    }
+
     // 算法接入（使用 lambda 适配不同参数的信号）
     connect(mainWindow, &MainWindow::algorithmRequested, this, [this](const QString& name) {
         onAlgorithmRequested(name, QVariantMap());
