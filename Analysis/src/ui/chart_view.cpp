@@ -153,12 +153,23 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
         return;
     }
 
-    const QPointF valuePoint = m_chartView->chart()->mapToValue(chartViewPos);
-
     // 检查是否有活动算法等待交互
     if (!m_activeAlgorithm.isValid() || m_interactionState != InteractionState::WaitingForPoints) {
         qWarning() << "ChartView::handlePointSelectionClick - 没有活动算法等待选点，忽略点击";
         return;
+    }
+
+    // ==================== 使用正确的Y轴进行坐标转换 ====================
+    // 使用 m_selectedPointsSeries 作为参考系列，确保使用与选点系列相同的Y轴
+    QPointF valuePoint;
+    if (m_selectedPointsSeries && !m_selectedPointsSeries->attachedAxes().isEmpty()) {
+        // 使用选点系列附着的轴进行转换
+        valuePoint = m_chartView->chart()->mapToValue(chartViewPos, m_selectedPointsSeries);
+        qDebug() << "ChartView: 使用选点系列的Y轴进行坐标转换，点:" << valuePoint;
+    } else {
+        // 回退到默认转换
+        valuePoint = m_chartView->chart()->mapToValue(chartViewPos);
+        qWarning() << "ChartView: 选点系列未正确附着到轴，使用默认转换";
     }
 
     // 添加选点到活动算法的选点列表
@@ -168,6 +179,8 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
     if (m_selectedPointsSeries) {
         m_selectedPointsSeries->append(valuePoint);
         qDebug() << "ChartView: 添加红色高亮点到图表:" << valuePoint;
+    } else {
+        qWarning() << "ChartView: 选点系列为空，无法显示高亮点";
     }
 
     qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
