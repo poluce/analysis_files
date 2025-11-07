@@ -38,9 +38,6 @@ MainController::MainController(CurveManager* curveManager, QObject* parent)
     // 命令路径：DataImportWidget → MainController
     connect(m_dataImportWidget, &DataImportWidget::previewRequested, this, &MainController::onPreviewRequested);
     connect(m_dataImportWidget, &DataImportWidget::importRequested, this, &MainController::onImportTriggered);
-
-    // 通知路径：AlgorithmManager → MainController（可选的转发）
-    connect(m_algorithmManager, &AlgorithmManager::algorithmFinished, this, &MainController::onAlgorithmFinished);
 }
 
 MainController::~MainController()
@@ -49,7 +46,51 @@ MainController::~MainController()
     delete m_textFileReader;
 }
 
-void MainController::setPlotWidget(ChartView* plotWidget) { m_plotWidget = plotWidget; }
+void MainController::setPlotWidget(ChartView* plotWidget)
+{
+    m_plotWidget = plotWidget;
+
+    if (!m_plotWidget) {
+        return;
+    }
+
+    // ==================== 连接活动算法状态机信号 ====================
+    // 当用户完成算法交互（选点完成）时，自动触发算法执行
+    connect(m_plotWidget, &ChartView::algorithmInteractionCompleted, this,
+            [this](const QString& algorithmName, const QVector<QPointF>& points) {
+                qDebug() << "MainController: 接收到算法交互完成信号 -" << algorithmName
+                         << ", 选点数量:" << points.size();
+
+                if (!m_algorithmCoordinator) {
+                    qWarning() << "MainController: AlgorithmCoordinator 未初始化，无法处理选点结果";
+                    return;
+                }
+
+                // 将选点结果传递给协调器，继续算法执行流程
+                m_algorithmCoordinator->handlePointSelectionResult(points);
+            }, Qt::UniqueConnection);
+
+    // 监听交互状态变化（用于调试和未来的状态栏更新）
+    connect(m_plotWidget, &ChartView::interactionStateChanged, this,
+            [](int newState) {
+                QString stateName;
+                switch (newState) {
+                case 0: // Idle
+                    stateName = "Idle";
+                    break;
+                case 1: // WaitingForPoints
+                    stateName = "WaitingForPoints";
+                    break;
+                case 2: // PointsCompleted
+                    stateName = "PointsCompleted";
+                    break;
+                case 3: // Executing
+                    stateName = "Executing";
+                    break;
+                }
+                qDebug() << "ChartView 交互状态变化:" << stateName;
+            }, Qt::UniqueConnection);
+}
 
 void MainController::attachMainWindow(MainWindow* mainWindow)
 {
@@ -63,23 +104,23 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     connect(mainWindow, &MainWindow::curveDeleteRequested, this, &MainController::onCurveDeleteRequested, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::undoRequested, this, &MainController::onUndo, Qt::UniqueConnection);
     connect(mainWindow, &MainWindow::redoRequested, this, &MainController::onRedo, Qt::UniqueConnection);
-    // 算法接入
-    connect(mainWindow, &MainWindow::algorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
-    connect(mainWindow, &MainWindow::newAlgorithmRequested, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
-    connect(
-        mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequestedWithParams,
-        Qt::UniqueConnection);
+
+    // 算法接入（使用 lambda 适配不同参数的信号）
+    connect(mainWindow, &MainWindow::algorithmRequested, this, [this](const QString& name) {
+        onAlgorithmRequested(name, QVariantMap());
+    }, Qt::UniqueConnection);
+
+    connect(mainWindow, &MainWindow::newAlgorithmRequested, this, [this](const QString& name) {
+        onAlgorithmRequested(name, QVariantMap());
+    }, Qt::UniqueConnection);
+
+    connect(mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
 }
 
 void MainController::setCurveViewController(CurveViewController* ViewController)
 {
     m_curveViewController = ViewController;
-
-    if (m_curveViewController) {
-        connect(
-            m_curveViewController, &CurveViewController::pointsPicked, this, &MainController::onPointsPickedFromView,
-            Qt::UniqueConnection);
-    }
+    // CurveViewController 不再负责选点功能，选点由 ChartView 状态机直接管理
 }
 
 void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, AlgorithmContext* context)
@@ -152,87 +193,20 @@ void MainController::onImportTriggered()
 }
 
 // ========== 处理命令的槽函数（命令路径：UI → Controller → Service） ==========
-// TODO:目前是通过mainwindow 中直接调用，后续也改为信号槽链接
-// 不带参数的算法调用
-void MainController::onAlgorithmRequested(const QString& algorithmName)
+void MainController::onAlgorithmRequested(const QString& algorithmName, const QVariantMap& params)
 {
-    qDebug() << "MainController: 接收到算法执行请求：" << algorithmName;
+    qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
+             << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    if (m_algorithmCoordinator) {
-        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName);
+    // 统一使用 AlgorithmCoordinator 架构
+    if (!m_algorithmCoordinator) {
+        qCritical() << "AlgorithmCoordinator 未初始化！无法执行算法：" << algorithmName;
         return;
     }
 
-    // 1. 业务规则检查
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        qWarning() << "没有可用的活动曲线来应用算法。";
-        return;
-    }
-
-    // 2. 获取算法
-    IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(algorithmName);
-    if (!algorithm) {
-        qWarning() << "找不到算法：" << algorithmName;
-        return;
-    }
-
-    // 3. 创建新建曲线的算法命令
-    auto command = std::make_unique<AlgorithmCommand>(algorithm, activeCurve, m_curveManager, algorithmName);
-
-    // 4. 通过历史管理器执行命令（支持撤销/重做）
-    if (!m_historyManager->executeCommand(std::move(command))) {
-        qWarning() << "算法执行失败：" << algorithmName;
-    }
-    // 注意：新曲线的添加和UI更新由 CurveManager::curveAdded 信号自动触发
+    m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
 }
 
-void MainController::onNewAlgorithmRequested(const QString& algorithmName)
-{
-    onAlgorithmRequested(algorithmName);
-}
-// TODO:目前是通过mainwindow 中直接调用，后续也改为信号槽链接
-// 带参数的算法调用
-void MainController::onAlgorithmRequestedWithParams(const QString& algorithmName, const QVariantMap& params)
-{
-    qDebug() << "带参数的算法调用";
-
-    if (m_algorithmCoordinator) {
-        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
-        return;
-    }
-
-    // 获取曲线
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        qWarning() << "没有可用的活动曲线来应用算法";
-        return;
-    }
-
-    // 获取使用的算法
-    IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(algorithmName);
-    if (!algorithm) {
-        qWarning() << "找不到算法" << algorithmName;
-        return;
-    }
-
-    // 设置算法参数
-    for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
-        algorithm->setParameter(it.key(), it.value());
-    }
-
-    // 创建算法命令
-    auto command = std::make_unique<AlgorithmCommand>(algorithm, activeCurve, m_curveManager, algorithmName);
-
-    // 通过历史管理器执行命令（支持撤销/重做）
-    if (!m_historyManager->executeCommand(std::move(command))) {
-        qWarning() << "算法执行失败：" << algorithmName;
-    }
-
-    // 注意：新曲线的添加和UI更新由 CurveManager::curveAdded 信号自动触发
-}
-
-void MainController::onAlgorithmFinished(const QString& curveId) { emit curveDataChanged(curveId); }
 
 void MainController::onUndo()
 {
@@ -271,28 +245,33 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
     m_curveManager->removeCurve(curveId);
 }
 
-void MainController::onPointsPickedFromView(const QVector<QPointF>& points)
-{
-    if (!m_algorithmCoordinator) {
-        qDebug() << "MainController::onPointsPickedFromView - 当前无算法协调器，忽略选点结果";
-        return;
-    }
-    m_algorithmCoordinator->handlePointSelectionResult(points);
-}
 
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
 {
-    Q_UNUSED(algorithmName);
-    Q_UNUSED(curveId);
+    qDebug() << "MainController::onCoordinatorRequestPointSelection - 算法:" << algorithmName
+             << ", 曲线ID:" << curveId
+             << ", 需要点数:" << requiredPoints;
 
-    if (!m_curveViewController) {
-        qWarning() << "MainController::onCoordinatorRequestPointSelection - 未绑定 CurveViewController";
+    if (!m_plotWidget) {
+        qWarning() << "MainController::onCoordinatorRequestPointSelection - 未绑定 ChartView";
         return;
     }
 
-    m_curveViewController->setPickPointMode(qMax(1, requiredPoints));
+    // ==================== 使用新的活动算法状态机 ====================
+    // 获取算法的显示名称
+    QString displayName = algorithmName;  // 默认使用算法名称
+    IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(algorithmName);
+    if (algorithm) {
+        displayName = algorithm->displayName();
+    } else {
+        qWarning() << "MainController: 无法找到算法" << algorithmName << "，使用名称作为显示名";
+    }
 
+    // 启动算法交互状态机，传递曲线ID以确定选点标记应附着到哪个Y轴
+    m_plotWidget->startAlgorithmInteraction(algorithmName, displayName, qMax(1, requiredPoints), hint, curveId);
+
+    // 显示提示信息（如果有）
     if (!hint.isEmpty()) {
         onCoordinatorShowMessage(hint);
     }

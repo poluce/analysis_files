@@ -39,7 +39,7 @@ CurveViewController::CurveViewController(
     m_plotWidget->setHorizontalCrosshairEnabled(true);
     m_plotWidget->setVerticalCrosshairEnabled(true);
 
-    connect(m_plotWidget, &ChartView::pickPoints, this, &CurveViewController::onPointSelected);
+    // 注意：点选交互由 ChartView 状态机管理，不再通过 CurveViewController 转发
 
     // 连接 ProjectTreeManager 的信号
     connect(m_treeManager, &ProjectTreeManager::curveCheckStateChanged, this, &CurveViewController::onCurveCheckStateChanged);
@@ -72,12 +72,6 @@ void CurveViewController::updateAllCurves()
 
     // 刷新图表（如果需要）
     // m_plotWidget->update();
-}
-// 设置选点模式
-void CurveViewController::setPickPointMode(int pickCount)
-{
-    m_plotWidget->setPickCount(pickCount);
-    m_plotWidget->setInteractionMode(InteractionMode::Pick);
 }
 
 // ========== 响应 CurveManager 信号 ==========
@@ -165,12 +159,6 @@ void CurveViewController::onCurveSelected(const QString& curveId)
         return;
     }
     m_curveManager->setActiveCurve(curveId);
-}
-
-void CurveViewController::onPointSelected(const QVector<QPointF>& points)
-{
-    qDebug() << "用户选取了" << points.size() << "个点";
-    emit pointsPicked(points);
 }
 
 // ========== 响应 ProjectTreeManager 信号 ==========

@@ -7,6 +7,7 @@
 #include "domain/model/thermal_curve.h"
 #include <QDebug>
 #include <QMetaType>
+#include <QSet>
 
 AlgorithmCoordinator::AlgorithmCoordinator(
     AlgorithmManager* manager, CurveManager* curveManager, AlgorithmContext* context, QObject* parent)
@@ -64,45 +65,9 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
     if (descriptor.interaction == AlgorithmInteraction::PointSelection && descriptor.requiredPointCount <= 0) {
         descriptor.requiredPointCount = 1;
     }
-    if (descriptor.pointSelectionHint.isEmpty()) {
-        descriptor.pointSelectionHint = algorithm->userPrompt();
-    }
 
-    // 合并算法参数图中的默认值
-    const QVariantMap currentParams = algorithm->parameters();
-    if (!currentParams.isEmpty()) {
-        for (int i = 0; i < descriptor.parameters.size(); ++i) {
-            auto& param = descriptor.parameters[i];
-            if (currentParams.contains(param.key)) {
-                const QVariant value = currentParams.value(param.key);
-                if (!param.defaultValue.isValid()) {
-                    param.defaultValue = value;
-                }
-                if (param.valueType == QVariant::Invalid) {
-                    param.valueType = static_cast<QVariant::Type>(value.type());
-                }
-            }
-        }
-
-        for (auto it = currentParams.constBegin(); it != currentParams.constEnd(); ++it) {
-            bool exists = false;
-            for (const auto& definedParam : descriptor.parameters) {
-                if (definedParam.key == it.key()) {
-                    exists = true;
-                    break;
-                }
-            }
-            if (!exists) {
-                AlgorithmParameterDefinition def;
-                def.key = it.key();
-                def.label = it.key();
-                def.valueType = static_cast<QVariant::Type>(it.value().type());
-                def.defaultValue = it.value();
-                def.required = false;
-                descriptor.parameters.append(def);
-            }
-        }
-    }
+    // 注意：纯上下文驱动模式下，算法通过 descriptor() 提供所有元数据
+    // descriptor.parameters 已经包含完整的参数定义和默认值
 
     return descriptor;
 }
@@ -145,11 +110,12 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
     case AlgorithmInteraction::ParameterDialog: {
         QVariantMap effectiveParams = parameters;
         const bool autoExecutable = populateDefaultParameters(descriptor, effectiveParams);
-        if (autoExecutable && !hasPresetParameters) {
-            executeAlgorithm(descriptor, activeCurve, effectiveParams, {});
-        } else if (hasPresetParameters) {
+
+        // 如果参数就绪（自动填充或预设），直接执行
+        if ((autoExecutable && !hasPresetParameters) || hasPresetParameters) {
             executeAlgorithm(descriptor, activeCurve, effectiveParams, {});
         } else {
+            // 需要用户输入参数
             PendingRequest request;
             request.descriptor = descriptor;
             request.curveId = activeCurve->id();
@@ -179,15 +145,14 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
         request.pointsRequired = qMax(1, descriptor.requiredPointCount);
 
         const bool paramsReady = populateDefaultParameters(descriptor, request.parameters);
-        if (paramsReady && !hasPresetParameters) {
-            request.phase = PendingPhase::AwaitPoints;
-            m_pending = request;
-            emit requestPointSelection(descriptor.name, request.curveId, request.pointsRequired, descriptor.pointSelectionHint);
-        } else if (hasPresetParameters) {
+
+        // 如果参数就绪（自动填充或预设），进入点选阶段
+        if ((paramsReady && !hasPresetParameters) || hasPresetParameters) {
             request.phase = PendingPhase::AwaitPoints;
             m_pending = request;
             emit requestPointSelection(descriptor.name, request.curveId, request.pointsRequired, descriptor.pointSelectionHint);
         } else {
+            // 需要用户输入参数
             request.phase = PendingPhase::AwaitParameters;
             m_pending = request;
             emit requestParameterDialog(descriptor.name, descriptor.parameters, request.parameters);
@@ -314,30 +279,48 @@ void AlgorithmCoordinator::executeAlgorithm(
         return;
     }
 
-    // 在提交算法前，将参数应用到算法实例（兼容旧接口依赖 setParameter 的实现）
-    if (IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(descriptor.name)) {
-        if (!parameters.isEmpty()) {
-            algorithm->setParameter(parameters);
-        }
-    } else {
+    // 验证算法是否注册
+    if (!m_algorithmManager->getAlgorithm(descriptor.name)) {
         qWarning() << "AlgorithmCoordinator::executeAlgorithm - 找不到算法实例:" << descriptor.name;
         emit algorithmFailed(descriptor.name, QStringLiteral("算法未注册"));
         return;
     }
 
-    QVariantMap inputs = parameters;
-    inputs.insert(QStringLiteral("mainCurve"), QVariant::fromValue(curve));
-    if (!points.isEmpty()) {
-        inputs.insert(QStringLiteral("points"), QVariant::fromValue(points));
+    // 清空上下文中的算法相关数据，准备新的执行
+    m_context->remove("activeCurve");
+    m_context->remove("mainCurve");
+    m_context->remove("selectedPoints");
+    QStringList paramKeys = m_context->keys("param.");
+    for (const QString& key : paramKeys) {
+        m_context->remove(key);
     }
 
-    qDebug() << "AlgorithmCoordinator::executeAlgorithm - 提交算法" << descriptor.name << "参数:" << inputs.keys();
-    m_context->setValue(QStringLiteral("history/%1/lastParameters").arg(descriptor.name), parameters, QStringLiteral("AlgorithmCoordinator"));
-    if (!points.isEmpty()) {
-        m_context->setValue(QStringLiteral("history/%1/lastPoints").arg(descriptor.name), QVariant::fromValue(points), QStringLiteral("AlgorithmCoordinator"));
+    // 将主曲线设置到上下文
+    m_context->setValue("activeCurve", QVariant::fromValue(curve), "AlgorithmCoordinator");
+
+    // 将参数设置到上下文（使用 param. 前缀）
+    for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it) {
+        m_context->setValue(QString("param.%1").arg(it.key()), it.value(), "AlgorithmCoordinator");
     }
 
-    m_algorithmManager->executeWithInputs(descriptor.name, inputs);
+    // 将选择的点设置到上下文（如果有）
+    if (!points.isEmpty()) {
+        m_context->setValue("selectedPoints", QVariant::fromValue(points), "AlgorithmCoordinator");
+    }
+
+    // 保存历史记录
+    m_context->setValue(QStringLiteral("history/%1/lastParameters").arg(descriptor.name), parameters, "AlgorithmCoordinator");
+    if (!points.isEmpty()) {
+        m_context->setValue(QStringLiteral("history/%1/lastPoints").arg(descriptor.name), QVariant::fromValue(points), "AlgorithmCoordinator");
+    }
+
+    qDebug() << "AlgorithmCoordinator::executeAlgorithm - 提交算法" << descriptor.name;
+    qDebug() << "  上下文包含:" << m_context->keys().size() << "个键";
+    qDebug() << "  参数数量:" << parameters.size();
+    qDebug() << "  选点数量:" << points.size();
+
+    // 使用上下文驱动的执行接口
+    m_algorithmManager->executeWithContext(descriptor.name, m_context);
 }
 
 void AlgorithmCoordinator::resetPending() { m_pending.reset(); }

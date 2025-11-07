@@ -19,7 +19,6 @@ public:
     // 管理曲线
     void addCurve(const ThermalCurve& curve);
     bool loadCurveFromFile(const QString& filePath);
-    void processRawData(const QString& curveId, const QMap<QString, int>& columnMapping);
     ThermalCurve* getCurve(const QString& curveId);
     const QMap<QString, ThermalCurve>& getAllCurves() const;
     void clearCurves();

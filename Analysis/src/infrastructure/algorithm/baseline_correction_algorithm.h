@@ -3,6 +3,9 @@
 
 #include "domain/algorithm/i_thermal_algorithm.h"
 
+// 前置声明
+class AlgorithmContext;
+
 /**
  * @brief 基线校正算法 (B类算法)
  *
@@ -22,23 +25,18 @@ class BaselineCorrectionAlgorithm : public IThermalAlgorithm {
 public:
     BaselineCorrectionAlgorithm();
 
-    // 旧接口方法（为了兼容性保留，但不推荐使用）
-    QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
+    // 核心接口方法
     QString name() const override;
     QString displayName() const override;
     QString category() const override;
-    QVariantMap parameters() const override;
-    void setParameter(const QString& key, const QVariant& value) override;
-    void setParameter(const QVariantMap& params) override;
     SignalType getOutputSignalType(SignalType inputType) const override;
-
-    // 新接口方法（B类算法：需要选点）
     InputType inputType() const override;
     OutputType outputType() const override;
-    QVariant execute(const QVariantMap& inputs) override;
-    QString userPrompt() const override;
-    QVariantMap configure(QWidget* parent = nullptr) override;
     AlgorithmDescriptor descriptor() const override;
+
+    // 上下文驱动执行接口
+    bool prepareContext(AlgorithmContext* context) override;
+    QVariant executeWithContext(AlgorithmContext* context) override;
 
 private:
     /**

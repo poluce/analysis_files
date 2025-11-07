@@ -49,57 +49,41 @@ bool HistoryManager::executeCommand(std::unique_ptr<ICommand> command)
 
 bool HistoryManager::undo()
 {
-    if (!canUndo()) {
-        qDebug() << "HistoryManager::undo: 撤销栈为空";
-        return false;
-    }
-
-    // 从撤销栈弹出命令
-    std::unique_ptr<ICommand> command = std::move(m_undoStack.back());
-    m_undoStack.pop_back();
-
-    // 执行撤销操作
-    if (!command->undo()) {
-        qWarning() << "HistoryManager::undo: 撤销失败:" << command->description();
-        // 撤销失败，将命令放回撤销栈
-        m_undoStack.push_back(std::move(command));
-        return false;
-    }
-
-    qDebug() << "HistoryManager: 撤销命令 -" << command->description();
-
-    // 将命令移到重做栈
-    m_redoStack.push_back(std::move(command));
-
-    // 发射历史改变信号
-    emit historyChanged();
-
-    return true;
+    return performStackOperation(m_undoStack, m_redoStack, &ICommand::undo, "撤销");
 }
 
 bool HistoryManager::redo()
 {
-    if (!canRedo()) {
-        qDebug() << "HistoryManager::redo: 重做栈为空";
+    return performStackOperation(m_redoStack, m_undoStack, &ICommand::redo, "重做");
+}
+
+bool HistoryManager::performStackOperation(
+    CommandStack& sourceStack,
+    CommandStack& targetStack,
+    bool (ICommand::*operation)(),
+    const QString& operationName)
+{
+    if (sourceStack.empty()) {
+        qDebug() << "HistoryManager::" << operationName << ": 栈为空";
         return false;
     }
 
-    // 从重做栈弹出命令
-    std::unique_ptr<ICommand> command = std::move(m_redoStack.back());
-    m_redoStack.pop_back();
+    // 从源栈弹出命令
+    std::unique_ptr<ICommand> command = std::move(sourceStack.back());
+    sourceStack.pop_back();
 
-    // 执行重做操作
-    if (!command->redo()) {
-        qWarning() << "HistoryManager::redo: 重做失败:" << command->description();
-        // 重做失败，将命令放回重做栈
-        m_redoStack.push_back(std::move(command));
+    // 执行操作（undo 或 redo）
+    if (!(command.get()->*operation)()) {  // 调用成员函数指针
+        qWarning() << "HistoryManager::" << operationName << "失败:" << command->description();
+        // 操作失败，将命令放回源栈
+        sourceStack.push_back(std::move(command));
         return false;
     }
 
-    qDebug() << "HistoryManager: 重做命令 -" << command->description();
+    qDebug() << "HistoryManager:" << operationName << "命令 -" << command->description();
 
-    // 将命令移回撤销栈
-    m_undoStack.push_back(std::move(command));
+    // 将命令移到目标栈
+    targetStack.push_back(std::move(command));
 
     // 发射历史改变信号
     emit historyChanged();
@@ -140,8 +124,8 @@ int HistoryManager::historyLimit() const { return m_historyLimit; }
 
 void HistoryManager::enforceHistoryLimit()
 {
-    // 如果撤销栈超过限制，移除最旧的命令（从vector开头移除）
+    // 如果撤销栈超过限制，移除最旧的命令（使用 deque 的 O(1) pop_front）
     while (static_cast<int>(m_undoStack.size()) > m_historyLimit) {
-        m_undoStack.erase(m_undoStack.begin());
+        m_undoStack.pop_front();
     }
 }

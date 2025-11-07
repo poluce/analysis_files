@@ -53,7 +53,13 @@ Analysis.exe
 
 ### 1. 表示层 (Presentation Layer) - `src/ui/`
 - **MainWindow**: 主窗口,管理整体布局(菜单、工具栏、停靠面板),接收预构造的 ChartView 与 ProjectExplorerView,仅负责布局与信号转发
-- **ChartView**: 基于 Qt Charts 的图表组件,支持多曲线显示、缩放、交互选择
+- **ChartView**: 🆕 基于 Qt Charts 的图表组件,支持多曲线显示、缩放、交互选择
+  - **活动算法状态机**: 管理用户与算法的交互流程
+    - `InteractionState`: 交互状态枚举 (Idle/WaitingForPoints/PointsCompleted/Executing)
+    - `ActiveAlgorithmInfo`: 当前活动算法信息 (名称/显示名/所需点数/提示)
+    - `startAlgorithmInteraction()`: 启动算法交互,进入等待选点状态
+    - `cancelAlgorithmInteraction()`: 取消当前交互,回到空闲状态
+    - `algorithmInteractionCompleted(algorithmName, points)`: 当用户完成选点后自动发出,触发算法执行
 - **ProjectExplorerView**: 项目浏览器视图,树形结构展示曲线及其衍生关系(模型由 ProjectTreeManager 提供)
 - **DataImportWidget**: 数据导入对话框,智能列识别和预览
 
@@ -74,9 +80,12 @@ Analysis.exe
 
 **算法服务** - `src/application/algorithm/`
 - **AlgorithmManager**: 算法管理器,管理算法注册表,执行算法并创建新曲线,自动设置父子关系
-- **AlgorithmContext**: 🆕 算法运行时上下文容器,统一管理算法执行所需的数据(参数、点选结果、曲线引用等),提供时间戳和数据来源追踪
-- **AlgorithmCoordinator**: 🆕 算法执行流程协调器,负责调度算法执行流程(参数收集、点选请求、算法执行、结果通知)
-- **AlgorithmDescriptor**: 🆕 算法参数定义和元数据描述
+- **AlgorithmCoordinator**: 🆕🧪 算法执行流程协调器,负责调度算法执行流程(参数收集、点选请求、算法执行、结果通知)
+  - ⚠️ **实验性组件**: 主要用于未来的交互式算法（基线绘制、峰面积计算等）
+  - 当前简单算法（微分、积分、移动平均）通过此组件统一调度
+  - 提供扩展性：支持参数对话框、点选交互、多步骤流程
+- **AlgorithmContext**: 🆕🧪 算法运行时上下文容器,统一管理算法执行所需的数据(参数、点选结果、曲线引用等),提供时间戳和数据来源追踪
+- **AlgorithmDescriptor**: 🆕🧪 算法参数定义和元数据描述
 
 **项目管理** - `src/application/project/`
 - **ProjectTreeManager**: 项目树管理器,管理树形视图结构,维护曲线的父子关系层级
@@ -212,7 +221,162 @@ signals:
 - 基线校正参数(6项): 校正类型、多项式次数、锚点等
 - 15个类别,共60+数据项
 
-### 8. 统一初始化模式 🆕
+### 8. 纯上下文驱动执行模式 🆕✨
+
+**核心理念**：算法采用**拉取 (Pull)** 模式从上下文获取数据，彻底消除参数传递。
+
+#### 设计原则
+
+本项目采用**纯上下文驱动**设计，**无向后兼容层**：
+
+❌ **已移除**：
+- `process(QVector<ThermalDataPoint>)` - 旧的数据处理接口
+- `setParameter(QString, QVariant)` - 旧的参数设置方法
+- `execute(QVariantMap)` - 旧的参数推送接口
+- `executeWithInputs(QVariantMap)` - AlgorithmManager 旧方法
+
+✅ **唯一接口**：
+- `executeWithContext(AlgorithmContext*)` - 算法从上下文拉取数据
+- `prepareContext(AlgorithmContext*)` - 注入默认参数（可选）
+
+#### 算法实现模板
+
+```cpp
+class XXXAlgorithm : public IThermalAlgorithm {
+public:
+    // 核心接口方法
+    QString name() const override;
+    QString displayName() const override;
+    QString category() const override;
+    SignalType getOutputSignalType(SignalType) const override;
+    AlgorithmDescriptor descriptor() const override;
+
+    // 上下文驱动执行接口
+    void prepareContext(AlgorithmContext* context) override {
+        // 注入默认参数（如果上下文中不存在）
+        if (!context->contains("param.windowSize")) {
+            context->setValue("param.windowSize", m_defaultWindowSize);
+        }
+    }
+
+    QVariant executeWithContext(AlgorithmContext* context) override {
+        // 1. 验证上下文
+        if (!context) return QVariant();
+
+        // 2. 拉取曲线
+        auto curve = context->get<ThermalCurve*>("activeCurve");
+        if (!curve.has_value() || !curve.value()) return QVariant();
+
+        // 3. 拉取参数（value_or 提供 fallback）
+        int windowSize = context->get<int>("param.windowSize").value_or(m_defaultWindowSize);
+
+        // 4. 获取输入数据
+        const auto& inputData = curve.value()->getProcessedData();
+
+        // 5. 执行核心算法逻辑
+        QVector<ThermalDataPoint> outputData;
+        // ... 算法实现 ...
+
+        // 6. 返回结果
+        return QVariant::fromValue(outputData);
+    }
+
+private:
+    int m_defaultWindowSize = 50;  // 仅作为 fallback
+};
+```
+
+#### 已迁移的算法（100%完成）
+
+✅ **DifferentiationAlgorithm** - 微分（大窗口平滑中心差分法）
+✅ **IntegrationAlgorithm** - 积分（梯形法则）
+✅ **MovingAverageFilterAlgorithm** - 移动平均滤波
+✅ **BaselineCorrectionAlgorithm** - 基线校正（需要点选交互）
+
+所有算法均已完全迁移到纯上下文驱动模式，**无向后兼容层**。
+
+#### 核心优势
+
+- ✅ **零参数传递**: 不再需要在调用点构造 QVariantMap
+- ✅ **单一数据源**: AlgorithmContext 是唯一的数据容器
+- ✅ **类型安全**: `context->get<T>()` 提供编译时类型检查
+- ✅ **默认值支持**: `value_or(default)` 简化参数处理
+- ✅ **调用顺序无关**: 数据在上下文中全局可用
+- ✅ **易于扩展**: 添加新参数无需修改函数签名
+- ✅ **架构统一**: 所有算法遵循相同的执行模式
+
+#### 两阶段执行机制 🔐
+
+**问题**：算法被选中时，必需的数据（如图表上的选点）可能不完整。如果算法在数据不完整时执行，会导致结果不准确或资源浪费。
+
+**解决方案**：采用两阶段执行确保算法只在接收到完整数据后才开始计算。
+
+| 阶段 | 方法 | 职责 | 数据状态 | 返回值 |
+|------|------|------|----------|--------|
+| **阶段1** | `prepareContext()` | 验证数据完整性，注入默认参数 | 可能不完整 | `bool` - 是否就绪 |
+| **阶段2** | `executeWithContext()` | 使用完整数据执行计算 | 完整且最终 | `QVariant` - 计算结果 |
+
+**阶段1示例（prepareContext）**：
+```cpp
+bool XXXAlgorithm::prepareContext(AlgorithmContext* context) {
+    // 1. 验证上下文本身
+    if (!context) return false;
+
+    // 2. 验证必需数据（activeCurve）
+    auto curve = context->get<ThermalCurve*>("activeCurve");
+    if (!curve.has_value() || !curve.value()) return false;
+
+    // 3. [交互算法] 验证用户交互数据（如选点）
+    auto points = context->get<QVector<QPointF>>("selectedPoints");
+    if (!points.has_value() || points.value().size() < 2) {
+        return false;  // 数据不完整，等待用户选点
+    }
+
+    // 4. 注入默认参数
+    if (!context->contains("param.xxx")) {
+        context->setValue("param.xxx", m_default);
+    }
+
+    return true;  // 数据完整，可以执行
+}
+```
+
+**核心优势**：
+- ✅ **防止过早执行**：算法只在数据完整时才执行计算
+- ✅ **明确的状态检查**：`prepareContext()` 返回值明确表示就绪状态
+- ✅ **保证数据一致性**：算法接收到的一定是用户完整交互后的数据
+- ✅ **易于调试**：清晰的日志输出指示数据缺失原因
+
+#### 执行流程
+
+```
+AlgorithmCoordinator::executeAlgorithm()
+  → 清空上下文旧数据
+  → context->setValue("activeCurve", curve)
+  → context->setValue("param.*", values)
+  → context->setValue("selectedPoints", points)  // 如需要
+  ↓
+AlgorithmManager::executeWithContext(name, context)
+  ↓
+  【阶段1：数据完整性验证】
+  → bool isReady = algorithm->prepareContext(context)
+  → if (!isReady) {
+       qWarning() << "数据不完整，无法执行";
+       return;  // 提前终止，等待用户输入
+    }
+  ↓
+  【阶段2：执行计算】
+  → QVariant result = algorithm->executeWithContext(context)
+    → auto curve = context->get<ThermalCurve*>("activeCurve")
+    → int param = context->get<int>("param.xxx").value_or(default)
+    → 执行核心算法逻辑
+    → return QVariant::fromValue(result)
+  ↓
+  → handleAlgorithmResult(...)  // 处理结果
+  → emit algorithmResultReady(...)
+```
+
+### 9. 统一初始化模式 🆕
 使用 ApplicationContext 统一管理所有 MVC 实例的构造顺序:
 ```cpp
 class ApplicationContext {
@@ -261,36 +425,101 @@ class ApplicationContext {
     └─ ChartView (显示图表)
 ```
 
-### 算法执行流 (新架构) 🆕
+### 算法执行流 (上下文驱动架构) 🆕✨
 ```
 用户选择算法
   → MainWindow (菜单触发)
   → MainController (协调)
-  → AlgorithmCoordinator (流程编排)
-  → ├─ 创建 AlgorithmContext (上下文)
-    ├─ 设置活动曲线到上下文
+  → AlgorithmCoordinator::handleAlgorithmTriggered (流程编排)
+  → ├─ 获取活动曲线
     ├─ 触发参数收集对话框 (如需要)
-    │   → 用户输入参数 → 保存到上下文
+    │   → 用户输入参数 → 保存到 m_pending
     ├─ 请求点选 (如需要)
-    │   → 用户在图表上点选 → 保存到上下文
-    ├─ AlgorithmManager::execute(context)
-    │   → 从上下文获取参数和曲线
-    │   → 执行算法处理
-    │   → 创建新曲线
-    │   → 设置 parentId 和 signalType
-    │   → 添加到 CurveManager
-    └─ 发出算法完成信号
+    │   → 用户在图表上点选 → 保存到 m_pending
+    └─ AlgorithmCoordinator::executeAlgorithm
+      → 清空上下文中的旧数据
+      → 设置 activeCurve 到上下文
+      → 设置参数到上下文 (param.*)
+      → 设置选择的点到上下文 (selectedPoints)
+      → AlgorithmManager::executeWithContext(name, context)
+        ├─ 验证上下文中的 activeCurve
+        ├─ 调用 algorithm->prepareContext(context) [注入默认参数]
+        └─ 调用 algorithm->executeWithContext(context)
+          → 算法从上下文拉取 activeCurve
+          → 算法从上下文拉取参数 (param.*)
+          → 执行核心算法逻辑
+          → 返回结果
+        → handleAlgorithmResult(algorithm, curve, result)
+          → 根据 outputType 处理结果
+          → 创建新曲线 (OutputType::Curve)
+          → 设置 parentId 和 signalType
+          → 添加到 CurveManager (通过 HistoryManager)
+        → 发出 algorithmResultReady 信号
   → CurveManager 发出 curveAdded 信号
   → ├─ ProjectTreeManager (添加为子节点)
     ├─ ChartView (显示新曲线)
     └─ CurveViewController (同步状态)
 ```
 
-**关键改进**:
-- 使用 AlgorithmContext 统一管理所有算法数据
-- AlgorithmCoordinator 负责流程编排,解耦算法执行和UI交互
-- 支持灵活的参数收集和点选流程
-- 所有数据变化都有时间戳和来源追踪
+**关键特性**:
+- ✅ **上下文驱动**: 算法从 AlgorithmContext 拉取数据，避免繁琐的参数传递
+- ✅ **单一数据源**: 所有运行时数据集中在上下文中管理
+- ✅ **流程编排**: AlgorithmCoordinator 负责交互流程和数据收集
+- ✅ **类型安全**: `context->get<T>()` 提供类型安全的访问
+- ✅ **默认参数**: `prepareContext()` 注入算法默认值
+- ✅ **历史追踪**: 所有数据变化都有时间戳和来源记录
+
+### 🆕 活动算法状态机 (ChartView 交互管理) ✨
+
+**设计理念**: ChartView 维护"当前活动算法"状态，跟踪用户交互进度，当交互完成时自动触发算法执行。
+
+**状态机流程**:
+```
+用户选择算法 (如"基线校正")
+  → MainController::onAlgorithmRequested()
+  → AlgorithmCoordinator::handleAlgorithmTriggered()
+  → 发出 requestPointSelection(algorithmName, curveId, requiredPoints, hint)
+  → MainController::onCoordinatorRequestPointSelection()
+  → ChartView::startAlgorithmInteraction(algorithmName, displayName, requiredPoints, hint)
+    ├─ 设置 m_activeAlgorithm (记录当前算法信息)
+    ├─ 状态转换: Idle → WaitingForPoints
+    ├─ 发出 interactionStateChanged(WaitingForPoints)
+    └─ 切换到 Pick 模式 (十字光标)
+
+用户在图表上点击选点
+  → ChartView::handlePointSelectionClick()
+    ├─ 检查 m_activeAlgorithm.isValid() && state == WaitingForPoints
+    ├─ 添加点到 m_selectedPoints
+    ├─ 检查是否收集够所需点数 (size >= requiredPointCount)
+    └─ 如果完成:
+      ├─ 状态转换: WaitingForPoints → PointsCompleted
+      ├─ 发出 interactionStateChanged(PointsCompleted)
+      ├─ 发出 algorithmInteractionCompleted(algorithmName, selectedPoints) ⭐ 自动触发执行
+      └─ 切换回 View 模式
+
+MainController 接收信号
+  → 连接 ChartView::algorithmInteractionCompleted()
+  → 调用 AlgorithmCoordinator::handlePointSelectionResult(points)
+  → 算法执行流程继续 (见上方"算法执行流")
+```
+
+**核心优势**:
+- ✅ **状态追踪**: 始终知道哪个算法正在等待交互，进度如何
+- ✅ **自动执行**: 用户完成选点后无需手动点击"执行"按钮
+- ✅ **清晰反馈**: 可显示提示文本 "已选 1/2 点，请继续选择"
+- ✅ **可取消性**: `cancelAlgorithmInteraction()` 可随时中止交互
+- ✅ **松耦合**: ChartView 只负责交互管理，不知道算法具体逻辑
+
+**集成要点** (✅ 已完成):
+1. ✅ MainController 连接了 `ChartView::algorithmInteractionCompleted()` 信号（在 `setPlotWidget()` 中）
+2. ✅ 修改了 `onCoordinatorRequestPointSelection()` 调用 `ChartView::startAlgorithmInteraction()`
+3. ✅ 信号处理器自动调用 `coordinator->handlePointSelectionResult(points)` 继续执行
+4. ✅ 添加了 `interactionStateChanged` 信号监听（用于调试和未来的UI反馈）
+
+**代码位置**:
+- 信号连接: `main_controller.cpp:62-95` (setPlotWidget 方法)
+- 状态机启动: `main_controller.cpp:266-296` (onCoordinatorRequestPointSelection 方法)
+- 旧路径标记: `main_controller.cpp:257-270` (onPointsPickedFromView 保留用于向后兼容)
 
 ## 编码约定和注意事项
 
@@ -340,6 +569,57 @@ params["dt"] = 0.1;            // 虚拟时间步长
 ### 调试日志说明
 项目包含调试日志说明文档: `调试日志说明.md`
 
+## AlgorithmCoordinator 使用策略 🧪
+
+### 设计理念
+
+**AlgorithmCoordinator** 是为未来的**交互式算法**设计的协调器，采用实验性架构。
+
+### 当前状态
+
+**✅ 已统一使用**:
+- 所有算法执行统一通过 `AlgorithmCoordinator::handleAlgorithmTriggered()`
+- MainController 中移除了旧的直接调用路径
+- 确保架构一致性，避免双重路径
+
+**⚠️ 实验性质**:
+- 当前简单算法（微分、积分、移动平均）**不需要**复杂的参数对话框和点选交互
+- AlgorithmCoordinator 为这些简单算法提供了统一入口，但其核心价值尚未完全体现
+
+### 何时体现价值
+
+AlgorithmCoordinator 将在以下场景中发挥关键作用：
+
+1. **基线校正** (Phase 3)
+   - 需要用户在图表上点选基线点
+   - 利用 `requestPointSelection()` 信号
+   - 使用 PendingRequest 管理点选状态
+
+2. **峰面积计算** (Phase 3)
+   - 需要参数对话框收集积分范围、基线类型等
+   - 需要点选峰的起止点
+   - 利用 ParameterThenPoint 流程
+
+3. **多步骤算法** (Phase 4)
+   - 如动力学分析需要多次用户交互
+   - 状态机管理复杂流程
+
+### 技术债务说明
+
+**保留原因**:
+- ✅ 为即将实现的基线和峰面积功能做准备
+- ✅ 避免重复设计和重构
+- ✅ 架构清晰，扩展性强
+
+**成本**:
+- 约 540 行代码 (AlgorithmCoordinator + Context + Descriptor)
+- 当前简单算法未充分利用其能力
+
+**建议**:
+- 保持现状，继续使用统一架构
+- Phase 3 实现交互功能时验证设计
+- 如发现设计问题，及时调整
+
 ## 已知限制和后续计划
 
 ### 最近完成 ✅
@@ -350,6 +630,22 @@ params["dt"] = 0.1;            // 虚拟时间步长
 - ✅ 基线校正算法实现
 - ✅ 命令模式框架 (AddCurveCommand 等)
 - ✅ 双枚举扩展 (SignalType 支持 Baseline 和 PeakArea)
+- ✅ 代码重构优化 (消除 150+ 行冗余代码，统一技术路线)
+- ✅ 性能优化 (HistoryManager O(n)→O(1)，AlgorithmCoordinator O(n²)→O(n))
+- ✅ 架构简化 (统一使用 AlgorithmCoordinator，移除双重路径)
+- ✅ **纯上下文驱动执行模式** (executeWithContext, prepareContext)
+  - 彻底移除旧接口和向后兼容层（无 process/setParameter/execute）
+  - IThermalAlgorithm 只保留 `executeWithContext(AlgorithmContext*)` 纯虚函数
+  - AlgorithmManager 只保留 `executeWithContext(name, context)` 唯一执行接口
+  - 所有4个算法完成迁移：Differentiation, Integration, MovingAverage, BaselineCorrection
+  - 算法从上下文拉取数据，零参数传递，单一数据源
+- ✅ **两阶段执行机制** (prepareContext 返回 bool)
+  - 阶段1（prepareContext）：验证数据完整性，返回就绪状态
+  - 阶段2（executeWithContext）：只在数据完整时执行计算
+  - AlgorithmManager 检查就绪状态，数据不完整时提前终止
+  - 防止算法在用户未完成交互时过早执行
+  - BaselineCorrectionAlgorithm 验证至少2个选点
+  - 所有算法实现数据完整性验证逻辑
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)

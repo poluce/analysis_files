@@ -3,6 +3,9 @@
 
 #include "domain/algorithm/i_thermal_algorithm.h"
 
+// 前置声明
+class AlgorithmContext;
+
 /**
  * @brief 微分算法类 - 基于DTG大窗口平滑中心差分法
  * @details 使用前后各halfWin个点的和之差计算导数
@@ -10,21 +13,20 @@
  */
 class DifferentiationAlgorithm : public IThermalAlgorithm {
 public:
-    // 旧接口方法
     DifferentiationAlgorithm();
-    QVector<ThermalDataPoint> process(const QVector<ThermalDataPoint>& inputData) override;
+
+    // 核心接口方法
     QString name() const override;
     QString displayName() const override;
     QString category() const override;
-    QVariantMap parameters() const override;
-    void setParameter(const QString& key, const QVariant& value) override;
-    void setParameter(const QVariantMap& params) override;
     SignalType getOutputSignalType(SignalType inputType) const override;
-
-    // 新接口方法（A类算法：单曲线，无交互）
     InputType inputType() const override;
     OutputType outputType() const override;
     AlgorithmDescriptor descriptor() const override;
+
+    // 上下文驱动执行接口（两阶段执行）
+    bool prepareContext(AlgorithmContext* context) override;
+    QVariant executeWithContext(AlgorithmContext* context) override;
 
 private:
     int m_halfWin = 50;         // DTG半窗口大小，默认50点

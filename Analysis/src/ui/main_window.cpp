@@ -203,12 +203,12 @@ QToolBar* MainWindow::createMathToolBar()
     // 添加峰面积计算按钮
     QAction* peakAreaAction = toolbar->addAction(tr("峰面积计算"));
 
-    connect(baselineAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
-    connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
+    connect(baselineAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
+    connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
 
-    connect(diffAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
+    connect(diffAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
-    connect(integAction, &QAction::triggered, this, &MainWindow::onSimpleAlgorithmActionTriggered);
+    connect(integAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
 
     toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     return toolbar;
@@ -236,17 +236,12 @@ void MainWindow::setupRightDock()
     m_propertiesDock->setWidget(propertiesWidget);
     addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
 }
-// 执行简单的通用算法
-void MainWindow::onSimpleAlgorithmActionTriggered()
+// 通用算法触发槽（统一处理，减少代码重复）
+void MainWindow::onAlgorithmActionTriggered()
 {
-    auto* action = qobject_cast<QAction*>(sender());
-    if (!action) {
-        return;
-    }
-    QString algorithmName = action->data().toString();
-    if (!algorithmName.isEmpty()) {
-        emit algorithmRequested(algorithmName);
-    }
+    // 由于 algorithmRequested 和 newAlgorithmRequested 都连接到同一个 MainController 方法，
+    // 我们可以简单地发射 algorithmRequested 信号
+    triggerAlgorithmFromAction(&MainWindow::algorithmRequested);
 }
 
 void MainWindow::onMovingAverageAction()
@@ -261,15 +256,15 @@ void MainWindow::onMovingAverageAction()
     emit algorithmRequestedWithParams("moving_average", params);
 }
 
-void MainWindow::onAlgorithmActionTriggered()
+void MainWindow::triggerAlgorithmFromAction(void (MainWindow::*signal)(const QString&))
 {
     auto* action = qobject_cast<QAction*>(sender());
     if (!action) {
         return;
     }
-    QString algorithmName = action->data().toString();
+    const QString algorithmName = action->data().toString();
     if (!algorithmName.isEmpty()) {
-        emit newAlgorithmRequested(algorithmName);
+        (this->*signal)(algorithmName);  // 通过成员函数指针发射信号
     }
 }
 

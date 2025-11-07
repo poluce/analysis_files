@@ -45,6 +45,17 @@ ChartView::ChartView(QWidget* parent)
     m_axisY_primary->setTitleText(tr("质量 (mg)"));
     chart->addAxis(m_axisY_primary, Qt::AlignLeft);
 
+    // ==================== 创建选中点高亮系列 ====================
+    // 用于在算法交互模式下显示用户选择的点（红色散点）
+    m_selectedPointsSeries = new QScatterSeries();
+    m_selectedPointsSeries->setName(tr("选中的点"));
+    m_selectedPointsSeries->setMarkerSize(12.0);  // 点的大小
+    m_selectedPointsSeries->setColor(Qt::red);     // 红色高亮
+    m_selectedPointsSeries->setBorderColor(Qt::darkRed);  // 深红色边框
+    m_selectedPointsSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    // 初始时不添加到 chart，只在需要时添加
+    // chart->addSeries(m_selectedPointsSeries);  // 将在 startAlgorithmInteraction 时添加
+
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_chartView);
@@ -138,17 +149,44 @@ void ChartView::handleCurveSelectionClick(const QPointF& chartPos)
 
 void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
 {
-    if (m_pickCount <= 0 || !m_chartView || !m_chartView->chart()) {
+    if (!m_chartView || !m_chartView->chart()) {
         return;
     }
 
     const QPointF valuePoint = m_chartView->chart()->mapToValue(chartViewPos);
-    m_pickPoints.append(valuePoint);
 
-    if (m_pickPoints.size() >= m_pickCount) {
-        emit pickPoints(m_pickPoints);
-        qDebug() << "发送用户选取的点坐标:" << m_pickPoints;
-        m_pickCount = 0;
+    // 检查是否有活动算法等待交互
+    if (!m_activeAlgorithm.isValid() || m_interactionState != InteractionState::WaitingForPoints) {
+        qWarning() << "ChartView::handlePointSelectionClick - 没有活动算法等待选点，忽略点击";
+        return;
+    }
+
+    // 添加选点到活动算法的选点列表
+    m_selectedPoints.append(valuePoint);
+
+    // ==================== 在图表上显示选中的点（红色高亮） ====================
+    if (m_selectedPointsSeries) {
+        m_selectedPointsSeries->append(valuePoint);
+        qDebug() << "ChartView: 添加红色高亮点到图表:" << valuePoint;
+    }
+
+    qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
+             << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
+             << ", 点:" << valuePoint;
+
+    // 检查是否已收集足够的点
+    if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
+        // 状态转换: WaitingForPoints → PointsCompleted
+        m_interactionState = InteractionState::PointsCompleted;
+        emit interactionStateChanged(static_cast<int>(m_interactionState));
+
+        qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
+                 << "交互完成，发送信号触发执行";
+
+        // 发出算法交互完成信号，触发算法执行
+        emit algorithmInteractionCompleted(m_activeAlgorithm.name, m_selectedPoints);
+
+        // 切换回视图模式
         setInteractionMode(InteractionMode::View);
     }
 }
@@ -236,11 +274,6 @@ void ChartView::setHitTestIncludePenWidth(bool enabled) { m_hitTestIncludePen = 
 
 bool ChartView::hitTestIncludePenWidth() const { return m_hitTestIncludePen; }
 
-void ChartView::setPickCount(int count)
-{
-    m_pickCount = qMax(0, count);
-    m_pickPoints.clear();
-}
 
 void ChartView::setInteractionMode(InteractionMode type)
 {
@@ -249,7 +282,6 @@ void ChartView::setInteractionMode(InteractionMode type)
     }
 
     m_mode = type;
-    m_pickPoints.clear();
 
     if (m_mode == InteractionMode::Pick) {
         qDebug() << "视图进入选点模式";
@@ -263,6 +295,119 @@ void ChartView::setInteractionMode(InteractionMode type)
         }
         unsetCursor();
     }
+}
+
+// ==================== 活动算法状态机实现 ====================
+
+void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QString& displayName,
+                                          int requiredPoints, const QString& hint, const QString& curveId)
+{
+    qDebug() << "ChartView::startAlgorithmInteraction - 启动算法交互";
+    qDebug() << "  算法名称:" << algorithmName;
+    qDebug() << "  显示名称:" << displayName;
+    qDebug() << "  需要点数:" << requiredPoints;
+    qDebug() << "  提示信息:" << hint;
+    qDebug() << "  目标曲线ID:" << curveId;
+
+    // 清空之前的状态
+    m_selectedPoints.clear();
+
+    // ==================== 设置选中点高亮系列 ====================
+    if (m_selectedPointsSeries && m_chartView && m_chartView->chart()) {
+        QChart* chart = m_chartView->chart();
+
+        // 清空之前的点
+        m_selectedPointsSeries->clear();
+
+        // ==================== 动态确定Y轴（关联到活动曲线的Y轴）====================
+        QValueAxis* targetYAxis = m_axisY_primary;  // 默认使用主Y轴
+
+        // 如果提供了曲线ID，则查找该曲线并获取其Y轴
+        if (!curveId.isEmpty()) {
+            QLineSeries* curveSeries = seriesForCurve(curveId);
+            if (curveSeries) {
+                // 获取该曲线附着的所有轴
+                const auto attachedAxes = curveSeries->attachedAxes();
+                for (QAbstractAxis* axis : attachedAxes) {
+                    QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
+                    if (valueAxis && valueAxis != m_axisX) {
+                        // 找到Y轴（非X轴的轴）
+                        targetYAxis = valueAxis;
+                        qDebug() << "ChartView: 选中点系列将附着到曲线" << curveId << "的Y轴";
+                        break;
+                    }
+                }
+            } else {
+                qWarning() << "ChartView: 未找到曲线" << curveId << "，使用默认主Y轴";
+            }
+        }
+
+        // 如果还未添加到 chart，则添加
+        if (!chart->series().contains(m_selectedPointsSeries)) {
+            chart->addSeries(m_selectedPointsSeries);
+            // 关联到X轴和目标Y轴
+            m_selectedPointsSeries->attachAxis(m_axisX);
+            m_selectedPointsSeries->attachAxis(targetYAxis);
+            qDebug() << "ChartView: 添加选中点高亮系列到图表，Y轴:"
+                     << (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
+        } else {
+            // 如果已存在，则更新其轴关联
+            // 先解除所有现有轴的关联
+            const auto existingAxes = m_selectedPointsSeries->attachedAxes();
+            for (QAbstractAxis* axis : existingAxes) {
+                m_selectedPointsSeries->detachAxis(axis);
+            }
+            // 重新关联到正确的轴
+            m_selectedPointsSeries->attachAxis(m_axisX);
+            m_selectedPointsSeries->attachAxis(targetYAxis);
+            qDebug() << "ChartView: 更新选中点高亮系列的轴关联，Y轴:"
+                     << (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
+        }
+    }
+
+    // 设置活动算法信息
+    m_activeAlgorithm.name = algorithmName;
+    m_activeAlgorithm.displayName = displayName;
+    m_activeAlgorithm.requiredPointCount = requiredPoints;
+    m_activeAlgorithm.hint = hint;
+
+    // 状态转换: Idle → WaitingForPoints
+    m_interactionState = InteractionState::WaitingForPoints;
+    emit interactionStateChanged(static_cast<int>(m_interactionState));
+
+    // 切换到选点模式
+    setInteractionMode(InteractionMode::Pick);
+
+    qDebug() << "ChartView: 算法" << displayName << "已进入等待用户选点状态";
+}
+
+void ChartView::cancelAlgorithmInteraction()
+{
+    if (!m_activeAlgorithm.isValid()) {
+        qDebug() << "ChartView::cancelAlgorithmInteraction - 没有活动算法，无需取消";
+        return;
+    }
+
+    qDebug() << "ChartView::cancelAlgorithmInteraction - 取消算法交互:" << m_activeAlgorithm.displayName;
+
+    // 清空活动算法信息
+    m_activeAlgorithm.clear();
+    m_selectedPoints.clear();
+
+    // ==================== 清除选中点高亮 ====================
+    if (m_selectedPointsSeries) {
+        m_selectedPointsSeries->clear();
+        qDebug() << "ChartView: 清除选中点高亮";
+    }
+
+    // 状态转换: 任意状态 → Idle
+    m_interactionState = InteractionState::Idle;
+    emit interactionStateChanged(static_cast<int>(m_interactionState));
+
+    // 切换回视图模式
+    setInteractionMode(InteractionMode::View);
+
+    qDebug() << "ChartView: 算法交互已取消，回到空闲状态";
 }
 
 void ChartView::setCurveVisible(const QString& curveId, bool visible)

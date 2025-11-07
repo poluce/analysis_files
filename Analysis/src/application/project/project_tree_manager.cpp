@@ -46,13 +46,11 @@ void ProjectTreeManager::setCurveChecked(const QString& curveId, bool checked)
         return;
     }
 
-    // 临时断开信号连接,避免触发 onItemChanged
-    disconnect(m_model, &QStandardItemModel::itemChanged, this, &ProjectTreeManager::onItemChanged);
-
-    item->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
-
-    // 重新连接信号
-    connect(m_model, &QStandardItemModel::itemChanged, this, &ProjectTreeManager::onItemChanged);
+    // 使用 QSignalBlocker 自动阻塞和恢复信号（RAII 模式）
+    {
+        QSignalBlocker blocker(m_model);
+        item->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+    }
 
     // 手动发射信号
     emit curveCheckStateChanged(curveId, checked);

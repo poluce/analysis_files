@@ -27,43 +27,17 @@ bool AlgorithmCommand::execute()
     }
 
     try {
-        // 1. 执行算法处理
-        const auto inputData = m_inputCurve->getProcessedData();
-        const auto outputData = m_algorithm->process(inputData);
-        // 检查输出数据是否有效
-        if (outputData.isEmpty()) {
-            qWarning() << "[错误] 算法返回空数据";
-            return false;
-        }
+        // ⚠️ 注意：AlgorithmCommand 已弃用，新架构使用 AlgorithmCoordinator + AlgorithmContext
+        // 此处暂时禁用以避免编译错误
+        qWarning() << "AlgorithmCommand::execute - 此类已弃用，请使用 AlgorithmCoordinator";
+        return false;
 
-        // 2. 创建新曲线
-        m_newCurveId = QUuid::createUuid().toString();
-        QString newName = m_algorithm->displayName(); // 使用中文显示名称
-        m_newCurveData = ThermalCurve(m_newCurveId, newName);
-        // 3. 填充新曲线数据和元数据
-        m_newCurveData.setProcessedData(outputData);
-        m_newCurveData.setMetadata(m_inputCurve->getMetadata());    // 复制元数据
-        m_newCurveData.setParentId(m_inputCurve->id());             // 设置父曲线ID
-        m_newCurveData.setProjectName(m_inputCurve->projectName()); // 继承项目名称
-
-        // 仪器类型继承自父曲线（算法不改变仪器类型）
-        m_newCurveData.setInstrumentType(m_inputCurve->instrumentType());
-        SignalType inputSignalType = m_inputCurve->signalType();
-        SignalType outputSignalType = m_algorithm->getOutputSignalType(inputSignalType);
-
-        m_newCurveData.setSignalType(outputSignalType);
-
-        // 5. 通过 CurveManager 添加新曲线
-        m_curveManager->addCurve(m_newCurveData);
-
-        // 6. 设置新生成的曲线为活动曲线（默认选中）
-        m_curveManager->setActiveCurve(m_newCurveId);
-
-        m_executed = true;
-        qDebug() << "执行算法" << m_algorithmName << "于曲线" << m_inputCurveName << "，创建新曲线" << newName
-                 << "ID:" << m_newCurveId;
-
-        return true;
+        // 旧代码（已全部禁用）：
+        // const auto inputData = m_inputCurve->getProcessedData();
+        // const auto outputData = m_algorithm->process(inputData);  // ❌ process() 不存在
+        // m_newCurveId = QUuid::createUuid().toString();
+        // ...
+        // return true;
     } catch (const std::exception& e) {
         qCritical() << "========== 捕获 std::exception 异常 ==========";
         qCritical() << "异常信息:" << e.what();

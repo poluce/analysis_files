@@ -96,52 +96,6 @@ bool CurveManager::loadCurveFromFile(const QString& filePath)
     }
 }
 
-// This function appears to be legacy code and is unused in the new workflow.
-// The parameters are commented out to suppress unused parameter warnings.
-void CurveManager::processRawData(const QString& /*curveId*/, const QMap<QString, int>& /*columnMapping*/)
-{
-    // Legacy code body commented out to prevent potential issues.
-    /*
-    ThermalCurve* curve = getCurve(curveId);
-    if (!curve) {
-        qWarning() << "processRawData: 未找到ID为" << curveId << "的曲线。";
-        return;
-    }
-
-    QVariant rawDataTableVar = curve->getMetadata().additional.value("raw_data_table");
-    if (!rawDataTableVar.canConvert<QVector<QVector<double>>>()) {
-        qWarning() << "processRawData: 在曲线" << curveId << "的元数据中未找到 raw_data_table。";
-        return;
-    }
-    const auto rawDataTable = rawDataTableVar.value<QVector<QVector<double>>>();
-
-    const int timeCol = columnMapping.value("time", -1);
-    const int tempCol = columnMapping.value("temperature", -1);
-    const int valueCol = columnMapping.value("value", -1);
-
-    QVector<ThermalDataPoint> processedData;
-    processedData.reserve(rawDataTable.size());
-
-    for (const auto& row : rawDataTable) {
-        ThermalDataPoint point;
-        if (timeCol != -1 && timeCol < row.size()) {
-            point.time = row[timeCol];
-        }
-        if (tempCol != -1 && tempCol < row.size()) {
-            point.temperature = row[tempCol];
-        }
-        if (valueCol != -1 && valueCol < row.size()) {
-            point.value = row[valueCol];
-        }
-        processedData.append(point);
-    }
-
-    curve->setRawData(processedData);
-
-    emit curveDataChanged(curveId);
-    */
-}
-
 ThermalCurve* CurveManager::getCurve(const QString& curveId)
 {
     auto it = m_curves.find(curveId);
