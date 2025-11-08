@@ -188,6 +188,29 @@ public:
      */
     const QVector<FloatingLabel*>& floatingLabels() const { return m_floatingLabels; }
 
+    // ==================== 标注点（Markers）管理接口 ====================
+
+    /**
+     * @brief 为指定曲线添加标注点（用于显示算法生成的特征点，如基线定义点）
+     * @param curveId 曲线ID
+     * @param markers 标注点列表（数据坐标）
+     * @param color 标注点颜色（默认黄色）
+     * @param size 标注点大小（默认10）
+     */
+    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
+                         const QColor& color = Qt::yellow, qreal size = 10.0);
+
+    /**
+     * @brief 移除指定曲线的标注点
+     * @param curveId 曲线ID
+     */
+    void removeCurveMarkers(const QString& curveId);
+
+    /**
+     * @brief 清空所有标注点
+     */
+    void clearAllMarkers();
+
 public slots:
     void addCurve(const ThermalCurve& curve);
     void updateCurve(const ThermalCurve& curve);
@@ -313,6 +336,9 @@ private:
 
     // ==================== 浮动标签管理 ====================
     QVector<FloatingLabel*> m_floatingLabels;                     // 浮动标签列表
+
+    // ==================== 标注点（Markers）管理 ====================
+    QMap<QString, QScatterSeries*> m_curveMarkers;                // 曲线ID → 标注点系列（用于显示用户选择的点）
 };
 
 #endif // CHARTVIEW_H

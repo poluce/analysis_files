@@ -135,7 +135,12 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
         for (int i = 0; i < result.markerCount(); ++i) {
             qDebug() << "  标注点" << i << ":" << result.markers()[i];
         }
-        // TODO: 发送标注点到 ChartView
+
+        // 发送标注点到 ChartView
+        if (result.hasMarkers()) {
+            QColor markerColor = result.metaValue<QColor>("markerColor", Qt::yellow);
+            emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
+        }
         break;
     }
 
@@ -169,7 +174,16 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 
         if (result.hasMarkers()) {
             qDebug() << "  包含" << result.markerCount() << "个标注点";
-            // TODO: 发送标注点到 ChartView
+
+            // 发送标注点到 ChartView（关联到生成的第一条曲线）
+            QString targetCurveId = result.parentCurveId();
+            if (result.hasCurves() && !result.curves().isEmpty()) {
+                // 如果生成了新曲线，标注点关联到新曲线
+                targetCurveId = result.curves().first().id();
+            }
+
+            QColor markerColor = result.metaValue<QColor>("markerColor", Qt::yellow);
+            emit markersGenerated(targetCurveId, result.markers(), markerColor);
         }
 
         if (result.hasRegions()) {

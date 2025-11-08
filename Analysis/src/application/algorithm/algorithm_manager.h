@@ -54,6 +54,15 @@ signals:
      */
     void algorithmExecutionFailed(const QString& algorithmName, const QString& errorMessage);
 
+    /**
+     * @brief 算法生成标注点信号
+     *
+     * @param curveId 关联的曲线ID
+     * @param markers 标注点列表（数据坐标）
+     * @param color 标注点颜色
+     */
+    void markersGenerated(const QString& curveId, const QList<QPointF>& markers, const QColor& color);
+
 private:
     explicit AlgorithmManager(QObject* parent = nullptr);
     ~AlgorithmManager();

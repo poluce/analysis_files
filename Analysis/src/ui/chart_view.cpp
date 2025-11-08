@@ -477,13 +477,54 @@ void ChartView::cancelAlgorithmInteraction()
 
 void ChartView::setCurveVisible(const QString& curveId, bool visible)
 {
+    // 早期返回：检查曲线是否存在
     QLineSeries* series = seriesForCurve(curveId);
     if (!series || series->isVisible() == visible) {
         return;
     }
 
+    // 设置当前曲线的可见性
     series->setVisible(visible);
     updateLegendVisibility(series, visible);
+
+    // ==================== 级联处理标注点（Markers）====================
+    // 如果该曲线有关联的标注点，同步设置可见性
+    if (m_curveMarkers.contains(curveId)) {
+        QScatterSeries* markerSeries = m_curveMarkers.value(curveId);
+        if (markerSeries) {
+            markerSeries->setVisible(visible);
+            qDebug() << "ChartView::setCurveVisible - 同步标注点可见性:" << curveId << visible;
+        }
+    }
+
+    // ==================== 级联处理子曲线 ====================
+    // 如果有 CurveManager，级联设置强绑定子曲线的可见性
+    if (m_curveManager) {
+        QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
+        for (ThermalCurve* child : children) {
+            if (!child) continue;
+
+            // 只级联处理强绑定的子曲线（如基线）
+            if (child->isStronglyBound()) {
+                QLineSeries* childSeries = seriesForCurve(child->id());
+                if (childSeries) {
+                    childSeries->setVisible(visible);
+                    updateLegendVisibility(childSeries, visible);
+
+                    // 递归处理子曲线的标注点和子曲线
+                    if (m_curveMarkers.contains(child->id())) {
+                        QScatterSeries* childMarkerSeries = m_curveMarkers.value(child->id());
+                        if (childMarkerSeries) {
+                            childMarkerSeries->setVisible(visible);
+                        }
+                    }
+
+                    qDebug() << "ChartView::setCurveVisible - 级联设置子曲线可见性:" << child->name() << visible;
+                }
+            }
+        }
+    }
+
     rescaleAxes();
 }
 
@@ -578,6 +619,9 @@ void ChartView::removeCurve(const QString& curveId)
         clearInteractionState();
     }
 
+    // 清除该曲线的标注点（如果有）
+    removeCurveMarkers(curveId);
+
     unregisterSeriesMapping(curveId);
     series->deleteLater();
 
@@ -605,6 +649,7 @@ void ChartView::clearCurves()
     resetAxesToDefault();
     clearCrosshair();
     clearFloatingLabels();  // 清空所有浮动标签
+    clearAllMarkers();      // 清空所有标注点
     emit curveSelected(QString());
 }
 
@@ -1297,4 +1342,93 @@ void ChartView::clearFloatingLabels()
     m_floatingLabels.clear();
 
     qDebug() << "ChartView::clearFloatingLabels - 清空所有浮动标签";
+}
+
+// ==================== 标注点（Markers）管理实现 ====================
+
+void ChartView::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
+                                 const QColor& color, qreal size)
+{
+    // 早期返回：检查前置条件
+    if (curveId.isEmpty() || markers.isEmpty() || !m_chartView || !m_chartView->chart()) {
+        return;
+    }
+
+    // 如果已存在标注点系列，先移除
+    removeCurveMarkers(curveId);
+
+    // 查找曲线对应的系列（用于确定Y轴）
+    QLineSeries* curveSeries = seriesForCurve(curveId);
+    if (!curveSeries) {
+        qWarning() << "ChartView::addCurveMarkers - 未找到曲线" << curveId;
+        return;
+    }
+
+    // 创建标注点系列
+    auto* markerSeries = new QScatterSeries();
+    markerSeries->setName(QString("标注点 (%1)").arg(curveId));
+    markerSeries->setMarkerSize(size);
+    markerSeries->setColor(color);
+    markerSeries->setBorderColor(color.darker(120));
+    markerSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+
+    // 添加点（根据当前横轴模式）
+    for (const QPointF& marker : markers) {
+        markerSeries->append(marker);
+    }
+
+    // 添加到图表
+    QChart* chart = m_chartView->chart();
+    chart->addSeries(markerSeries);
+
+    // 附着到与曲线相同的轴
+    const auto axes = curveSeries->attachedAxes();
+    for (QAbstractAxis* axis : axes) {
+        markerSeries->attachAxis(axis);
+    }
+
+    // 保存映射关系
+    m_curveMarkers[curveId] = markerSeries;
+
+    qDebug() << "ChartView::addCurveMarkers - 为曲线" << curveId << "添加了" << markers.size() << "个标注点";
+}
+
+void ChartView::removeCurveMarkers(const QString& curveId)
+{
+    // 早期返回：检查是否存在
+    if (!m_curveMarkers.contains(curveId)) {
+        return;
+    }
+
+    QScatterSeries* markerSeries = m_curveMarkers.take(curveId);
+    if (!markerSeries) {
+        return;
+    }
+
+    // 从图表中移除
+    if (m_chartView && m_chartView->chart()) {
+        m_chartView->chart()->removeSeries(markerSeries);
+    }
+
+    markerSeries->deleteLater();
+
+    qDebug() << "ChartView::removeCurveMarkers - 移除曲线" << curveId << "的标注点";
+}
+
+void ChartView::clearAllMarkers()
+{
+    // 移除所有标注点系列
+    for (auto it = m_curveMarkers.begin(); it != m_curveMarkers.end(); ++it) {
+        QScatterSeries* markerSeries = it.value();
+        if (markerSeries) {
+            if (m_chartView && m_chartView->chart()) {
+                m_chartView->chart()->removeSeries(markerSeries);
+            }
+            markerSeries->deleteLater();
+        }
+    }
+
+    m_curveMarkers.clear();
+
+    qDebug() << "ChartView::clearAllMarkers - 清空所有标注点";
 }

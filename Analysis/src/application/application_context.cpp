@@ -40,6 +40,10 @@ ApplicationContext::ApplicationContext(QObject* parent)
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
     m_mainWindow->bindHistoryManager(*HistoryManager::instance());
 
+    // 连接 AlgorithmManager 的标注点信号到 ChartView
+    connect(AlgorithmManager::instance(), &AlgorithmManager::markersGenerated,
+            m_chartView, &ChartView::addCurveMarkers);
+
     // 3. Controller
     m_mainController = new MainController(m_curveManager, this);
     m_mainController->setPlotWidget(m_chartView);
