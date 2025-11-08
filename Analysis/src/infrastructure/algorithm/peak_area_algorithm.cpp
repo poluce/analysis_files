@@ -28,7 +28,7 @@ QString PeakAreaAlgorithm::category() const
     return "Analysis";
 }
 
-SignalType PeakAreaAlgorithm::getOutputSignalType(SignalType inputType) const
+SignalType PeakAreaAlgorithm::getOutputSignalType(SignalType /*inputType*/) const
 {
     // 峰面积计算输出的是 PeakArea 类型
     return SignalType::PeakArea;
@@ -42,8 +42,8 @@ IThermalAlgorithm::InputType PeakAreaAlgorithm::inputType() const
 
 IThermalAlgorithm::OutputType PeakAreaAlgorithm::outputType() const
 {
-    // 输出标注点和文本标签
-    return OutputType::Marker;
+    // 输出面积值和区域图
+    return OutputType::Area;
 }
 
 AlgorithmDescriptor PeakAreaAlgorithm::descriptor() const
@@ -153,11 +153,11 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
 
     qDebug() << "PeakAreaAlgorithm::executeWithContext - 计算得到峰面积:" << area;
 
-    // 7. 创建结果对象
+    // 7. 创建结果对象（混合输出：标注点 + 面积值）
     AlgorithmResult result = AlgorithmResult::success(
         "peak_area",
         inputCurve->id(),
-        ResultType::MarkersOnly  // 仅输出标注点
+        ResultType::Composite  // 混合输出
     );
 
     // 添加起点和终点标注
@@ -167,20 +167,39 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     result.addMarker(point1, "积分起点");
     result.addMarker(point2, "积分终点");
 
-    // 添加浮动标签，显示峰面积数值
-    QString areaText = formatAreaText(area, inputCurve->instrumentType());
+    // 设置峰面积数值
+    QString unit;
+    switch (inputCurve->instrumentType()) {
+        case InstrumentType::TGA:
+            unit = "mg·°C";
+            break;
+        case InstrumentType::DSC:
+            unit = "J/g";
+            break;
+        case InstrumentType::ARC:
+            unit = "°C²";
+            break;
+        default:
+            unit = "";
+            break;
+    }
 
-    // 浮动标签显示在两点中间位置
-    QPointF labelPos((point1.x() + point2.x()) / 2.0,
-                     (point1.y() + point2.y()) / 2.0);
-    result.addFloatingLabel(labelPos, areaText);
+    result.setArea(area, unit);
+
+    // 格式化显示文本
+    QString areaText = formatAreaText(area, inputCurve->instrumentType());
 
     // 添加元数据
     result.setMeta("peakArea", area);
     result.setMeta("temperatureRange", QString("%1 - %2").arg(temp1).arg(temp2));
     result.setMeta("instrumentType", static_cast<int>(inputCurve->instrumentType()));
-    result.setMeta("label", areaText);
+    result.setMeta("label", areaText);  // 用于 UI 显示的文本
     result.setMeta("markerColor", QColor(Qt::blue));
+
+    // 标签显示位置（两点中间）
+    QPointF labelPos((point1.x() + point2.x()) / 2.0,
+                     (point1.y() + point2.y()) / 2.0);
+    result.setMeta("labelPosition", labelPos);
 
     return result;
 }
