@@ -63,6 +63,15 @@ signals:
      */
     void markersGenerated(const QString& curveId, const QList<QPointF>& markers, const QColor& color);
 
+    /**
+     * @brief 算法请求添加浮动标签信号
+     *
+     * @param text 标签文本
+     * @param dataPos 数据坐标位置
+     * @param curveId 关联的曲线ID
+     */
+    void floatingLabelRequested(const QString& text, const QPointF& dataPos, const QString& curveId);
+
 private:
     explicit AlgorithmManager(QObject* parent = nullptr);
     ~AlgorithmManager();
