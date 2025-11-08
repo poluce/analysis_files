@@ -126,7 +126,7 @@ void ChartView::mousePressEvent(QMouseEvent* event)
     if (m_massLossToolActive && m_mode == InteractionMode::Pick) {
         m_massLossToolStart = chartViewPos;
         qDebug() << "ChartView::mousePressEvent - 测量工具起点:" << m_massLossToolStart;
-        QWidget::mousePressEvent(event);
+        event->accept();
         return;
     }
 
@@ -141,6 +141,9 @@ void ChartView::mousePressEvent(QMouseEvent* event)
 
 void ChartView::mouseReleaseEvent(QMouseEvent* event)
 {
+    qDebug() << "ChartView::mouseReleaseEvent - 被调用, button:" << event->button()
+             << "massLossToolActive:" << m_massLossToolActive;
+
     if (event->button() != Qt::LeftButton) {
         QWidget::mouseReleaseEvent(event);
         return;
