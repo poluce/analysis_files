@@ -6,6 +6,8 @@
 #include <QGraphicsLineItem>
 #include <QCursor>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QPainter>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
@@ -123,6 +125,54 @@ void ChartView::mousePressEvent(QMouseEvent* event)
     }
 
     QWidget::mousePressEvent(event);
+}
+
+void ChartView::contextMenuEvent(QContextMenuEvent* event)
+{
+    QMenu menu(this);
+
+    // 添加横轴切换菜单项
+    QString currentMode = (m_xAxisMode == XAxisMode::Temperature) ? tr("温度") : tr("时间");
+    QString targetMode = (m_xAxisMode == XAxisMode::Temperature) ? tr("时间") : tr("温度");
+    QAction* toggleAction = menu.addAction(tr("切换到以%1为横轴").arg(targetMode));
+    connect(toggleAction, &QAction::triggered, this, &ChartView::toggleXAxisMode);
+
+    // 显示菜单
+    menu.exec(event->globalPos());
+}
+
+void ChartView::toggleXAxisMode()
+{
+    // 切换模式
+    if (m_xAxisMode == XAxisMode::Temperature) {
+        m_xAxisMode = XAxisMode::Time;
+        m_axisX->setTitleText(tr("时间 (s)"));
+        qDebug() << "ChartView::toggleXAxisMode - 切换到时间横轴";
+    } else {
+        m_xAxisMode = XAxisMode::Temperature;
+        m_axisX->setTitleText(tr("温度 (°C)"));
+        qDebug() << "ChartView::toggleXAxisMode - 切换到温度横轴";
+    }
+
+    // 重新加载所有曲线数据
+    if (!m_curveManager) {
+        qWarning() << "ChartView::toggleXAxisMode - CurveManager 未设置";
+        return;
+    }
+
+    const auto& allCurves = m_curveManager->getAllCurves();
+    for (const ThermalCurve& curve : allCurves) {
+        QLineSeries* series = seriesForCurve(curve.id());
+        if (series) {
+            // 重新填充数据（populateSeriesWithCurveData 会根据 m_xAxisMode 选择数据）
+            populateSeriesWithCurveData(series, curve);
+        }
+    }
+
+    // 重新缩放坐标轴以适应新数据范围
+    rescaleAxes();
+
+    qDebug() << "ChartView::toggleXAxisMode - 已完成横轴切换和曲线重绘";
 }
 
 void ChartView::handleCurveSelectionClick(const QPointF& chartPos)
@@ -812,8 +862,18 @@ void ChartView::populateSeriesWithCurveData(QLineSeries* series, const ThermalCu
     series->clear();
 
     const auto& data = curve.getProcessedData();
-    for (const auto& point : data) {
-        series->append(point.temperature, point.value);
+
+    // 根据横轴模式选择 X 轴数据
+    if (m_xAxisMode == XAxisMode::Temperature) {
+        // 温度为横轴
+        for (const auto& point : data) {
+            series->append(point.temperature, point.value);
+        }
+    } else {
+        // 时间为横轴
+        for (const auto& point : data) {
+            series->append(point.time, point.value);
+        }
     }
 }
 

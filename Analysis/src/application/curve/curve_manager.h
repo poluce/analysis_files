@@ -105,6 +105,24 @@ public:
      */
     QVector<ThermalCurve*> getBaselines(const QString& curveId);
 
+    /**
+     * @brief 检查指定曲线是否有子曲线
+     * @param curveId 父曲线ID
+     * @return 如果有至少一个子曲线返回 true，否则返回 false
+     *
+     * 查找条件：任何 parentId == curveId 的曲线
+     */
+    bool hasChildren(const QString& curveId) const;
+
+    /**
+     * @brief 获取指定曲线的所有直接子曲线
+     * @param curveId 父曲线ID
+     * @return 子曲线指针列表，如果不存在返回空列表
+     *
+     * 查找条件：parentId == curveId（所有信号类型）
+     */
+    QVector<ThermalCurve*> getChildren(const QString& curveId);
+
 signals:
     /**
      * @brief 当新曲线被添加时发射

@@ -223,6 +223,7 @@ ThermalCurve TextFileReader::read(const QString& filePath, const QVariantMap& co
 
     curve.setRawData(points);
     curve.setMetadata(metadata);
+    curve.setIsMainCurve(true); // 标记为主曲线（从文件导入的数据源）
 
     qDebug() << "文件" << filePath << "已成功读取并应用配置。";
     return curve;

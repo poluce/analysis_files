@@ -250,7 +250,62 @@ void MainController::onRedo()
 void MainController::onCurveDeleteRequested(const QString& curveId)
 {
     qDebug() << "MainController::onCurveDeleteRequested - 曲线ID:" << curveId;
+
+    // 1. 检查曲线是否存在
+    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    if (!curve) {
+        qWarning() << "MainController::onCurveDeleteRequested - 曲线不存在:" << curveId;
+        return;
+    }
+
+    // 2. 禁止删除主曲线（数据源）
+    if (curve->isMainCurve()) {
+        QMessageBox::warning(
+            m_mainWindow,
+            tr("无法删除主曲线"),
+            tr("曲线 \"%1\" 是主曲线（数据源），不能被删除。\n\n"
+               "主曲线是从文件导入的原始数据，是所有派生曲线的基础。\n"
+               "如果需要移除，请使用 文件 → 清空项目 功能。")
+                .arg(curve->name())
+        );
+
+        qWarning() << "MainController::onCurveDeleteRequested - 不允许删除主曲线:" << curveId;
+        return;
+    }
+
+    // 3. 检查是否有子曲线（数据血缘关系）
+    if (m_curveManager->hasChildren(curveId)) {
+        // 获取子曲线列表以显示详细信息
+        QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
+
+        // 构建子曲线列表消息
+        QString childrenList;
+        for (int i = 0; i < children.size() && i < 5; ++i) {  // 最多显示5个
+            childrenList += QString("  - %1\n").arg(children[i]->name());
+        }
+        if (children.size() > 5) {
+            childrenList += QString("  - ... (还有 %1 个)\n").arg(children.size() - 5);
+        }
+
+        // 显示错误消息
+        QMessageBox::warning(
+            m_mainWindow,
+            tr("无法删除曲线"),
+            tr("曲线 \"%1\" 不能被删除，因为它有 %2 个子曲线依赖于它：\n\n%3\n"
+               "请先删除这些子曲线，然后再删除父曲线。")
+                .arg(curve->name())
+                .arg(children.size())
+                .arg(childrenList)
+        );
+
+        qWarning() << "MainController::onCurveDeleteRequested - 曲线有" << children.size()
+                   << "个子曲线，无法删除:" << curveId;
+        return;
+    }
+
+    // 4. 检查通过，执行删除（只能删除没有子曲线的派生曲线）
     m_curveManager->removeCurve(curveId);
+    qDebug() << "MainController::onCurveDeleteRequested - 成功删除曲线:" << curveId;
 }
 
 
