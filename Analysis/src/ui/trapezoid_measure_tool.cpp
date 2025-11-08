@@ -274,36 +274,55 @@ QPointF TrapezoidMeasureTool::sceneToData(const QPointF& scenePoint) const
     return m_chart->mapToValue(chartPos);
 }
 
-QPointF TrapezoidMeasureTool::findNearestPointOnCurve(qreal xValue)
+ThermalDataPoint TrapezoidMeasureTool::findNearestPointOnCurve(qreal xValue)
 {
+    // 默认返回值
+    ThermalDataPoint defaultPoint;
+    defaultPoint.temperature = xValue;
+    defaultPoint.time = 0.0;
+    defaultPoint.value = 0.0;
+
     if (!m_curveManager || m_curveId.isEmpty()) {
-        return QPointF(xValue, 0.0);
+        return defaultPoint;
     }
 
     ThermalCurve* curve = m_curveManager->getCurve(m_curveId);
     if (!curve) {
-        return QPointF(xValue, 0.0);
+        return defaultPoint;
     }
 
     const auto& data = curve->getProcessedData();
     if (data.isEmpty()) {
-        return QPointF(xValue, 0.0);
+        return defaultPoint;
     }
 
     // 查找最接近的点（根据当前横轴模式）
-    // 注意：这里假设是温度横轴，如果需要支持时间横轴，需要从 ChartView 获取当前模式
     int nearestIdx = 0;
-    qreal minDist = qAbs(data[0].temperature - xValue);
+    qreal minDist;
 
-    for (int i = 1; i < data.size(); ++i) {
-        qreal dist = qAbs(data[i].temperature - xValue);
-        if (dist < minDist) {
-            minDist = dist;
-            nearestIdx = i;
+    if (m_useTimeAxis) {
+        // 时间轴模式：按时间查找
+        minDist = qAbs(data[0].time - xValue);
+        for (int i = 1; i < data.size(); ++i) {
+            qreal dist = qAbs(data[i].time - xValue);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestIdx = i;
+            }
+        }
+    } else {
+        // 温度轴模式：按温度查找
+        minDist = qAbs(data[0].temperature - xValue);
+        for (int i = 1; i < data.size(); ++i) {
+            qreal dist = qAbs(data[i].temperature - xValue);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestIdx = i;
+            }
         }
     }
 
-    return QPointF(data[nearestIdx].temperature, data[nearestIdx].value);
+    return data[nearestIdx];
 }
 
 void TrapezoidMeasureTool::paintCloseButton(QPainter* painter)

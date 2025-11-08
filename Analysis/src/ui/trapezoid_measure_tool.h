@@ -118,9 +118,9 @@ private:
     /**
      * @brief 查找曲线上最接近指定X坐标的点
      * @param xValue X坐标值
-     * @return 最接近的数据点坐标 (x, y)
+     * @return 最接近的完整数据点
      */
-    QPointF findNearestPointOnCurve(qreal xValue);
+    ThermalDataPoint findNearestPointOnCurve(qreal xValue);
 
     /**
      * @brief 绘制关闭按钮
