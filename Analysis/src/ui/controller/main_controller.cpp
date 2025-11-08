@@ -57,7 +57,7 @@ void MainController::setPlotWidget(ChartView* plotWidget)
     // ==================== 连接活动算法状态机信号 ====================
     // 当用户完成算法交互（选点完成）时，自动触发算法执行
     connect(m_plotWidget, &ChartView::algorithmInteractionCompleted, this,
-            [this](const QString& algorithmName, const QVector<QPointF>& points) {
+            [this](const QString& algorithmName, const QVector<ThermalDataPoint>& points) {
                 qDebug() << "MainController: 接收到算法交互完成信号 -" << algorithmName
                          << ", 选点数量:" << points.size();
 

@@ -173,6 +173,9 @@ void ChartView::toggleXAxisMode()
     // 重新缩放坐标轴以适应新数据范围
     rescaleAxes();
 
+    // 更新选中点的显示位置（如果有选中的点）
+    updateSelectedPointsDisplay();
+
     qDebug() << "ChartView::toggleXAxisMode - 已完成横轴切换和曲线重绘";
 }
 
@@ -220,53 +223,86 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
     QPointF rawValuePoint = convertToValueCoordinates(chartViewPos);
 
     // ==================== 从目标曲线数据中查找最接近的点 ====================
-    QPointF actualValuePoint = rawValuePoint;  // 默认使用原始转换点
+    ThermalDataPoint selectedDataPoint;  // 保存完整的数据点
+    QPointF displayPoint = rawValuePoint;  // 用于显示的坐标（根据横轴模式变化）
 
     if (m_curveManager && !m_activeAlgorithm.targetCurveId.isEmpty()) {
         ThermalCurve* targetCurve = m_curveManager->getCurve(m_activeAlgorithm.targetCurveId);
         if (targetCurve) {
             const auto& curveData = targetCurve->getProcessedData();
             if (!curveData.isEmpty()) {
-                // 查找最接近鼠标X坐标（温度）的数据点
-                double targetTemp = rawValuePoint.x();
+                // 根据当前横轴模式查找最接近的点
+                double targetXValue = rawValuePoint.x();
                 int closestIndex = 0;
-                double minDist = qAbs(curveData[0].temperature - targetTemp);
+                double minDist;
 
-                for (int i = 1; i < curveData.size(); ++i) {
-                    double dist = qAbs(curveData[i].temperature - targetTemp);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        closestIndex = i;
+                if (m_xAxisMode == XAxisMode::Temperature) {
+                    // 温度模式：根据温度查找
+                    minDist = qAbs(curveData[0].temperature - targetXValue);
+                    for (int i = 1; i < curveData.size(); ++i) {
+                        double dist = qAbs(curveData[i].temperature - targetXValue);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closestIndex = i;
+                        }
+                    }
+                } else {
+                    // 时间模式：根据时间查找
+                    minDist = qAbs(curveData[0].time - targetXValue);
+                    for (int i = 1; i < curveData.size(); ++i) {
+                        double dist = qAbs(curveData[i].time - targetXValue);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closestIndex = i;
+                        }
                     }
                 }
 
-                // 使用曲线实际数据点的坐标
-                actualValuePoint.setX(curveData[closestIndex].temperature);
-                actualValuePoint.setY(curveData[closestIndex].value);
+                // 保存完整的数据点（包含温度、时间、值）
+                selectedDataPoint = curveData[closestIndex];
+
+                // 根据当前横轴模式设置显示坐标
+                if (m_xAxisMode == XAxisMode::Temperature) {
+                    displayPoint.setX(selectedDataPoint.temperature);
+                } else {
+                    displayPoint.setX(selectedDataPoint.time);
+                }
+                displayPoint.setY(selectedDataPoint.value);
+
+                // 记录选中点所属的曲线ID（第一次选点时记录）
+                if (m_selectedPoints.isEmpty()) {
+                    m_selectedPointsCurveId = m_activeAlgorithm.targetCurveId;
+                }
 
                 qDebug() << "ChartView: 从目标曲线" << targetCurve->name()
                          << "找到最接近点 - 原始选点:" << rawValuePoint
-                         << "-> 实际数据点:" << actualValuePoint;
+                         << "-> 实际数据点(T=" << selectedDataPoint.temperature
+                         << ", t=" << selectedDataPoint.time
+                         << ", v=" << selectedDataPoint.value << ")";
             }
         } else {
             qWarning() << "ChartView: 无法获取目标曲线" << m_activeAlgorithm.targetCurveId;
+            return;  // 无法获取曲线，直接返回
         }
+    } else {
+        qWarning() << "ChartView: 没有目标曲线或 CurveManager 未设置";
+        return;
     }
 
-    // 添加选点到活动算法的选点列表（使用实际数据点）
-    m_selectedPoints.append(actualValuePoint);
+    // 添加完整数据点到选点列表
+    m_selectedPoints.append(selectedDataPoint);
 
     // 在图表上显示选中的点（红色高亮）
     if (m_selectedPointsSeries) {
-        m_selectedPointsSeries->append(actualValuePoint);
-        qDebug() << "ChartView: 添加红色高亮点到图表:" << actualValuePoint;
+        m_selectedPointsSeries->append(displayPoint);
+        qDebug() << "ChartView: 添加红色高亮点到图表:" << displayPoint;
     } else {
         qWarning() << "ChartView: 选点系列为空，无法显示高亮点";
     }
 
     qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
              << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount
-             << ", 点:" << actualValuePoint;
+             << ", 数据点(T=" << selectedDataPoint.temperature << ", t=" << selectedDataPoint.time << ", v=" << selectedDataPoint.value << ")";
 
     // 检查是否已收集足够的点
     if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
@@ -535,6 +571,12 @@ void ChartView::removeCurve(const QString& curveId)
         m_selectedSeries = nullptr;
     }
 
+    // 如果删除的曲线是选中点所属的曲线，清除选中的点
+    if (!m_selectedPointsCurveId.isEmpty() && m_selectedPointsCurveId == curveId) {
+        qDebug() << "ChartView::removeCurve - 删除的曲线是选中点所属的曲线，清除选中点:" << curveId;
+        clearInteractionState();
+    }
+
     unregisterSeriesMapping(curveId);
     series->deleteLater();
 
@@ -729,6 +771,7 @@ void ChartView::clearCrosshair()
 void ChartView::clearInteractionState()
 {
     m_selectedPoints.clear();
+    m_selectedPointsCurveId.clear();  // 清除选中点所属的曲线ID
     if (m_selectedPointsSeries) {
         m_selectedPointsSeries->clear();
     }
@@ -825,7 +868,7 @@ void ChartView::completePointSelection()
 
     // 发出算法交互完成信号，触发算法执行
     QString completedAlgorithmName = m_activeAlgorithm.name;
-    QVector<QPointF> completedPoints = m_selectedPoints;
+    QVector<ThermalDataPoint> completedPoints = m_selectedPoints;
     emit algorithmInteractionCompleted(completedAlgorithmName, completedPoints);
 
     // 清空活动算法信息（算法执行完成后不需要保留交互状态）
@@ -838,6 +881,39 @@ void ChartView::completePointSelection()
     setInteractionMode(InteractionMode::View);
 
     qDebug() << "ChartView::completePointSelection - 算法交互状态已清理，回到空闲状态";
+}
+
+void ChartView::updateSelectedPointsDisplay()
+{
+    // 如果没有选中的点或没有选中点系列，直接返回
+    if (m_selectedPoints.isEmpty() || !m_selectedPointsSeries) {
+        return;
+    }
+
+    qDebug() << "ChartView::updateSelectedPointsDisplay - 更新" << m_selectedPoints.size() << "个选中点的显示位置";
+
+    // 清空旧的显示点
+    m_selectedPointsSeries->clear();
+
+    // 根据当前横轴模式重新计算显示坐标
+    for (const ThermalDataPoint& dataPoint : m_selectedPoints) {
+        QPointF displayPoint;
+
+        // 根据横轴模式选择 X 坐标
+        if (m_xAxisMode == XAxisMode::Temperature) {
+            displayPoint.setX(dataPoint.temperature);
+        } else {
+            displayPoint.setX(dataPoint.time);
+        }
+
+        // Y 坐标始终是值
+        displayPoint.setY(dataPoint.value);
+
+        // 添加到显示系列
+        m_selectedPointsSeries->append(displayPoint);
+    }
+
+    qDebug() << "ChartView::updateSelectedPointsDisplay - 已更新选中点显示";
 }
 
 QLineSeries* ChartView::seriesForCurve(const QString& curveId) const

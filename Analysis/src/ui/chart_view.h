@@ -11,6 +11,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
+#include "domain/model/thermal_data_point.h"
 
 class ThermalCurve;
 class QPainter;
@@ -139,9 +140,14 @@ public:
     const ActiveAlgorithmInfo& activeAlgorithm() const { return m_activeAlgorithm; }
 
     /**
-     * @brief 获取已选择的点
+     * @brief 获取已选择的点（完整数据点，包含温度、时间、值）
      */
-    const QVector<QPointF>& selectedPoints() const { return m_selectedPoints; }
+    const QVector<ThermalDataPoint>& selectedPoints() const { return m_selectedPoints; }
+
+    /**
+     * @brief 获取选中点所属的曲线ID
+     */
+    const QString& selectedPointsCurveId() const { return m_selectedPointsCurveId; }
 
     void addAnnotationLine(
         const QString& id, const QString& curveId, const QPointF& start, const QPointF& end, const QPen& pen = QPen(Qt::red, 2));
@@ -211,9 +217,9 @@ signals:
      * 当用户完成所有必需的交互步骤后发出，包含算法名称和选择的点
      *
      * @param algorithmName 算法名称
-     * @param points 用户选择的点
+     * @param points 用户选择的点（完整数据点，包含温度、时间、值）
      */
-    void algorithmInteractionCompleted(const QString& algorithmName, const QVector<QPointF>& points);
+    void algorithmInteractionCompleted(const QString& algorithmName, const QVector<ThermalDataPoint>& points);
 
     /**
      * @brief 交互状态改变信号
@@ -240,6 +246,7 @@ private:
     void transitionToState(InteractionState newState);
     QPointF convertToValueCoordinates(const QPointF& chartViewPos);
     void completePointSelection();
+    void updateSelectedPointsDisplay();  // 更新选中点的显示位置（用于切换横轴模式）
 
     // --- 曲线系列管理：封装 QLineSeries 的创建、数据填充与映射维护 ---
     QLineSeries* seriesForCurve(const QString& curveId) const;
@@ -298,7 +305,8 @@ private:
     // ==================== 交互状态管理 ====================
     InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态
     ActiveAlgorithmInfo m_activeAlgorithm;                        // 当前活动算法信息
-    QVector<QPointF> m_selectedPoints;                            // 用户已选择的点
+    QVector<ThermalDataPoint> m_selectedPoints;                   // 用户已选择的点（完整数据，包含温度、时间、值）
+    QString m_selectedPointsCurveId;                              // 选中点所属的曲线ID
     QScatterSeries* m_selectedPointsSeries = nullptr;             // 显示选中点的散点图系列（红色高亮）
 
     QVector<AnnotationLine> m_annotations;
