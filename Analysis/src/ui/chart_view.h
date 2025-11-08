@@ -194,11 +194,11 @@ public:
      * @brief 为指定曲线添加标注点（用于显示算法生成的特征点，如基线定义点）
      * @param curveId 曲线ID
      * @param markers 标注点列表（数据坐标）
-     * @param color 标注点颜色（默认黄色）
-     * @param size 标注点大小（默认10）
+     * @param color 标注点颜色（默认红色，与用户选点时的颜色一致）
+     * @param size 标注点大小（默认12，与用户选点时的大小一致）
      */
     void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
-                         const QColor& color = Qt::yellow, qreal size = 10.0);
+                         const QColor& color = Qt::red, qreal size = 12.0);
 
     /**
      * @brief 移除指定曲线的标注点

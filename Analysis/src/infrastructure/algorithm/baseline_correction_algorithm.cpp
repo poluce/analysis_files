@@ -185,6 +185,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     result.setMeta("baselinePointCount", selectedPoints.size());
     result.setMeta("temperatureRange", QString("%1 - %2").arg(point1.x()).arg(point2.x()));
     result.setMeta("label", "基线曲线");
+    result.setMeta("markerColor", QColor(Qt::red));  // 使用红色，与用户选点时的颜色一致
 
     return result;
 }

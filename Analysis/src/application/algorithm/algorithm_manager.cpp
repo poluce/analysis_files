@@ -138,7 +138,7 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 
         // 发送标注点到 ChartView
         if (result.hasMarkers()) {
-            QColor markerColor = result.metaValue<QColor>("markerColor", Qt::yellow);
+            QColor markerColor = result.metaValue<QColor>("markerColor", Qt::red);  // 默认红色，与用户选点颜色一致
             emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
         }
         break;
@@ -182,7 +182,7 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
                 targetCurveId = result.curves().first().id();
             }
 
-            QColor markerColor = result.metaValue<QColor>("markerColor", Qt::yellow);
+            QColor markerColor = result.metaValue<QColor>("markerColor", Qt::red);  // 默认红色，与用户选点颜色一致
             emit markersGenerated(targetCurveId, result.markers(), markerColor);
         }
 
