@@ -56,6 +56,34 @@ bool CurveManager::removeCurve(const QString& curveId)
     return true;
 }
 
+int CurveManager::removeCurveRecursively(const QString& curveId)
+{
+    if (!m_curves.contains(curveId)) {
+        qWarning() << "CurveManager::removeCurveRecursively - 曲线不存在:" << curveId;
+        return 0;
+    }
+
+    int totalDeleted = 0;
+
+    // 1. 递归删除所有子曲线
+    QVector<ThermalCurve*> children = getChildren(curveId);
+    for (ThermalCurve* child : children) {
+        if (child) {
+            qDebug() << "CurveManager::removeCurveRecursively - 递归删除子曲线:" << child->id()
+                     << "（父曲线:" << curveId << "）";
+            totalDeleted += removeCurveRecursively(child->id());
+        }
+    }
+
+    // 2. 删除本身
+    if (removeCurve(curveId)) {
+        totalDeleted++;
+        qDebug() << "CurveManager::removeCurveRecursively - 删除曲线本身:" << curveId;
+    }
+
+    return totalDeleted;
+}
+
 void CurveManager::registerDefaultReaders()
 {
     m_readers.push_back(std::make_unique<TextFileReader>());

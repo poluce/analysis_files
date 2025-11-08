@@ -70,8 +70,20 @@ public:
      * @return 移除成功返回 true，曲线不存在返回 false
      *
      * 移除后会发射 curveRemoved 信号
+     *
+     * 注意：此方法不会删除子曲线，如需级联删除请使用 removeCurveRecursively()
      */
     bool removeCurve(const QString& curveId);
+
+    /**
+     * @brief 递归删除曲线及其所有子曲线（级联删除）
+     * @param curveId 曲线ID
+     * @return 删除的曲线总数（包括子曲线）
+     *
+     * 删除顺序：先递归删除所有子曲线，再删除本身
+     * 每删除一条曲线都会发射 curveRemoved 信号
+     */
+    int removeCurveRecursively(const QString& curveId);
 
     // 活动曲线管理
 
