@@ -205,11 +205,11 @@ void TrapezoidMeasureTool::hoverMoveEvent(QGraphicsSceneHoverEvent* event)
         update();
         // 更新鼠标光标
         if (m_hoveredHandle > 0) {
-            setCursor(Qt::SizeAllCursor);
+            setCursor(QCursor(Qt::SizeAllCursor));
         } else if (m_closeButtonHovered) {
-            setCursor(Qt::PointingHandCursor);
+            setCursor(QCursor(Qt::PointingHandCursor));
         } else {
-            setCursor(Qt::ArrowCursor);
+            setCursor(QCursor(Qt::ArrowCursor));
         }
     }
 

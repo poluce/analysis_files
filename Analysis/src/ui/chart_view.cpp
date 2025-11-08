@@ -176,7 +176,7 @@ void ChartView::mouseReleaseEvent(QMouseEvent* event)
 
         // 重置状态
         m_massLossToolActive = false;
-        setMode(InteractionMode::View);
+        setInteractionMode(InteractionMode::View);
     }
 
     QWidget::mouseReleaseEvent(event);
@@ -1581,7 +1581,7 @@ void ChartView::startMassLossTool()
     qDebug() << "ChartView::startMassLossTool - 启动质量损失测量工具";
 
     // 切换到 Pick 模式以接收鼠标点击
-    setMode(InteractionMode::Pick);
+    setInteractionMode(InteractionMode::Pick);
     m_massLossToolActive = true;
 
     qDebug() << "ChartView::startMassLossTool - 请在曲线上拖动鼠标选择两个点来测量质量损失";
