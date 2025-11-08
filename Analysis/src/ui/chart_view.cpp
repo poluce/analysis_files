@@ -34,6 +34,7 @@ ChartView::ChartView(QWidget* parent)
     m_chartView = new QChartView(this);
     QChart* chart = new QChart();
     chart->setTitle(tr("热分析曲线"));
+    chart->legend()->setVisible(false);  // 隐藏图例
     m_chartView->setChart(chart);
     m_chartView->setRenderHint(QPainter::Antialiasing);
 
