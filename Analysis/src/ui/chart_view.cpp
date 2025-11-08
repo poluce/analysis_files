@@ -718,23 +718,31 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
                     if (activeCurve) {
                         qDebug() << "ChartView::eventFilter - 使用活动曲线:" << activeCurve->name() << "ID:" << activeCurve->id();
 
-                        // 转换为数据坐标
-                        QPointF dataStart = convertToValueCoordinates(m_massLossToolStart);
-                        QPointF dataEnd = convertToValueCoordinates(chartViewPos);
+                        // 获取活动曲线的系列（用于正确的坐标转换）
+                        QLineSeries* activeSeries = seriesForCurve(activeCurve->id());
+                        if (activeSeries && m_chartView && m_chartView->chart()) {
+                            // 使用活动曲线的坐标系进行转换
+                            QPointF dataStart = m_chartView->chart()->mapToValue(m_massLossToolStart, activeSeries);
+                            QPointF dataEnd = m_chartView->chart()->mapToValue(chartViewPos, activeSeries);
 
-                        const auto& data = activeCurve->getProcessedData();
-                        if (!data.isEmpty()) {
-                            // 查找最接近的点
-                            ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
-                            ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
+                            qDebug() << "ChartView::eventFilter - 数据坐标 起点:" << dataStart << "终点:" << dataEnd;
 
-                            QPointF snappedStart(point1.temperature, point1.value);
-                            QPointF snappedEnd(point2.temperature, point2.value);
+                            const auto& data = activeCurve->getProcessedData();
+                            if (!data.isEmpty()) {
+                                // 查找最接近的点
+                                ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
+                                ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
 
-                            qDebug() << "ChartView::eventFilter - 吸附点1:" << snappedStart << "吸附点2:" << snappedEnd;
+                                QPointF snappedStart(point1.temperature, point1.value);
+                                QPointF snappedEnd(point2.temperature, point2.value);
 
-                            // 创建测量工具，传递曲线ID
-                            addMassLossTool(snappedStart, snappedEnd, activeCurve->id());
+                                qDebug() << "ChartView::eventFilter - 吸附点1:" << snappedStart << "吸附点2:" << snappedEnd;
+
+                                // 创建测量工具，传递曲线ID
+                                addMassLossTool(snappedStart, snappedEnd, activeCurve->id());
+                            }
+                        } else {
+                            qWarning() << "ChartView::eventFilter - 无法找到活动曲线的系列";
                         }
                     } else {
                         qWarning() << "ChartView::eventFilter - 没有活动曲线，无法创建测量工具";
