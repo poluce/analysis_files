@@ -176,6 +176,24 @@ void ChartView::toggleXAxisMode()
     // 更新选中点的显示位置（如果有选中的点）
     updateSelectedPointsDisplay();
 
+    // 更新所有标注点（Markers）的显示位置
+    for (auto it = m_curveMarkers.begin(); it != m_curveMarkers.end(); ++it) {
+        CurveMarkerData& markerData = it.value();
+        if (markerData.series) {
+            markerData.series->clear();
+            for (const ThermalDataPoint& dataPoint : markerData.dataPoints) {
+                QPointF displayPoint;
+                if (m_xAxisMode == XAxisMode::Temperature) {
+                    displayPoint.setX(dataPoint.temperature);
+                } else {
+                    displayPoint.setX(dataPoint.time);
+                }
+                displayPoint.setY(dataPoint.value);
+                markerData.series->append(displayPoint);
+            }
+        }
+    }
+
     qDebug() << "ChartView::toggleXAxisMode - 已完成横轴切换和曲线重绘";
 }
 
@@ -1367,6 +1385,32 @@ void ChartView::addCurveMarkers(const QString& curveId, const QList<QPointF>& ma
         return;
     }
 
+    // 从 CurveManager 获取曲线数据，将 QPointF 转换为 ThermalDataPoint
+    QVector<ThermalDataPoint> dataPoints;
+    if (m_curveManager) {
+        ThermalCurve* curve = m_curveManager->getCurve(curveId);
+        if (curve) {
+            const auto& curveData = curve->getProcessedData();
+            // 根据温度坐标查找对应的 ThermalDataPoint
+            for (const QPointF& marker : markers) {
+                double targetTemp = marker.x();  // markers 是温度坐标
+                ThermalDataPoint foundPoint = findNearestDataPoint(curveData, targetTemp);
+                dataPoints.append(foundPoint);
+            }
+        }
+    }
+
+    // 如果无法获取完整数据，使用 QPointF 创建临时 ThermalDataPoint
+    if (dataPoints.isEmpty()) {
+        for (const QPointF& marker : markers) {
+            ThermalDataPoint point;
+            point.temperature = marker.x();
+            point.time = 0.0;  // 未知
+            point.value = marker.y();
+            dataPoints.append(point);
+        }
+    }
+
     // 创建标注点系列
     auto* markerSeries = new QScatterSeries();
     markerSeries->setName(QString("标注点 (%1)").arg(curveId));
@@ -1375,9 +1419,16 @@ void ChartView::addCurveMarkers(const QString& curveId, const QList<QPointF>& ma
     markerSeries->setBorderColor(color.darker(120));
     markerSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
 
-    // 添加点（根据当前横轴模式）
-    for (const QPointF& marker : markers) {
-        markerSeries->append(marker);
+    // 添加点（根据当前横轴模式选择X坐标）
+    for (const ThermalDataPoint& dataPoint : dataPoints) {
+        QPointF displayPoint;
+        if (m_xAxisMode == XAxisMode::Temperature) {
+            displayPoint.setX(dataPoint.temperature);
+        } else {
+            displayPoint.setX(dataPoint.time);
+        }
+        displayPoint.setY(dataPoint.value);
+        markerSeries->append(displayPoint);
     }
 
     // 添加到图表
@@ -1390,8 +1441,11 @@ void ChartView::addCurveMarkers(const QString& curveId, const QList<QPointF>& ma
         markerSeries->attachAxis(axis);
     }
 
-    // 保存映射关系
-    m_curveMarkers[curveId] = markerSeries;
+    // 保存映射关系和原始数据
+    CurveMarkerData markerData;
+    markerData.series = markerSeries;
+    markerData.dataPoints = dataPoints;
+    m_curveMarkers[curveId] = markerData;
 
     qDebug() << "ChartView::addCurveMarkers - 为曲线" << curveId << "添加了" << markers.size() << "个标注点";
 }
@@ -1403,17 +1457,17 @@ void ChartView::removeCurveMarkers(const QString& curveId)
         return;
     }
 
-    QScatterSeries* markerSeries = m_curveMarkers.take(curveId);
-    if (!markerSeries) {
+    CurveMarkerData markerData = m_curveMarkers.take(curveId);
+    if (!markerData.series) {
         return;
     }
 
     // 从图表中移除
     if (m_chartView && m_chartView->chart()) {
-        m_chartView->chart()->removeSeries(markerSeries);
+        m_chartView->chart()->removeSeries(markerData.series);
     }
 
-    markerSeries->deleteLater();
+    markerData.series->deleteLater();
 
     qDebug() << "ChartView::removeCurveMarkers - 移除曲线" << curveId << "的标注点";
 }
@@ -1434,4 +1488,25 @@ void ChartView::clearAllMarkers()
     m_curveMarkers.clear();
 
     qDebug() << "ChartView::clearAllMarkers - 清空所有标注点";
+}
+
+ThermalDataPoint ChartView::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const
+{
+    if (curveData.isEmpty()) {
+        return ThermalDataPoint();
+    }
+
+    // 找到最接近指定温度的点
+    int nearestIdx = 0;
+    double minDist = qAbs(curveData[0].temperature - temperature);
+
+    for (int i = 1; i < curveData.size(); ++i) {
+        double dist = qAbs(curveData[i].temperature - temperature);
+        if (dist < minDist) {
+            minDist = dist;
+            nearestIdx = i;
+        }
+    }
+
+    return curveData[nearestIdx];
 }

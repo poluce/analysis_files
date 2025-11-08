@@ -294,6 +294,8 @@ private:
     void updateCrosshairVisibility();
     void updateCrosshairPosition(const QPointF& viewportPos);
     void clearCrosshair();
+    // --- 标注点辅助函数：根据温度查找最接近的数据点 ---
+    ThermalDataPoint findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const;
 
 private:
     QChartView* m_chartView;
@@ -338,7 +340,11 @@ private:
     QVector<FloatingLabel*> m_floatingLabels;                     // 浮动标签列表
 
     // ==================== 标注点（Markers）管理 ====================
-    QMap<QString, QScatterSeries*> m_curveMarkers;                // 曲线ID → 标注点系列（用于显示用户选择的点）
+    struct CurveMarkerData {
+        QScatterSeries* series;                      // 散点图系列
+        QVector<ThermalDataPoint> dataPoints;        // 原始数据点（包含温度和时间）
+    };
+    QMap<QString, CurveMarkerData> m_curveMarkers;   // 曲线ID → 标注点数据
 };
 
 #endif // CHARTVIEW_H
