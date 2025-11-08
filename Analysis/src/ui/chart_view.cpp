@@ -1,5 +1,6 @@
 #include "chart_view.h"
 #include "floating_label.h"
+#include "trapezoid_measure_tool.h"
 #include "domain/model/thermal_curve.h"
 #include "application/curve/curve_manager.h"
 #include <QDebug>
@@ -120,6 +121,15 @@ void ChartView::mousePressEvent(QMouseEvent* event)
     }
 
     const QPointF chartViewPos = mapToChartCoordinates(event->pos());
+
+    // 如果正在创建测量工具，记录起点
+    if (m_massLossToolActive && m_mode == InteractionMode::Pick) {
+        m_massLossToolStart = chartViewPos;
+        qDebug() << "ChartView::mousePressEvent - 测量工具起点:" << m_massLossToolStart;
+        QWidget::mousePressEvent(event);
+        return;
+    }
+
     if (m_mode == InteractionMode::Pick) {
         handlePointSelectionClick(chartViewPos);
     } else {
@@ -127,6 +137,49 @@ void ChartView::mousePressEvent(QMouseEvent* event)
     }
 
     QWidget::mousePressEvent(event);
+}
+
+void ChartView::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() != Qt::LeftButton) {
+        QWidget::mouseReleaseEvent(event);
+        return;
+    }
+
+    // 如果正在创建测量工具，记录终点并创建工具
+    if (m_massLossToolActive && m_mode == InteractionMode::Pick) {
+        const QPointF chartViewPos = mapToChartCoordinates(event->pos());
+        qDebug() << "ChartView::mouseReleaseEvent - 测量工具终点:" << chartViewPos;
+
+        // 转换为数据坐标
+        QPointF dataStart = convertToValueCoordinates(m_massLossToolStart);
+        QPointF dataEnd = convertToValueCoordinates(chartViewPos);
+
+        // 吸附到曲线
+        if (m_curveManager) {
+            ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+            if (activeCurve) {
+                const auto& data = activeCurve->getProcessedData();
+                if (!data.isEmpty()) {
+                    // 查找最接近的点
+                    ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
+                    ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
+
+                    QPointF snappedStart(point1.temperature, point1.value);
+                    QPointF snappedEnd(point2.temperature, point2.value);
+
+                    // 创建测量工具
+                    addMassLossTool(snappedStart, snappedEnd);
+                }
+            }
+        }
+
+        // 重置状态
+        m_massLossToolActive = false;
+        setMode(InteractionMode::View);
+    }
+
+    QWidget::mouseReleaseEvent(event);
 }
 
 void ChartView::contextMenuEvent(QContextMenuEvent* event)
@@ -1519,4 +1572,86 @@ ThermalDataPoint ChartView::findNearestDataPoint(const QVector<ThermalDataPoint>
     }
 
     return curveData[nearestIdx];
+}
+
+// ==================== 测量工具管理实现 ====================
+
+void ChartView::startMassLossTool()
+{
+    qDebug() << "ChartView::startMassLossTool - 启动质量损失测量工具";
+
+    // 切换到 Pick 模式以接收鼠标点击
+    setMode(InteractionMode::Pick);
+    m_massLossToolActive = true;
+
+    qDebug() << "ChartView::startMassLossTool - 请在曲线上拖动鼠标选择两个点来测量质量损失";
+}
+
+void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2)
+{
+    if (!m_chartView || !m_chartView->chart()) {
+        qWarning() << "ChartView::addMassLossTool - 图表未初始化";
+        return;
+    }
+
+    // 创建测量工具
+    auto* tool = new TrapezoidMeasureTool(m_chartView->chart());
+    tool->setCurveManager(m_curveManager);
+
+    // 设置坐标轴
+    if (m_curveManager) {
+        ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+        if (activeCurve) {
+            QValueAxis* yAxis = findYAxisForCurve(activeCurve->id());
+            tool->setAxes(activeCurve->id(), m_axisX, yAxis);
+        }
+    }
+
+    // 设置测量点
+    tool->setMeasurePoints(point1, point2);
+
+    // 连接删除信号
+    connect(tool, &TrapezoidMeasureTool::removeRequested, this, [this, tool]() {
+        removeMassLossTool(tool);
+    });
+
+    // 添加到场景
+    m_chartView->chart()->scene()->addItem(tool);
+    m_massLossTools.append(tool);
+
+    qDebug() << "ChartView::addMassLossTool - 添加测量工具，测量值:" << tool->measureValue();
+}
+
+void ChartView::removeMassLossTool(QGraphicsObject* tool)
+{
+    if (!tool) {
+        return;
+    }
+
+    m_massLossTools.removeOne(tool);
+
+    // 从场景中移除
+    if (m_chartView && m_chartView->chart() && m_chartView->chart()->scene()) {
+        m_chartView->chart()->scene()->removeItem(tool);
+    }
+
+    tool->deleteLater();
+
+    qDebug() << "ChartView::removeMassLossTool - 移除测量工具";
+}
+
+void ChartView::clearAllMassLossTools()
+{
+    for (QGraphicsObject* tool : m_massLossTools) {
+        if (tool) {
+            if (m_chartView && m_chartView->chart() && m_chartView->chart()->scene()) {
+                m_chartView->chart()->scene()->removeItem(tool);
+            }
+            tool->deleteLater();
+        }
+    }
+
+    m_massLossTools.clear();
+
+    qDebug() << "ChartView::clearAllMassLossTools - 清空所有测量工具";
 }

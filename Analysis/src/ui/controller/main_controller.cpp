@@ -108,6 +108,7 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     // 视图操作连接
     if (m_plotWidget) {
         connect(mainWindow, &MainWindow::fitViewRequested, m_plotWidget, &ChartView::rescaleAxes, Qt::UniqueConnection);
+        connect(mainWindow, &MainWindow::massLossToolRequested, m_plotWidget, &ChartView::startMassLossTool, Qt::UniqueConnection);
         // TODO: 放大和缩小功能需要在 ChartView 中实现
         // connect(mainWindow, &MainWindow::zoomInRequested, m_plotWidget, &ChartView::zoomIn, Qt::UniqueConnection);
         // connect(mainWindow, &MainWindow::zoomOutRequested, m_plotWidget, &ChartView::zoomOut, Qt::UniqueConnection);

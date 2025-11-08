@@ -215,6 +215,9 @@ QToolBar* MainWindow::createMathToolBar()
     baselineAction->setData("baseline_correction");
     // 添加峰面积计算按钮
     QAction* peakAreaAction = toolbar->addAction(tr("峰面积计算"));
+    // 添加质量损失测量工具按钮
+    QAction* massLossAction = toolbar->addAction(tr("质量损失"));
+    connect(massLossAction, &QAction::triggered, this, &MainWindow::onMassLossToolRequested);
 
     connect(baselineAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
@@ -267,6 +270,12 @@ void MainWindow::onMovingAverageAction()
     QVariantMap params;
     params.insert("window", window);
     emit algorithmRequestedWithParams("moving_average", params);
+}
+
+void MainWindow::onMassLossToolRequested()
+{
+    qDebug() << "MainWindow::onMassLossToolRequested - 请求激活质量损失测量工具";
+    emit massLossToolRequested();
 }
 
 void MainWindow::triggerAlgorithmFromAction(void (MainWindow::*signal)(const QString&))

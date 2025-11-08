@@ -218,6 +218,30 @@ public:
      */
     void clearAllMarkers();
 
+    // ==================== 测量工具管理 ====================
+    /**
+     * @brief 启动质量损失测量工具（进入拖动选择模式）
+     */
+    void startMassLossTool();
+
+    /**
+     * @brief 添加质量损失测量工具到图表
+     * @param point1 第一个测量点
+     * @param point2 第二个测量点
+     */
+    void addMassLossTool(const QPointF& point1, const QPointF& point2);
+
+    /**
+     * @brief 移除指定的测量工具
+     * @param tool 要移除的工具指针
+     */
+    void removeMassLossTool(QGraphicsObject* tool);
+
+    /**
+     * @brief 清空所有测量工具
+     */
+    void clearAllMassLossTools();
+
 public slots:
     void addCurve(const ThermalCurve& curve);
     void updateCurve(const ThermalCurve& curve);
@@ -235,6 +259,7 @@ public:
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
@@ -352,6 +377,11 @@ private:
         QVector<ThermalDataPoint> dataPoints;        // 原始数据点（包含温度和时间）
     };
     QMap<QString, CurveMarkerData> m_curveMarkers;   // 曲线ID → 标注点数据
+
+    // ==================== 测量工具管理 ====================
+    QVector<QGraphicsObject*> m_massLossTools;       // 质量损失测量工具列表
+    bool m_massLossToolActive = false;               // 是否正在创建新的测量工具
+    QPointF m_massLossToolStart;                     // 测量工具的起点
 };
 
 #endif // CHARTVIEW_H
