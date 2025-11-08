@@ -1,4 +1,5 @@
 #include "chart_view.h"
+#include "floating_label.h"
 #include "domain/model/thermal_curve.h"
 #include "application/curve/curve_manager.h"
 #include <QDebug>
@@ -560,6 +561,7 @@ void ChartView::clearCurves()
     m_selectedSeries = nullptr;
     resetAxesToDefault();
     clearCrosshair();
+    clearFloatingLabels();  // 清空所有浮动标签
     emit curveSelected(QString());
 }
 
@@ -1073,4 +1075,123 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
     m_axisY_primary->setTitleText(curve.getYAxisLabel());
     qDebug() << "ChartView: 曲线" << curve.name() << "使用主 Y 轴（默认）";
     return m_axisY_primary;
+}
+
+// ==================== 浮动标签管理接口实现 ====================
+
+FloatingLabel* ChartView::addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId)
+{
+    if (!m_chartView || !m_chartView->chart()) {
+        qWarning() << "ChartView::addFloatingLabel - 图表未初始化";
+        return nullptr;
+    }
+
+    QChart* chart = m_chartView->chart();
+
+    // 查找对应的系列
+    QLineSeries* series = seriesForCurve(curveId);
+    if (!series) {
+        qWarning() << "ChartView::addFloatingLabel - 未找到曲线" << curveId;
+        return nullptr;
+    }
+
+    // 创建浮动标签（数据锚定模式）
+    auto* label = new FloatingLabel(chart);
+    label->setMode(FloatingLabel::Mode::DataAnchored);
+    label->setText(text);
+    label->setAnchorValue(dataPos, series);
+
+    // 添加到场景
+    chart->scene()->addItem(label);
+
+    // 保存到列表
+    m_floatingLabels.append(label);
+
+    // 连接关闭信号
+    connect(label, &FloatingLabel::closeRequested, this, [this, label]() {
+        removeFloatingLabel(label);
+    });
+
+    // 连接 plotAreaChanged 信号，确保标签跟随坐标轴变化
+    connect(chart, &QChart::plotAreaChanged, label, &FloatingLabel::updateGeometry);
+
+    qDebug() << "ChartView::addFloatingLabel - 添加浮动标签（数据锚定）：" << text
+             << "，位置：" << dataPos << "，曲线：" << curveId;
+
+    return label;
+}
+
+FloatingLabel* ChartView::addFloatingLabelHUD(const QString& text, const QPointF& viewPos)
+{
+    if (!m_chartView || !m_chartView->chart()) {
+        qWarning() << "ChartView::addFloatingLabelHUD - 图表未初始化";
+        return nullptr;
+    }
+
+    QChart* chart = m_chartView->chart();
+
+    // 创建浮动标签（视图锚定模式）
+    auto* label = new FloatingLabel(chart);
+    label->setMode(FloatingLabel::Mode::ViewAnchored);
+    label->setText(text);
+
+    // 计算绝对位置（相对于 plotArea）
+    QRectF plotArea = chart->plotArea();
+    QPointF absolutePos = plotArea.topLeft() + viewPos;
+    label->setPos(absolutePos);
+
+    // 添加到场景
+    chart->scene()->addItem(label);
+
+    // 保存到列表
+    m_floatingLabels.append(label);
+
+    // 连接关闭信号
+    connect(label, &FloatingLabel::closeRequested, this, [this, label]() {
+        removeFloatingLabel(label);
+    });
+
+    qDebug() << "ChartView::addFloatingLabelHUD - 添加浮动标签（视图锚定）：" << text
+             << "，位置：" << viewPos;
+
+    return label;
+}
+
+void ChartView::removeFloatingLabel(FloatingLabel* label)
+{
+    if (!label) {
+        return;
+    }
+
+    // 从列表中移除
+    int index = m_floatingLabels.indexOf(label);
+    if (index >= 0) {
+        m_floatingLabels.remove(index);
+    }
+
+    // 从场景中移除并删除
+    if (m_chartView && m_chartView->chart() && m_chartView->chart()->scene()) {
+        m_chartView->chart()->scene()->removeItem(label);
+    }
+
+    label->deleteLater();
+
+    qDebug() << "ChartView::removeFloatingLabel - 移除浮动标签";
+}
+
+void ChartView::clearFloatingLabels()
+{
+    // 移除所有浮动标签
+    for (FloatingLabel* label : m_floatingLabels) {
+        if (label) {
+            if (m_chartView && m_chartView->chart() && m_chartView->chart()->scene()) {
+                m_chartView->chart()->scene()->removeItem(label);
+            }
+            label->deleteLater();
+        }
+    }
+
+    m_floatingLabels.clear();
+
+    qDebug() << "ChartView::clearFloatingLabels - 清空所有浮动标签";
 }

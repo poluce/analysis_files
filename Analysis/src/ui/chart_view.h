@@ -15,6 +15,7 @@
 class ThermalCurve;
 class QPainter;
 class QGraphicsLineItem;
+class FloatingLabel;
 QT_CHARTS_USE_NAMESPACE
 
 /**
@@ -147,6 +148,40 @@ public:
     void removeAnnotation(const QString& id);
     void clearAllAnnotations();
 
+    // ==================== 浮动标签管理 ====================
+    /**
+     * @brief 添加浮动标签（数据锚定模式）
+     * @param text 标签文本（支持多行，使用 \n 分隔）
+     * @param dataPos 数据坐标锚点 (x, y)
+     * @param curveId 所属曲线ID（用于确定Y轴和自动跟随）
+     * @return FloatingLabel 指针（可用于后续配置）
+     */
+    FloatingLabel* addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId);
+
+    /**
+     * @brief 添加浮动标签（视图锚定模式，HUD）
+     * @param text 标签文本
+     * @param viewPos 视图像素位置（相对于 plotArea）
+     * @return FloatingLabel 指针
+     */
+    FloatingLabel* addFloatingLabelHUD(const QString& text, const QPointF& viewPos);
+
+    /**
+     * @brief 移除指定浮动标签
+     * @param label 要移除的标签指针
+     */
+    void removeFloatingLabel(FloatingLabel* label);
+
+    /**
+     * @brief 清空所有浮动标签
+     */
+    void clearFloatingLabels();
+
+    /**
+     * @brief 获取所有浮动标签
+     */
+    const QVector<FloatingLabel*>& floatingLabels() const { return m_floatingLabels; }
+
 public slots:
     void addCurve(const ThermalCurve& curve);
     void updateCurve(const ThermalCurve& curve);
@@ -267,6 +302,9 @@ private:
     QScatterSeries* m_selectedPointsSeries = nullptr;             // 显示选中点的散点图系列（红色高亮）
 
     QVector<AnnotationLine> m_annotations;
+
+    // ==================== 浮动标签管理 ====================
+    QVector<FloatingLabel*> m_floatingLabels;                     // 浮动标签列表
 };
 
 #endif // CHARTVIEW_H

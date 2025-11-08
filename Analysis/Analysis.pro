@@ -22,6 +22,7 @@ SOURCES += \
     src/ui/main.cpp \
     src/ui/main_window.cpp \
     src/ui/chart_view.cpp \
+    src/ui/floating_label.cpp \
     src/ui/controller/main_controller.cpp \
     src/ui/controller/curve_view_controller.cpp \
     \
@@ -54,6 +55,7 @@ HEADERS += \
     src/ui/project_explorer_view.h \
     src/ui/main_window.h \
     src/ui/chart_view.h \
+    src/ui/floating_label.h \
     src/ui/controller/main_controller.h \
     src/ui/controller/curve_view_controller.h \
     \
