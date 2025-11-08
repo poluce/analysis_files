@@ -71,16 +71,21 @@ void TrapezoidMeasureTool::paint(QPainter* painter, const QStyleOptionGraphicsIt
     // 绘制直角梯形的三条边
     painter->setPen(m_linePen);
 
-    // 1. 第一条水平线（从第一个点延伸到竖直线）
-    QPointF horizontal1End(scene2.x(), scene1.y());
+    // 垂直线的X坐标应该在右侧（两个点中X较大的那个）
+    qreal rightX = qMax(scene1.x(), scene2.x());
+
+    // 1. 第一条水平线（从第一个点向右延伸到竖直线）
+    QPointF horizontal1End(rightX, scene1.y());
     painter->drawLine(scene1, horizontal1End);
 
-    // 2. 竖直线（连接两条水平线）
-    painter->drawLine(horizontal1End, scene2);
+    // 2. 竖直线（在右侧，连接两条水平线的端点）
+    QPointF vertical1(rightX, scene1.y());
+    QPointF vertical2(rightX, scene2.y());
+    painter->drawLine(vertical1, vertical2);
 
-    // 3. 第二条水平线（从竖直线延伸到第二个点）
-    QPointF horizontal2Start(scene1.x(), scene2.y());
-    painter->drawLine(horizontal2Start, scene2);
+    // 3. 第二条水平线（从第二个点向右延伸到竖直线）
+    QPointF horizontal2End(rightX, scene2.y());
+    painter->drawLine(scene2, horizontal2End);
 
     // 绘制拖动手柄
     paintHandle(painter, scene1, m_hoveredHandle == 1);
