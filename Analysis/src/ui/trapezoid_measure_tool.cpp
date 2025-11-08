@@ -2,6 +2,7 @@
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include <QBrush>
+#include <QCursor>
 #include <QDebug>
 #include <QFont>
 #include <QGraphicsSceneHoverEvent>
