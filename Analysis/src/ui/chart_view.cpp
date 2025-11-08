@@ -508,9 +508,9 @@ void ChartView::setCurveVisible(const QString& curveId, bool visible)
     // ==================== 级联处理标注点（Markers）====================
     // 如果该曲线有关联的标注点，同步设置可见性
     if (m_curveMarkers.contains(curveId)) {
-        QScatterSeries* markerSeries = m_curveMarkers.value(curveId);
-        if (markerSeries) {
-            markerSeries->setVisible(visible);
+        CurveMarkerData& markerData = m_curveMarkers[curveId];
+        if (markerData.series) {
+            markerData.series->setVisible(visible);
             qDebug() << "ChartView::setCurveVisible - 同步标注点可见性:" << curveId << visible;
         }
     }
@@ -531,9 +531,9 @@ void ChartView::setCurveVisible(const QString& curveId, bool visible)
 
                     // 递归处理子曲线的标注点和子曲线
                     if (m_curveMarkers.contains(child->id())) {
-                        QScatterSeries* childMarkerSeries = m_curveMarkers.value(child->id());
-                        if (childMarkerSeries) {
-                            childMarkerSeries->setVisible(visible);
+                        CurveMarkerData& childMarkerData = m_curveMarkers[child->id()];
+                        if (childMarkerData.series) {
+                            childMarkerData.series->setVisible(visible);
                         }
                     }
 
@@ -1476,12 +1476,12 @@ void ChartView::clearAllMarkers()
 {
     // 移除所有标注点系列
     for (auto it = m_curveMarkers.begin(); it != m_curveMarkers.end(); ++it) {
-        QScatterSeries* markerSeries = it.value();
-        if (markerSeries) {
+        CurveMarkerData& markerData = it.value();
+        if (markerData.series) {
             if (m_chartView && m_chartView->chart()) {
-                m_chartView->chart()->removeSeries(markerSeries);
+                m_chartView->chart()->removeSeries(markerData.series);
             }
-            markerSeries->deleteLater();
+            markerData.series->deleteLater();
         }
     }
 
