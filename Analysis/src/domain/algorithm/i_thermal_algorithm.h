@@ -25,7 +25,7 @@ class AlgorithmContext;
  *   - ContextKeys::BaselineCurves   基线曲线列表 (QVector<ThermalCurve*>)
  *
  *  用户交互数据：
- *   - ContextKeys::SelectedPoints   用户选择的点 (QVector<QPointF>)
+ *   - ContextKeys::SelectedPoints   用户选择的点 (QVector<ThermalDataPoint>)
  *
  *  通用参数：
  *   - ContextKeys::ParamWindow      窗口大小 (int)
@@ -249,7 +249,7 @@ public:
      * **输入**（从上下文拉取）：
      * - 曲线数据：context->get<ThermalCurve*>(ContextKeys::ActiveCurve)
      * - 参数：context->get<int>(ContextKeys::ParamWindow)
-     * - 选择的点：context->get<QVector<QPointF>>(ContextKeys::SelectedPoints)
+     * - 选择的点：context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints)
      * - 参考曲线：context->get<ThermalCurve*>(ContextKeys::InputCurve)
      *
      * **输出**（返回 AlgorithmResult 容器）：
