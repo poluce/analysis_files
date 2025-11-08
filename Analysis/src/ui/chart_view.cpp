@@ -1625,10 +1625,11 @@ void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2, co
     auto* tool = new TrapezoidMeasureTool(m_chartView->chart());
     tool->setCurveManager(m_curveManager);
 
-    // 设置坐标轴
+    // 设置坐标轴和系列（用于正确的坐标转换）
     if (m_curveManager && !curveId.isEmpty()) {
         QValueAxis* yAxis = findYAxisForCurve(curveId);
-        tool->setAxes(curveId, m_axisX, yAxis);
+        QLineSeries* series = seriesForCurve(curveId);
+        tool->setAxes(curveId, m_axisX, yAxis, series);
     }
 
     // 设置测量点

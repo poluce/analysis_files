@@ -19,6 +19,7 @@ TrapezoidMeasureTool::TrapezoidMeasureTool(QChart* chart, QGraphicsItem* parent)
     , m_curveManager(nullptr)
     , m_xAxis(nullptr)
     , m_yAxis(nullptr)
+    , m_series(nullptr)
     , m_dragState(None)
     , m_hoveredHandle(0)
     , m_closeButtonHovered(false)
@@ -108,11 +109,12 @@ void TrapezoidMeasureTool::setMeasurePoints(const QPointF& point1, const QPointF
     qDebug() << "TrapezoidMeasureTool: 设置测量点" << point1 << point2 << "测量值:" << measureValue();
 }
 
-void TrapezoidMeasureTool::setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis* yAxis)
+void TrapezoidMeasureTool::setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis* yAxis, QAbstractSeries* series)
 {
     m_curveId = curveId;
     m_xAxis = xAxis;
     m_yAxis = yAxis;
+    m_series = series;
 }
 
 void TrapezoidMeasureTool::setCurveManager(CurveManager* manager)
@@ -224,25 +226,36 @@ void TrapezoidMeasureTool::hoverMoveEvent(QGraphicsSceneHoverEvent* event)
 
 QPointF TrapezoidMeasureTool::dataToScene(const QPointF& dataPoint) const
 {
-    if (!m_chart || !m_xAxis || !m_yAxis) {
+    if (!m_chart) {
         return QPointF();
     }
 
-    // 将数据坐标转换为图表坐标
+    // 如果有系列引用，使用系列进行坐标转换（正确处理多Y轴）
+    if (m_series) {
+        QPointF chartPos = m_chart->mapToPosition(dataPoint, m_series);
+        return m_chart->mapToScene(chartPos);
+    }
+
+    // 回退：使用默认转换
     QPointF chartPos = m_chart->mapToPosition(dataPoint);
-    // 转换为场景坐标
     return m_chart->mapToScene(chartPos);
 }
 
 QPointF TrapezoidMeasureTool::sceneToData(const QPointF& scenePoint) const
 {
-    if (!m_chart || !m_xAxis || !m_yAxis) {
+    if (!m_chart) {
         return QPointF();
     }
 
     // 转换为图表坐标
     QPointF chartPos = m_chart->mapFromScene(scenePoint);
-    // 转换为数据坐标
+
+    // 如果有系列引用，使用系列进行坐标转换（正确处理多Y轴）
+    if (m_series) {
+        return m_chart->mapToValue(chartPos, m_series);
+    }
+
+    // 回退：使用默认转换
     return m_chart->mapToValue(chartPos);
 }
 

@@ -59,8 +59,9 @@ public:
      * @param curveId 曲线ID
      * @param xAxis X轴
      * @param yAxis Y轴
+     * @param series 曲线系列（用于坐标转换）
      */
-    void setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis* yAxis);
+    void setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis* yAxis, QAbstractSeries* series = nullptr);
 
     /**
      * @brief 设置 CurveManager（用于曲线吸附）
@@ -151,6 +152,7 @@ private:
     QString m_curveId;                  ///< 关联的曲线ID
     QValueAxis* m_xAxis;                ///< X轴
     QValueAxis* m_yAxis;                ///< Y轴
+    QAbstractSeries* m_series;          ///< 曲线系列（用于坐标转换）
 
     QPointF m_point1;                   ///< 第一个测量点（数据坐标）
     QPointF m_point2;                   ///< 第二个测量点（数据坐标）
