@@ -42,13 +42,13 @@ QRectF TrapezoidMeasureTool::boundingRect() const
         return QRectF();
     }
 
-    // 计算包围矩形（包含两个端点和关闭按钮）
+    // 计算包围矩形（包含两个端点、关闭按钮和文本）
     QPointF scene1 = dataToScene(m_point1);
     QPointF scene2 = dataToScene(m_point2);
 
     qreal minX = qMin(scene1.x(), scene2.x()) - m_handleRadius - 10;
-    qreal maxX = qMax(scene1.x(), scene2.x()) + m_handleRadius + 100; // 留出文本空间
-    qreal minY = qMin(scene1.y(), scene2.y()) - m_handleRadius - 40; // 留出关闭按钮和文本空间
+    qreal maxX = qMax(scene1.x(), scene2.x()) + m_handleRadius + 200; // 增大文本空间预留
+    qreal minY = qMin(scene1.y(), scene2.y()) - m_handleRadius - 50; // 增大关闭按钮和文本空间
     qreal maxY = qMax(scene1.y(), scene2.y()) + m_handleRadius + 10;
 
     return QRectF(QPointF(minX, minY), QPointF(maxX, maxY));
