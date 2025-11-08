@@ -694,66 +694,70 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
             return false;
         }
         case QEvent::MouseButtonPress: {
-            auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            if (mouseEvent->button() == Qt::LeftButton && m_massLossToolActive && m_mode == InteractionMode::Pick) {
-                const QPointF chartViewPos = mapToChartCoordinates(mouseEvent->pos());
-                m_massLossToolStart = chartViewPos;
-                qDebug() << "ChartView::eventFilter - 测量工具起点:" << m_massLossToolStart;
-                return false; // 让事件继续传递
-            }
+            // 不处理按下事件，所有逻辑在释放事件中
             break;
         }
         case QEvent::MouseButtonRelease: {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            qDebug() << "ChartView::eventFilter - MouseButtonRelease, button:" << mouseEvent->button()
-                     << "massLossToolActive:" << m_massLossToolActive;
 
             if (mouseEvent->button() == Qt::LeftButton && m_massLossToolActive && m_mode == InteractionMode::Pick) {
                 const QPointF chartViewPos = mapToChartCoordinates(mouseEvent->pos());
-                qDebug() << "ChartView::eventFilter - 测量工具终点:" << chartViewPos;
 
-                // 使用当前活动曲线进行测量
-                if (m_curveManager) {
-                    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-                    if (activeCurve) {
-                        qDebug() << "ChartView::eventFilter - 使用活动曲线:" << activeCurve->name() << "ID:" << activeCurve->id();
+                // 两次点击模式：第一次点击记录起点，第二次点击创建测量工具
+                if (!m_massLossToolFirstPointSet) {
+                    // 第一次点击：记录起点
+                    m_massLossToolStart = chartViewPos;
+                    m_massLossToolFirstPointSet = true;
+                    qDebug() << "ChartView::eventFilter - 测量工具第一个点已设置:" << m_massLossToolStart << "，请点击第二个点";
+                    return false;
+                } else {
+                    // 第二次点击：创建测量工具
+                    qDebug() << "ChartView::eventFilter - 测量工具第二个点:" << chartViewPos;
 
-                        // 获取活动曲线的系列（用于正确的坐标转换）
-                        QLineSeries* activeSeries = seriesForCurve(activeCurve->id());
-                        if (activeSeries && m_chartView && m_chartView->chart()) {
-                            // 使用活动曲线的坐标系进行转换
-                            QPointF dataStart = m_chartView->chart()->mapToValue(m_massLossToolStart, activeSeries);
-                            QPointF dataEnd = m_chartView->chart()->mapToValue(chartViewPos, activeSeries);
+                    // 使用当前活动曲线进行测量
+                    if (m_curveManager) {
+                        ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+                        if (activeCurve) {
+                            qDebug() << "ChartView::eventFilter - 使用活动曲线:" << activeCurve->name() << "ID:" << activeCurve->id();
 
-                            qDebug() << "ChartView::eventFilter - 数据坐标 起点:" << dataStart << "终点:" << dataEnd;
+                            // 获取活动曲线的系列（用于正确的坐标转换）
+                            QLineSeries* activeSeries = seriesForCurve(activeCurve->id());
+                            if (activeSeries && m_chartView && m_chartView->chart()) {
+                                // 使用活动曲线的坐标系进行转换
+                                QPointF dataStart = m_chartView->chart()->mapToValue(m_massLossToolStart, activeSeries);
+                                QPointF dataEnd = m_chartView->chart()->mapToValue(chartViewPos, activeSeries);
 
-                            const auto& data = activeCurve->getProcessedData();
-                            if (!data.isEmpty()) {
-                                // 查找最接近的点
-                                ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
-                                ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
+                                qDebug() << "ChartView::eventFilter - 数据坐标 起点:" << dataStart << "终点:" << dataEnd;
 
-                                QPointF snappedStart(point1.temperature, point1.value);
-                                QPointF snappedEnd(point2.temperature, point2.value);
+                                const auto& data = activeCurve->getProcessedData();
+                                if (!data.isEmpty()) {
+                                    // 查找最接近的点
+                                    ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
+                                    ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
 
-                                qDebug() << "ChartView::eventFilter - 吸附点1:" << snappedStart << "吸附点2:" << snappedEnd;
+                                    QPointF snappedStart(point1.temperature, point1.value);
+                                    QPointF snappedEnd(point2.temperature, point2.value);
 
-                                // 创建测量工具，传递曲线ID
-                                addMassLossTool(snappedStart, snappedEnd, activeCurve->id());
+                                    qDebug() << "ChartView::eventFilter - 吸附点1:" << snappedStart << "吸附点2:" << snappedEnd;
+
+                                    // 创建测量工具，传递曲线ID
+                                    addMassLossTool(snappedStart, snappedEnd, activeCurve->id());
+                                }
+                            } else {
+                                qWarning() << "ChartView::eventFilter - 无法找到活动曲线的系列";
                             }
                         } else {
-                            qWarning() << "ChartView::eventFilter - 无法找到活动曲线的系列";
+                            qWarning() << "ChartView::eventFilter - 没有活动曲线，无法创建测量工具";
                         }
-                    } else {
-                        qWarning() << "ChartView::eventFilter - 没有活动曲线，无法创建测量工具";
                     }
+
+                    // 重置状态
+                    m_massLossToolActive = false;
+                    m_massLossToolFirstPointSet = false;
+                    setInteractionMode(InteractionMode::View);
+
+                    return false; // 让事件继续传递
                 }
-
-                // 重置状态
-                m_massLossToolActive = false;
-                setInteractionMode(InteractionMode::View);
-
-                return false; // 让事件继续传递
             }
             break;
         }
@@ -1605,8 +1609,9 @@ void ChartView::startMassLossTool()
     // 切换到 Pick 模式以接收鼠标点击
     setInteractionMode(InteractionMode::Pick);
     m_massLossToolActive = true;
+    m_massLossToolFirstPointSet = false;  // 重置点击状态
 
-    qDebug() << "ChartView::startMassLossTool - 请在曲线上拖动鼠标选择两个点来测量质量损失";
+    qDebug() << "ChartView::startMassLossTool - 请在曲线上点击两次选择测量范围（第一次点击起点，第二次点击终点）";
 }
 
 void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2, const QString& curveId)

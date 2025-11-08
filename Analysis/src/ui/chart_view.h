@@ -382,6 +382,7 @@ private:
     // ==================== 测量工具管理 ====================
     QVector<QGraphicsObject*> m_massLossTools;       // 质量损失测量工具列表
     bool m_massLossToolActive = false;               // 是否正在创建新的测量工具
+    bool m_massLossToolFirstPointSet = false;        // 是否已设置第一个点
     QPointF m_massLossToolStart;                     // 测量工具的起点
 };
 
