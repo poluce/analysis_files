@@ -922,6 +922,9 @@ void ChartView::completePointSelection()
     QVector<ThermalDataPoint> completedPoints = m_selectedPoints;
     emit algorithmInteractionCompleted(completedAlgorithmName, completedPoints);
 
+    // 清空临时选择点（算法生成的永久标注点会通过 addCurveMarkers 添加）
+    clearInteractionState();
+
     // 清空活动算法信息（算法执行完成后不需要保留交互状态）
     m_activeAlgorithm.clear();
 
