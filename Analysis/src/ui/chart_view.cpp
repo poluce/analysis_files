@@ -222,72 +222,73 @@ void ChartView::handlePointSelectionClick(const QPointF& chartViewPos)
     // 转换鼠标坐标到图表坐标
     QPointF rawValuePoint = convertToValueCoordinates(chartViewPos);
 
-    // ==================== 从目标曲线数据中查找最接近的点 ====================
-    ThermalDataPoint selectedDataPoint;  // 保存完整的数据点
-    QPointF displayPoint = rawValuePoint;  // 用于显示的坐标（根据横轴模式变化）
-
-    if (m_curveManager && !m_activeAlgorithm.targetCurveId.isEmpty()) {
-        ThermalCurve* targetCurve = m_curveManager->getCurve(m_activeAlgorithm.targetCurveId);
-        if (targetCurve) {
-            const auto& curveData = targetCurve->getProcessedData();
-            if (!curveData.isEmpty()) {
-                // 根据当前横轴模式查找最接近的点
-                double targetXValue = rawValuePoint.x();
-                int closestIndex = 0;
-                double minDist;
-
-                if (m_xAxisMode == XAxisMode::Temperature) {
-                    // 温度模式：根据温度查找
-                    minDist = qAbs(curveData[0].temperature - targetXValue);
-                    for (int i = 1; i < curveData.size(); ++i) {
-                        double dist = qAbs(curveData[i].temperature - targetXValue);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            closestIndex = i;
-                        }
-                    }
-                } else {
-                    // 时间模式：根据时间查找
-                    minDist = qAbs(curveData[0].time - targetXValue);
-                    for (int i = 1; i < curveData.size(); ++i) {
-                        double dist = qAbs(curveData[i].time - targetXValue);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            closestIndex = i;
-                        }
-                    }
-                }
-
-                // 保存完整的数据点（包含温度、时间、值）
-                selectedDataPoint = curveData[closestIndex];
-
-                // 根据当前横轴模式设置显示坐标
-                if (m_xAxisMode == XAxisMode::Temperature) {
-                    displayPoint.setX(selectedDataPoint.temperature);
-                } else {
-                    displayPoint.setX(selectedDataPoint.time);
-                }
-                displayPoint.setY(selectedDataPoint.value);
-
-                // 记录选中点所属的曲线ID（第一次选点时记录）
-                if (m_selectedPoints.isEmpty()) {
-                    m_selectedPointsCurveId = m_activeAlgorithm.targetCurveId;
-                }
-
-                qDebug() << "ChartView: 从目标曲线" << targetCurve->name()
-                         << "找到最接近点 - 原始选点:" << rawValuePoint
-                         << "-> 实际数据点(T=" << selectedDataPoint.temperature
-                         << ", t=" << selectedDataPoint.time
-                         << ", v=" << selectedDataPoint.value << ")";
-            }
-        } else {
-            qWarning() << "ChartView: 无法获取目标曲线" << m_activeAlgorithm.targetCurveId;
-            return;  // 无法获取曲线，直接返回
-        }
-    } else {
+    // ==================== 早期返回：检查前置条件 ====================
+    if (!m_curveManager || m_activeAlgorithm.targetCurveId.isEmpty()) {
         qWarning() << "ChartView: 没有目标曲线或 CurveManager 未设置";
         return;
     }
+
+    ThermalCurve* targetCurve = m_curveManager->getCurve(m_activeAlgorithm.targetCurveId);
+    if (!targetCurve) {
+        qWarning() << "ChartView: 无法获取目标曲线" << m_activeAlgorithm.targetCurveId;
+        return;
+    }
+
+    const auto& curveData = targetCurve->getProcessedData();
+    if (curveData.isEmpty()) {
+        qWarning() << "ChartView: 目标曲线数据为空";
+        return;
+    }
+
+    // ==================== 从目标曲线数据中查找最接近的点 ====================
+    double targetXValue = rawValuePoint.x();
+    int closestIndex = 0;
+    double minDist;
+
+    if (m_xAxisMode == XAxisMode::Temperature) {
+        // 温度模式：根据温度查找
+        minDist = qAbs(curveData[0].temperature - targetXValue);
+        for (int i = 1; i < curveData.size(); ++i) {
+            double dist = qAbs(curveData[i].temperature - targetXValue);
+            if (dist < minDist) {
+                minDist = dist;
+                closestIndex = i;
+            }
+        }
+    } else {
+        // 时间模式：根据时间查找
+        minDist = qAbs(curveData[0].time - targetXValue);
+        for (int i = 1; i < curveData.size(); ++i) {
+            double dist = qAbs(curveData[i].time - targetXValue);
+            if (dist < minDist) {
+                minDist = dist;
+                closestIndex = i;
+            }
+        }
+    }
+
+    // 保存完整的数据点（包含温度、时间、值）
+    ThermalDataPoint selectedDataPoint = curveData[closestIndex];
+
+    // 根据当前横轴模式设置显示坐标
+    QPointF displayPoint;
+    if (m_xAxisMode == XAxisMode::Temperature) {
+        displayPoint.setX(selectedDataPoint.temperature);
+    } else {
+        displayPoint.setX(selectedDataPoint.time);
+    }
+    displayPoint.setY(selectedDataPoint.value);
+
+    // 记录选中点所属的曲线ID（第一次选点时记录）
+    if (m_selectedPoints.isEmpty()) {
+        m_selectedPointsCurveId = m_activeAlgorithm.targetCurveId;
+    }
+
+    qDebug() << "ChartView: 从目标曲线" << targetCurve->name()
+             << "找到最接近点 - 原始选点:" << rawValuePoint
+             << "-> 实际数据点(T=" << selectedDataPoint.temperature
+             << ", t=" << selectedDataPoint.time
+             << ", v=" << selectedDataPoint.value << ")";
 
     // 添加完整数据点到选点列表
     m_selectedPoints.append(selectedDataPoint);
@@ -779,17 +780,19 @@ void ChartView::clearInteractionState()
 
 QValueAxis* ChartView::findYAxisForCurve(const QString& curveId)
 {
+    // 早期返回：曲线ID为空
     if (curveId.isEmpty()) {
         return m_axisY_primary;
     }
 
+    // 早期返回：未找到曲线系列
     QLineSeries* curveSeries = seriesForCurve(curveId);
     if (!curveSeries) {
         qWarning() << "ChartView::findYAxisForCurve - 未找到曲线" << curveId << "，使用默认主Y轴";
         return m_axisY_primary;
     }
 
-    // 获取该曲线附着的所有轴
+    // 查找该曲线附着的Y轴（非X轴）
     const auto attachedAxes = curveSeries->attachedAxes();
     for (QAbstractAxis* axis : attachedAxes) {
         QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
@@ -799,11 +802,13 @@ QValueAxis* ChartView::findYAxisForCurve(const QString& curveId)
         }
     }
 
+    // 默认返回主Y轴
     return m_axisY_primary;
 }
 
 void ChartView::setupSelectedPointsSeries(QValueAxis* targetYAxis)
 {
+    // 早期返回：检查前置条件
     if (!m_selectedPointsSeries || !m_chartView || !m_chartView->chart()) {
         return;
     }
@@ -811,24 +816,25 @@ void ChartView::setupSelectedPointsSeries(QValueAxis* targetYAxis)
     QChart* chart = m_chartView->chart();
     m_selectedPointsSeries->clear();
 
+    QString axisDebugName = (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
+
     // 如果还未添加到 chart，则添加
     if (!chart->series().contains(m_selectedPointsSeries)) {
         chart->addSeries(m_selectedPointsSeries);
         m_selectedPointsSeries->attachAxis(m_axisX);
         m_selectedPointsSeries->attachAxis(targetYAxis);
-        qDebug() << "ChartView::setupSelectedPointsSeries - 添加选中点系列，Y轴:"
-                 << (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
-    } else {
-        // 如果已存在，则更新其轴关联
-        const auto existingAxes = m_selectedPointsSeries->attachedAxes();
-        for (QAbstractAxis* axis : existingAxes) {
-            m_selectedPointsSeries->detachAxis(axis);
-        }
-        m_selectedPointsSeries->attachAxis(m_axisX);
-        m_selectedPointsSeries->attachAxis(targetYAxis);
-        qDebug() << "ChartView::setupSelectedPointsSeries - 更新选中点系列的轴，Y轴:"
-                 << (targetYAxis == m_axisY_primary ? "主轴(左)" : "次轴(右)");
+        qDebug() << "ChartView::setupSelectedPointsSeries - 添加选中点系列，Y轴:" << axisDebugName;
+        return;
     }
+
+    // 如果已存在，则更新其轴关联
+    const auto existingAxes = m_selectedPointsSeries->attachedAxes();
+    for (QAbstractAxis* axis : existingAxes) {
+        m_selectedPointsSeries->detachAxis(axis);
+    }
+    m_selectedPointsSeries->attachAxis(m_axisX);
+    m_selectedPointsSeries->attachAxis(targetYAxis);
+    qDebug() << "ChartView::setupSelectedPointsSeries - 更新选中点系列的轴，Y轴:" << axisDebugName;
 }
 
 void ChartView::transitionToState(InteractionState newState)
@@ -1127,18 +1133,39 @@ QValueAxis* ChartView::ensureYAxisForCurve(const ThermalCurve& curve)
     // ==================== 优先级2：辅助曲线继承父曲线的 Y 轴 ====================
     // 只有辅助曲线（如基线、滤波）才继承父曲线的 Y 轴
     // 独立曲线（如积分）即使有父曲线也应该创建新的 Y 轴
-    if (curve.isAuxiliaryCurve() && !curve.parentId().isEmpty()) {
-        QLineSeries* parentSeries = seriesForCurve(curve.parentId());
-        if (parentSeries && !parentSeries->attachedAxes().isEmpty()) {
-            // 查找父曲线的 Y 轴（非 X 轴）
-            for (QAbstractAxis* axis : parentSeries->attachedAxes()) {
-                QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
-                if (valueAxis && valueAxis != m_axisX) {
-                    qDebug() << "ChartView: 辅助曲线" << curve.name() << "继承父曲线的 Y 轴";
-                    valueAxis->setTitleText(curve.getYAxisLabel());
-                    return valueAxis;
-                }
-            }
+
+    // 早期返回：不是辅助曲线或没有父曲线，跳过继承逻辑
+    if (!curve.isAuxiliaryCurve() || curve.parentId().isEmpty()) {
+        // 跳到优先级3
+        if (!m_axisY_primary) {
+            m_axisY_primary = new QValueAxis();
+            chart->addAxis(m_axisY_primary, Qt::AlignLeft);
+        }
+        m_axisY_primary->setTitleText(curve.getYAxisLabel());
+        qDebug() << "ChartView: 曲线" << curve.name() << "使用主 Y 轴（默认）";
+        return m_axisY_primary;
+    }
+
+    // 尝试查找父曲线的系列
+    QLineSeries* parentSeries = seriesForCurve(curve.parentId());
+    if (!parentSeries || parentSeries->attachedAxes().isEmpty()) {
+        // 父曲线不存在或没有附着轴，使用默认主 Y 轴
+        if (!m_axisY_primary) {
+            m_axisY_primary = new QValueAxis();
+            chart->addAxis(m_axisY_primary, Qt::AlignLeft);
+        }
+        m_axisY_primary->setTitleText(curve.getYAxisLabel());
+        qDebug() << "ChartView: 曲线" << curve.name() << "使用主 Y 轴（默认）";
+        return m_axisY_primary;
+    }
+
+    // 查找父曲线的 Y 轴（非 X 轴）
+    for (QAbstractAxis* axis : parentSeries->attachedAxes()) {
+        QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
+        if (valueAxis && valueAxis != m_axisX) {
+            qDebug() << "ChartView: 辅助曲线" << curve.name() << "继承父曲线的 Y 轴";
+            valueAxis->setTitleText(curve.getYAxisLabel());
+            return valueAxis;
         }
     }
 
