@@ -8,6 +8,7 @@
 #include <QtCharts/QAbstractSeries>
 #include <QtCharts/QChart>
 #include <QtCharts/QValueAxis>
+#include "domain/model/thermal_data_point.h"
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -48,11 +49,11 @@ public:
 
     // ==================== 属性设置 ====================
     /**
-     * @brief 设置测量的两个端点（数据坐标）
-     * @param point1 第一个点的数据坐标 (x, y)
-     * @param point2 第二个点的数据坐标 (x, y)
+     * @brief 设置测量的两个端点（完整数据点，包含温度和时间）
+     * @param point1 第一个点的完整数据
+     * @param point2 第二个点的完整数据
      */
-    void setMeasurePoints(const QPointF& point1, const QPointF& point2);
+    void setMeasurePoints(const ThermalDataPoint& point1, const ThermalDataPoint& point2);
 
     /**
      * @brief 设置关联的曲线和坐标轴
@@ -69,14 +70,20 @@ public:
     void setCurveManager(CurveManager* manager);
 
     /**
+     * @brief 设置横轴模式（温度或时间）
+     * @param useTimeAxis true=时间轴，false=温度轴
+     */
+    void setXAxisMode(bool useTimeAxis);
+
+    /**
      * @brief 获取第一个测量点
      */
-    QPointF point1() const { return m_point1; }
+    const ThermalDataPoint& point1() const { return m_point1; }
 
     /**
      * @brief 获取第二个测量点
      */
-    QPointF point2() const { return m_point2; }
+    const ThermalDataPoint& point2() const { return m_point2; }
 
     /**
      * @brief 获取测量值（垂直距离）
@@ -101,7 +108,7 @@ private:
     /**
      * @brief 将数据坐标转换为场景坐标
      */
-    QPointF dataToScene(const QPointF& dataPoint) const;
+    QPointF dataToScene(const ThermalDataPoint& dataPoint) const;
 
     /**
      * @brief 将场景坐标转换为数据坐标
@@ -153,9 +160,10 @@ private:
     QValueAxis* m_xAxis;                ///< X轴
     QValueAxis* m_yAxis;                ///< Y轴
     QAbstractSeries* m_series;          ///< 曲线系列（用于坐标转换）
+    bool m_useTimeAxis;                 ///< 是否使用时间轴（true=时间，false=温度）
 
-    QPointF m_point1;                   ///< 第一个测量点（数据坐标）
-    QPointF m_point2;                   ///< 第二个测量点（数据坐标）
+    ThermalDataPoint m_point1;          ///< 第一个测量点（完整数据，包含温度和时间）
+    ThermalDataPoint m_point2;          ///< 第二个测量点（完整数据，包含温度和时间）
 
     // 交互状态
     enum DragState {

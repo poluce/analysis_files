@@ -226,11 +226,11 @@ public:
 
     /**
      * @brief 添加质量损失测量工具到图表
-     * @param point1 第一个测量点
-     * @param point2 第二个测量点
+     * @param point1 第一个测量点（完整数据点）
+     * @param point2 第二个测量点（完整数据点）
      * @param curveId 曲线ID（用于确定坐标轴）
      */
-    void addMassLossTool(const QPointF& point1, const QPointF& point2, const QString& curveId);
+    void addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
 
     /**
      * @brief 移除指定的测量工具

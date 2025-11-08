@@ -20,6 +20,7 @@ TrapezoidMeasureTool::TrapezoidMeasureTool(QChart* chart, QGraphicsItem* parent)
     , m_xAxis(nullptr)
     , m_yAxis(nullptr)
     , m_series(nullptr)
+    , m_useTimeAxis(false)
     , m_dragState(None)
     , m_hoveredHandle(0)
     , m_closeButtonHovered(false)
@@ -99,14 +100,14 @@ void TrapezoidMeasureTool::paint(QPainter* painter, const QStyleOptionGraphicsIt
     paintCloseButton(painter);
 }
 
-void TrapezoidMeasureTool::setMeasurePoints(const QPointF& point1, const QPointF& point2)
+void TrapezoidMeasureTool::setMeasurePoints(const ThermalDataPoint& point1, const ThermalDataPoint& point2)
 {
     prepareGeometryChange();
     m_point1 = point1;
     m_point2 = point2;
     update();
 
-    qDebug() << "TrapezoidMeasureTool: 设置测量点" << point1 << point2 << "测量值:" << measureValue();
+    qDebug() << "TrapezoidMeasureTool: 设置测量点，测量值:" << measureValue();
 }
 
 void TrapezoidMeasureTool::setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis* yAxis, QAbstractSeries* series)
@@ -122,9 +123,19 @@ void TrapezoidMeasureTool::setCurveManager(CurveManager* manager)
     m_curveManager = manager;
 }
 
+void TrapezoidMeasureTool::setXAxisMode(bool useTimeAxis)
+{
+    if (m_useTimeAxis != useTimeAxis) {
+        m_useTimeAxis = useTimeAxis;
+        prepareGeometryChange();
+        update();
+        qDebug() << "TrapezoidMeasureTool: 横轴模式切换到" << (useTimeAxis ? "时间" : "温度");
+    }
+}
+
 qreal TrapezoidMeasureTool::measureValue() const
 {
-    return qAbs(m_point2.y() - m_point1.y());
+    return qAbs(m_point2.value - m_point1.value);
 }
 
 void TrapezoidMeasureTool::mousePressEvent(QGraphicsSceneMouseEvent* event)
@@ -224,20 +235,24 @@ void TrapezoidMeasureTool::hoverMoveEvent(QGraphicsSceneHoverEvent* event)
     QGraphicsObject::hoverMoveEvent(event);
 }
 
-QPointF TrapezoidMeasureTool::dataToScene(const QPointF& dataPoint) const
+QPointF TrapezoidMeasureTool::dataToScene(const ThermalDataPoint& dataPoint) const
 {
     if (!m_chart) {
         return QPointF();
     }
 
+    // 根据横轴模式选择X坐标（温度或时间）
+    qreal xValue = m_useTimeAxis ? dataPoint.time : dataPoint.temperature;
+    QPointF point(xValue, dataPoint.value);
+
     // 如果有系列引用，使用系列进行坐标转换（正确处理多Y轴）
     if (m_series) {
-        QPointF chartPos = m_chart->mapToPosition(dataPoint, m_series);
+        QPointF chartPos = m_chart->mapToPosition(point, m_series);
         return m_chart->mapToScene(chartPos);
     }
 
     // 回退：使用默认转换
-    QPointF chartPos = m_chart->mapToPosition(dataPoint);
+    QPointF chartPos = m_chart->mapToPosition(point);
     return m_chart->mapToScene(chartPos);
 }
 

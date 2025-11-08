@@ -167,9 +167,15 @@ void ChartView::toggleXAxisMode()
         qDebug() << "ChartView::toggleXAxisMode - 切换到温度横轴";
     }
 
-    // 清空所有测量工具（因为坐标系变化，测量工具需要重新创建）
-    clearAllMassLossTools();
-    qDebug() << "ChartView::toggleXAxisMode - 已清空所有测量工具";
+    // 通知所有测量工具更新横轴模式
+    bool useTimeAxis = (m_xAxisMode == XAxisMode::Time);
+    for (QGraphicsObject* obj : m_massLossTools) {
+        TrapezoidMeasureTool* tool = qobject_cast<TrapezoidMeasureTool*>(obj);
+        if (tool) {
+            tool->setXAxisMode(useTimeAxis);
+        }
+    }
+    qDebug() << "ChartView::toggleXAxisMode - 已通知" << m_massLossTools.size() << "个测量工具更新横轴模式";
 
     // 重新加载所有曲线数据
     if (!m_curveManager) {
@@ -730,18 +736,16 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
                                 qreal startX = dataClick.x() - rangeExtension;
                                 qreal endX = dataClick.x() + rangeExtension;
 
-                                // 查找最接近的点
+                                // 查找最接近的点（返回完整的 ThermalDataPoint）
                                 ThermalDataPoint point1 = findNearestDataPoint(data, startX);
                                 ThermalDataPoint point2 = findNearestDataPoint(data, endX);
 
-                                QPointF snappedStart(point1.temperature, point1.value);
-                                QPointF snappedEnd(point2.temperature, point2.value);
-
                                 qDebug() << "ChartView::eventFilter - 自动延伸范围: ±" << rangeExtension
-                                         << "°C，吸附点1:" << snappedStart << "吸附点2:" << snappedEnd;
+                                         << "°C，测量点1: T=" << point1.temperature << " V=" << point1.value
+                                         << "，测量点2: T=" << point2.temperature << " V=" << point2.value;
 
-                                // 创建测量工具，传递曲线ID
-                                addMassLossTool(snappedStart, snappedEnd, activeCurve->id());
+                                // 创建测量工具，传递完整的数据点和曲线ID
+                                addMassLossTool(point1, point2, activeCurve->id());
                             }
                         } else {
                             qWarning() << "ChartView::eventFilter - 无法找到活动曲线的系列";
@@ -1611,7 +1615,7 @@ void ChartView::startMassLossTool()
     qDebug() << "ChartView::startMassLossTool - 请在曲线上点击一次，自动创建测量工具（自动延伸±15°C范围）";
 }
 
-void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2, const QString& curveId)
+void ChartView::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {
     if (!m_chartView || !m_chartView->chart()) {
         qWarning() << "ChartView::addMassLossTool - 图表未初始化";
@@ -1629,7 +1633,10 @@ void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2, co
         tool->setAxes(curveId, m_axisX, yAxis, series);
     }
 
-    // 设置测量点
+    // 设置当前横轴模式
+    tool->setXAxisMode(m_xAxisMode == XAxisMode::Time);
+
+    // 设置测量点（传递完整的 ThermalDataPoint）
     tool->setMeasurePoints(point1, point2);
 
     // 连接删除信号
