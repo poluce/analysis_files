@@ -712,25 +712,32 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
                 const QPointF chartViewPos = mapToChartCoordinates(mouseEvent->pos());
                 qDebug() << "ChartView::eventFilter - 测量工具终点:" << chartViewPos;
 
-                // 转换为数据坐标
-                QPointF dataStart = convertToValueCoordinates(m_massLossToolStart);
-                QPointF dataEnd = convertToValueCoordinates(chartViewPos);
+                // 查找距离起点最近的曲线
+                qreal distance = 0.0;
+                QLineSeries* nearestSeries = findSeriesNearPoint(m_massLossToolStart, distance);
 
-                // 吸附到曲线
-                if (m_curveManager) {
-                    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-                    if (activeCurve) {
-                        const auto& data = activeCurve->getProcessedData();
-                        if (!data.isEmpty()) {
-                            // 查找最接近的点
-                            ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
-                            ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
+                if (nearestSeries && m_curveManager) {
+                    // 从系列获取曲线ID
+                    QString curveId = m_seriesToId.value(nearestSeries);
+                    if (!curveId.isEmpty()) {
+                        ThermalCurve* curve = m_curveManager->getCurve(curveId);
+                        if (curve) {
+                            // 转换为数据坐标
+                            QPointF dataStart = convertToValueCoordinates(m_massLossToolStart);
+                            QPointF dataEnd = convertToValueCoordinates(chartViewPos);
 
-                            QPointF snappedStart(point1.temperature, point1.value);
-                            QPointF snappedEnd(point2.temperature, point2.value);
+                            const auto& data = curve->getProcessedData();
+                            if (!data.isEmpty()) {
+                                // 查找最接近的点
+                                ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
+                                ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
 
-                            // 创建测量工具
-                            addMassLossTool(snappedStart, snappedEnd);
+                                QPointF snappedStart(point1.temperature, point1.value);
+                                QPointF snappedEnd(point2.temperature, point2.value);
+
+                                // 创建测量工具，传递曲线ID
+                                addMassLossTool(snappedStart, snappedEnd, curveId);
+                            }
                         }
                     }
                 }
@@ -1595,7 +1602,7 @@ void ChartView::startMassLossTool()
     qDebug() << "ChartView::startMassLossTool - 请在曲线上拖动鼠标选择两个点来测量质量损失";
 }
 
-void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2)
+void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2, const QString& curveId)
 {
     if (!m_chartView || !m_chartView->chart()) {
         qWarning() << "ChartView::addMassLossTool - 图表未初始化";
@@ -1607,12 +1614,9 @@ void ChartView::addMassLossTool(const QPointF& point1, const QPointF& point2)
     tool->setCurveManager(m_curveManager);
 
     // 设置坐标轴
-    if (m_curveManager) {
-        ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-        if (activeCurve) {
-            QValueAxis* yAxis = findYAxisForCurve(activeCurve->id());
-            tool->setAxes(activeCurve->id(), m_axisX, yAxis);
-        }
+    if (m_curveManager && !curveId.isEmpty()) {
+        QValueAxis* yAxis = findYAxisForCurve(curveId);
+        tool->setAxes(curveId, m_axisX, yAxis);
     }
 
     // 设置测量点
