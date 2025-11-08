@@ -87,6 +87,15 @@ void TrapezoidMeasureTool::paint(QPainter* painter, const QStyleOptionGraphicsIt
     QPointF horizontal2End(rightX, scene2.y());
     painter->drawLine(scene2, horizontal2End);
 
+    // 4. 在测量点处绘制短的垂直标记线（垂直于Y轴方向）
+    qreal markerLength = 10.0; // 标记线长度
+    // 第一个点的垂直标记线
+    painter->drawLine(scene1.x(), scene1.y() - markerLength / 2,
+                      scene1.x(), scene1.y() + markerLength / 2);
+    // 第二个点的垂直标记线
+    painter->drawLine(scene2.x(), scene2.y() - markerLength / 2,
+                      scene2.x(), scene2.y() + markerLength / 2);
+
     // 绘制拖动手柄
     paintHandle(painter, scene1, m_hoveredHandle == 1);
     paintHandle(painter, scene2, m_hoveredHandle == 2);
