@@ -712,33 +712,32 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
                 const QPointF chartViewPos = mapToChartCoordinates(mouseEvent->pos());
                 qDebug() << "ChartView::eventFilter - 测量工具终点:" << chartViewPos;
 
-                // 查找距离起点最近的曲线
-                qreal distance = 0.0;
-                QLineSeries* nearestSeries = findSeriesNearPoint(m_massLossToolStart, distance);
+                // 使用当前活动曲线进行测量
+                if (m_curveManager) {
+                    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+                    if (activeCurve) {
+                        qDebug() << "ChartView::eventFilter - 使用活动曲线:" << activeCurve->name() << "ID:" << activeCurve->id();
 
-                if (nearestSeries && m_curveManager) {
-                    // 从系列获取曲线ID
-                    QString curveId = m_seriesToId.value(nearestSeries);
-                    if (!curveId.isEmpty()) {
-                        ThermalCurve* curve = m_curveManager->getCurve(curveId);
-                        if (curve) {
-                            // 转换为数据坐标
-                            QPointF dataStart = convertToValueCoordinates(m_massLossToolStart);
-                            QPointF dataEnd = convertToValueCoordinates(chartViewPos);
+                        // 转换为数据坐标
+                        QPointF dataStart = convertToValueCoordinates(m_massLossToolStart);
+                        QPointF dataEnd = convertToValueCoordinates(chartViewPos);
 
-                            const auto& data = curve->getProcessedData();
-                            if (!data.isEmpty()) {
-                                // 查找最接近的点
-                                ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
-                                ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
+                        const auto& data = activeCurve->getProcessedData();
+                        if (!data.isEmpty()) {
+                            // 查找最接近的点
+                            ThermalDataPoint point1 = findNearestDataPoint(data, dataStart.x());
+                            ThermalDataPoint point2 = findNearestDataPoint(data, dataEnd.x());
 
-                                QPointF snappedStart(point1.temperature, point1.value);
-                                QPointF snappedEnd(point2.temperature, point2.value);
+                            QPointF snappedStart(point1.temperature, point1.value);
+                            QPointF snappedEnd(point2.temperature, point2.value);
 
-                                // 创建测量工具，传递曲线ID
-                                addMassLossTool(snappedStart, snappedEnd, curveId);
-                            }
+                            qDebug() << "ChartView::eventFilter - 吸附点1:" << snappedStart << "吸附点2:" << snappedEnd;
+
+                            // 创建测量工具，传递曲线ID
+                            addMassLossTool(snappedStart, snappedEnd, activeCurve->id());
                         }
+                    } else {
+                        qWarning() << "ChartView::eventFilter - 没有活动曲线，无法创建测量工具";
                     }
                 }
 
