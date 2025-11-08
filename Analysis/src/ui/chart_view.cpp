@@ -770,6 +770,15 @@ void ChartView::clearAllAnnotations()
     }
 }
 
+QColor ChartView::getCurveColor(const QString& curveId) const
+{
+    QLineSeries* series = seriesForCurve(curveId);
+    if (series) {
+        return series->color();
+    }
+    return Qt::black;  // 默认返回黑色
+}
+
 void ChartView::updateCrosshairPosition(const QPointF& viewportPos)
 {
     if (!m_verticalCrosshairEnabled && !m_horizontalCrosshairEnabled) {

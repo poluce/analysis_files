@@ -154,6 +154,13 @@ public:
     void removeAnnotation(const QString& id);
     void clearAllAnnotations();
 
+    /**
+     * @brief 获取指定曲线的颜色
+     * @param curveId 曲线ID
+     * @return 曲线的颜色，如果找不到曲线则返回黑色
+     */
+    QColor getCurveColor(const QString& curveId) const;
+
     // ==================== 浮动标签管理 ====================
     /**
      * @brief 添加浮动标签（数据锚定模式）

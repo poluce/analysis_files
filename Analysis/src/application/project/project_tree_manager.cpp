@@ -1,6 +1,8 @@
 #include "project_tree_manager.h"
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
+#include <QBrush>
+#include <QColor>
 #include <QDebug>
 
 ProjectTreeManager::ProjectTreeManager(CurveManager* curveManager, QObject* parent)
@@ -71,6 +73,20 @@ void ProjectTreeManager::setActiveCurve(const QString& curveId)
     emit activeCurveIndexChanged(index);
 
     qDebug() << "ProjectTreeManager::setActiveCurve - 曲线:" << curveId << ", index:" << index;
+}
+
+void ProjectTreeManager::setCurveColor(const QString& curveId, const QColor& color)
+{
+    QStandardItem* item = findCurveItem(curveId);
+    if (!item) {
+        qDebug() << "ProjectTreeManager::setCurveColor - 找不到曲线:" << curveId;
+        return;
+    }
+
+    // 设置项的文字颜色
+    item->setForeground(QBrush(color));
+
+    qDebug() << "ProjectTreeManager::setCurveColor - 曲线:" << curveId << "颜色:" << color.name();
 }
 
 QString ProjectTreeManager::getCurveId(const QModelIndex& index) const
