@@ -89,7 +89,7 @@ bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
 
     // 阶段2：验证交互式算法的选点数据
     // 基线校正需要用户选择至少2个点
-    auto points = context->get<QVector<QPointF>>(ContextKeys::SelectedPoints);
+    auto points = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
     if (!points.has_value() || points.value().size() < 2) {
         qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 需要至少2个选点，当前"
                    << (points.has_value() ? points.value().size() : 0) << "个";
@@ -117,16 +117,16 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
 
     ThermalCurve* inputCurve = curve.value();
 
-    // 3. 拉取选择的点
-    auto pointsOpt = context->get<QVector<QPointF>>(ContextKeys::SelectedPoints);
+    // 3. 拉取选择的点（ThermalDataPoint 类型）
+    auto pointsOpt = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
     if (!pointsOpt.has_value()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 无法获取选择的点！";
         return AlgorithmResult::failure("baseline_correction", "无法获取选择的点");
     }
 
-    QVector<QPointF> points = pointsOpt.value();
-    if (points.size() < 2) {
-        QString error = QString("需要至少2个点，实际只有 %1 个点").arg(points.size());
+    QVector<ThermalDataPoint> selectedPoints = pointsOpt.value();
+    if (selectedPoints.size() < 2) {
+        QString error = QString("需要至少2个点，实际只有 %1 个点").arg(selectedPoints.size());
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext -" << error;
         return AlgorithmResult::failure("baseline_correction", error);
     }
@@ -138,9 +138,10 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
         return AlgorithmResult::failure("baseline_correction", "曲线数据为空");
     }
 
-    // 5. 使用前两个点生成基线
-    QPointF point1 = points[0]; // (temperature, value)
-    QPointF point2 = points[1];
+    // 5. 将 ThermalDataPoint 转换为 QPointF（使用温度作为X轴，值作为Y轴）
+    // 基线始终基于温度，与显示的横轴模式无关
+    QPointF point1(selectedPoints[0].temperature, selectedPoints[0].value);
+    QPointF point2(selectedPoints[1].temperature, selectedPoints[1].value);
 
     qDebug() << "BaselineCorrectionAlgorithm::executeWithContext - 点1 =" << point1 << ", 点2 =" << point2;
 
@@ -181,7 +182,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
 
     // 添加元数据
     result.setMeta("correctionType", "Linear");
-    result.setMeta("baselinePointCount", points.size());
+    result.setMeta("baselinePointCount", selectedPoints.size());
     result.setMeta("temperatureRange", QString("%1 - %2").arg(point1.x()).arg(point2.x()));
     result.setMeta("label", "基线曲线");
 
