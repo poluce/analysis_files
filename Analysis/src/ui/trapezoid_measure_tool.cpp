@@ -380,7 +380,7 @@ void TrapezoidMeasureTool::paintMeasureText(QPainter* painter)
     painter->setFont(font);
 
     // 绘制文本背景
-    QString text = QString("Δm = %1 mg").arg(measureValue(), 0, 'f', 3);
+    QString text = QString("Δy = %1").arg(measureValue(), 0, 'f', 3);
     QRectF textRect = painter->fontMetrics().boundingRect(text);
     textRect.moveCenter(QPointF(rightX + textRect.width() / 2, centerY));
     textRect.adjust(-5, -3, 5, 3);
