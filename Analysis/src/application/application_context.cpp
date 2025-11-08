@@ -10,6 +10,7 @@
 #include "infrastructure/algorithm/differentiation_algorithm.h"
 #include "infrastructure/algorithm/integration_algorithm.h"
 #include "infrastructure/algorithm/moving_average_filter_algorithm.h"
+#include "infrastructure/algorithm/peak_area_algorithm.h"
 #include "ui/chart_view.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/controller/main_controller.h"
@@ -74,4 +75,5 @@ void ApplicationContext::registerAlgorithms()
     manager->registerAlgorithm(new IntegrationAlgorithm());
 
     manager->registerAlgorithm(new BaselineCorrectionAlgorithm());
+    manager->registerAlgorithm(new PeakAreaAlgorithm());
 }

@@ -215,6 +215,7 @@ QToolBar* MainWindow::createMathToolBar()
     baselineAction->setData("baseline_correction");
     // 添加峰面积计算按钮
     QAction* peakAreaAction = toolbar->addAction(tr("峰面积计算"));
+    peakAreaAction->setData("peak_area");
     // 添加质量损失测量工具按钮
     QAction* massLossAction = toolbar->addAction(tr("质量损失"));
     connect(massLossAction, &QAction::triggered, this, &MainWindow::onMassLossToolRequested);
