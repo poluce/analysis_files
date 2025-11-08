@@ -167,6 +167,10 @@ void ChartView::toggleXAxisMode()
         qDebug() << "ChartView::toggleXAxisMode - 切换到温度横轴";
     }
 
+    // 清空所有测量工具（因为坐标系变化，测量工具需要重新创建）
+    clearAllMassLossTools();
+    qDebug() << "ChartView::toggleXAxisMode - 已清空所有测量工具";
+
     // 重新加载所有曲线数据
     if (!m_curveManager) {
         qWarning() << "ChartView::toggleXAxisMode - CurveManager 未设置";
