@@ -2,6 +2,7 @@
 #include "application/algorithm/algorithm_context.h"
 #include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
+#include <QColor>
 #include <QDebug>
 #include <QPointF>
 #include <QVariant>
