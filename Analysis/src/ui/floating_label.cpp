@@ -20,10 +20,8 @@ FloatingLabel::FloatingLabel(QChart* chart, QGraphicsItem* parent)
     // 默认模式：视图锁定（像素大小稳定）
     setFlag(ItemIgnoresTransformations, m_mode == Mode::ViewAnchored);
 
-    // 设置高 Z 值，确保显示在曲线之上
-    if (m_chart) {
-        setZValue(m_chart->zValue() + 20);
-    }
+    // 设置高 Z 值，确保显示在所有元素之上（包括测量工具）
+    setZValue(1100.0);
 }
 
 // ==================== 属性设置 ====================
