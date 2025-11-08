@@ -181,7 +181,7 @@ void TrapezoidMeasureTool::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
     QPointF dataPos = sceneToData(event->scenePos());
 
     // 吸附到曲线
-    QPointF snappedPoint = findNearestPointOnCurve(dataPos.x());
+    ThermalDataPoint snappedPoint = findNearestPointOnCurve(dataPos.x());
 
     // 更新对应的测量点
     prepareGeometryChange();
