@@ -232,22 +232,19 @@ void ChartView::wheelEvent(QWheelEvent* event)
             m_axisX->setRange(newMin, newMax);
         }
 
-        // 缩放所有 Y 轴
+        // 缩放所有 Y 轴（每个轴以自身中心点缩放，保持曲线相对位置不变）
         for (QAbstractAxis* axis : chart->axes(Qt::Vertical)) {
             QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
             if (yAxis) {
                 qreal yMin = yAxis->min();
                 qreal yMax = yAxis->max();
+                qreal yCenter = (yMin + yMax) / 2.0;  // 使用轴自己的中心点
                 qreal yRange = yMax - yMin;
-                qreal yCenter = valuePos.y();
 
-                // 以鼠标位置为中心缩放
-                qreal topRatio = (yMax - yCenter) / yRange;
-                qreal bottomRatio = (yCenter - yMin) / yRange;
-
+                // 以轴中心点均匀缩放
                 qreal newRange = yRange * factor;
-                qreal newMin = yCenter - newRange * bottomRatio;
-                qreal newMax = yCenter + newRange * topRatio;
+                qreal newMin = yCenter - newRange / 2.0;
+                qreal newMax = yCenter + newRange / 2.0;
 
                 yAxis->setRange(newMin, newMax);
             }
