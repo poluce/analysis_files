@@ -153,9 +153,15 @@ void PeakAreaTool::paintAreaFill(QPainter* painter)
         return;
     }
 
+    // 将场景坐标多边形转换为本地坐标
+    QPolygonF localPolygon;
+    for (const QPointF& scenePoint : m_cachedPolygon) {
+        localPolygon.append(mapFromScene(scenePoint));
+    }
+
     painter->setBrush(m_fillBrush);
     painter->setPen(Qt::NoPen);
-    painter->drawPolygon(m_cachedPolygon);
+    painter->drawPolygon(localPolygon);
 }
 
 void PeakAreaTool::paintBoundary(QPainter* painter)
@@ -172,7 +178,10 @@ void PeakAreaTool::paintBoundary(QPainter* painter)
     int curvePointCount = m_cachedPolygon.size() / 2;
 
     for (int i = 0; i < curvePointCount - 1; ++i) {
-        painter->drawLine(m_cachedPolygon[i], m_cachedPolygon[i + 1]);
+        // 转换为本地坐标
+        QPointF local1 = mapFromScene(m_cachedPolygon[i]);
+        QPointF local2 = mapFromScene(m_cachedPolygon[i + 1]);
+        painter->drawLine(local1, local2);
     }
 }
 
@@ -187,6 +196,9 @@ void PeakAreaTool::paintHandles(QPainter* painter)
 
 void PeakAreaTool::paintHandle(QPainter* painter, const QPointF& scenePos, bool isHovered)
 {
+    // 将场景坐标转换为本地坐标（相对于 boundingRect）
+    QPointF localPos = mapFromScene(scenePos);
+
     if (isHovered) {
         // 悬停时：半透明蓝色填充
         painter->setBrush(QColor(0, 120, 215, 180));
@@ -197,7 +209,7 @@ void PeakAreaTool::paintHandle(QPainter* painter, const QPointF& scenePos, bool 
         painter->setPen(QPen(Qt::blue, 1.5));
     }
 
-    painter->drawEllipse(scenePos, m_handleRadius, m_handleRadius);
+    painter->drawEllipse(localPos, m_handleRadius, m_handleRadius);
 }
 
 void PeakAreaTool::paintMeasureText(QPainter* painter)
@@ -211,13 +223,16 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
     // 计算文本位置（两个端点中间，稍微向上偏移）
     QPointF scene1 = dataToScene(m_point1);
     QPointF scene2 = dataToScene(m_point2);
-    QPointF textPos = (scene1 + scene2) / 2.0;
-    textPos.setY(textPos.y() - 20);  // 向上偏移20像素
+    QPointF sceneTextPos = (scene1 + scene2) / 2.0;
+    sceneTextPos.setY(sceneTextPos.y() - 20);  // 向上偏移20像素
+
+    // 转换为本地坐标
+    QPointF localTextPos = mapFromScene(sceneTextPos);
 
     // 计算文本矩形
     QFontMetrics fm(font);
     QRectF textRect = fm.boundingRect(text);
-    textRect.moveCenter(textPos);
+    textRect.moveCenter(localTextPos);
     textRect.adjust(-5, -3, 5, 3);  // 添加边距
 
     // 绘制半透明白色背景
@@ -232,12 +247,16 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
 
 void PeakAreaTool::paintCloseButton(QPainter* painter)
 {
-    // 关闭按钮位于右上角
+    // 关闭按钮位于右上角（场景坐标）
     QRectF plotArea = m_chart->plotArea();
     qreal btnSize = 20.0;
     m_closeButtonRect = QRectF(plotArea.right() - btnSize - 10,
                                 plotArea.top() + 10,
                                 btnSize, btnSize);
+
+    // 转换为本地坐标
+    QRectF localButtonRect = QRectF(mapFromScene(m_closeButtonRect.topLeft()),
+                                     mapFromScene(m_closeButtonRect.bottomRight()));
 
     // 绘制背景
     if (m_closeButtonHovered) {
@@ -246,15 +265,15 @@ void PeakAreaTool::paintCloseButton(QPainter* painter)
         painter->setBrush(QColor(200, 200, 200, 150));  // 灰色正常
     }
     painter->setPen(Qt::NoPen);
-    painter->drawRoundedRect(m_closeButtonRect, 3, 3);
+    painter->drawRoundedRect(localButtonRect, 3, 3);
 
     // 绘制 X 符号
     painter->setPen(QPen(Qt::white, 2.0));
     qreal margin = 5.0;
-    painter->drawLine(m_closeButtonRect.topLeft() + QPointF(margin, margin),
-                      m_closeButtonRect.bottomRight() - QPointF(margin, margin));
-    painter->drawLine(m_closeButtonRect.topRight() + QPointF(-margin, margin),
-                      m_closeButtonRect.bottomLeft() + QPointF(margin, -margin));
+    painter->drawLine(localButtonRect.topLeft() + QPointF(margin, margin),
+                      localButtonRect.bottomRight() - QPointF(margin, margin));
+    painter->drawLine(localButtonRect.topRight() + QPointF(-margin, margin),
+                      localButtonRect.bottomLeft() + QPointF(margin, -margin));
 }
 
 // ==================== 计算函数实现 ====================
