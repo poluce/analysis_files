@@ -194,7 +194,7 @@ void AlgorithmCoordinator::handleParameterSubmission(const QString& algorithmNam
     }
 }
 
-void AlgorithmCoordinator::handlePointSelectionResult(const QVector<QPointF>& points)
+void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataPoint>& points)
 {
     if (!m_pending.has_value()) {
         qWarning() << "AlgorithmCoordinator::handlePointSelectionResult - 无待处理的点选请求";
@@ -282,7 +282,7 @@ bool AlgorithmCoordinator::populateDefaultParameters(const AlgorithmDescriptor& 
 }
 
 void AlgorithmCoordinator::executeAlgorithm(
-    const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<QPointF>& points)
+    const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points)
 {
     if (!curve) {
         emit algorithmFailed(descriptor.name, QStringLiteral("曲线数据无效"));

@@ -57,7 +57,7 @@ void MainController::setPlotWidget(ChartView* plotWidget)
     // ==================== 连接活动算法状态机信号 ====================
     // 当用户完成算法交互（选点完成）时，自动触发算法执行
     connect(m_plotWidget, &ChartView::algorithmInteractionCompleted, this,
-            [this](const QString& algorithmName, const QVector<QPointF>& points) {
+            [this](const QString& algorithmName, const QVector<ThermalDataPoint>& points) {
                 qDebug() << "MainController: 接收到算法交互完成信号 -" << algorithmName
                          << ", 选点数量:" << points.size();
 
@@ -90,6 +90,14 @@ void MainController::setPlotWidget(ChartView* plotWidget)
                 }
                 qDebug() << "ChartView 交互状态变化:" << stateName;
             }, Qt::UniqueConnection);
+
+    // ==================== 连接 AlgorithmManager 信号 ====================
+    // 当算法请求添加浮动标签时，转发到 ChartView
+    connect(m_algorithmManager, &AlgorithmManager::floatingLabelRequested, m_plotWidget,
+            [this](const QString& text, const QPointF& dataPos, const QString& curveId) {
+                qDebug() << "MainController: 收到浮动标签请求 -" << text << "位置:" << dataPos << "曲线:" << curveId;
+                m_plotWidget->addFloatingLabel(text, dataPos, curveId);
+            }, Qt::UniqueConnection);
 }
 
 void MainController::attachMainWindow(MainWindow* mainWindow)
@@ -108,6 +116,7 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     // 视图操作连接
     if (m_plotWidget) {
         connect(mainWindow, &MainWindow::fitViewRequested, m_plotWidget, &ChartView::rescaleAxes, Qt::UniqueConnection);
+        connect(mainWindow, &MainWindow::massLossToolRequested, m_plotWidget, &ChartView::startMassLossTool, Qt::UniqueConnection);
         // TODO: 放大和缩小功能需要在 ChartView 中实现
         // connect(mainWindow, &MainWindow::zoomInRequested, m_plotWidget, &ChartView::zoomIn, Qt::UniqueConnection);
         // connect(mainWindow, &MainWindow::zoomOutRequested, m_plotWidget, &ChartView::zoomOut, Qt::UniqueConnection);
@@ -273,7 +282,7 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
         return;
     }
 
-    // 3. 检查是否有子曲线（数据血缘关系）
+    // 3. 检查是否有子曲线（需要级联删除）
     if (m_curveManager->hasChildren(curveId)) {
         // 获取子曲线列表以显示详细信息
         QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
@@ -287,23 +296,33 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
             childrenList += QString("  - ... (还有 %1 个)\n").arg(children.size() - 5);
         }
 
-        // 显示错误消息
-        QMessageBox::warning(
+        // 显示确认对话框
+        QMessageBox::StandardButton reply = QMessageBox::question(
             m_mainWindow,
-            tr("无法删除曲线"),
-            tr("曲线 \"%1\" 不能被删除，因为它有 %2 个子曲线依赖于它：\n\n%3\n"
-               "请先删除这些子曲线，然后再删除父曲线。")
+            tr("确认级联删除"),
+            tr("曲线 \"%1\" 有 %2 个子曲线：\n\n%3\n"
+               "删除此曲线将同时删除所有子曲线。\n\n"
+               "是否继续删除？")
                 .arg(curve->name())
                 .arg(children.size())
-                .arg(childrenList)
+                .arg(childrenList),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No  // 默认选择 No（更安全）
         );
 
-        qWarning() << "MainController::onCurveDeleteRequested - 曲线有" << children.size()
-                   << "个子曲线，无法删除:" << curveId;
+        if (reply == QMessageBox::No) {
+            qDebug() << "MainController::onCurveDeleteRequested - 用户取消删除:" << curveId;
+            return;
+        }
+
+        // 用户确认，执行级联删除
+        int totalDeleted = m_curveManager->removeCurveRecursively(curveId);
+        qDebug() << "MainController::onCurveDeleteRequested - 级联删除完成，共删除" << totalDeleted
+                 << "条曲线（包括子曲线）";
         return;
     }
 
-    // 4. 检查通过，执行删除（只能删除没有子曲线的派生曲线）
+    // 4. 没有子曲线，直接删除
     m_curveManager->removeCurve(curveId);
     qDebug() << "MainController::onCurveDeleteRequested - 成功删除曲线:" << curveId;
 }

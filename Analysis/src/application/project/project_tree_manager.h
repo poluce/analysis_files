@@ -53,6 +53,13 @@ public:
     void setActiveCurve(const QString& curveId);
 
     /**
+     * @brief 设置曲线项的文字颜色
+     * @param curveId 曲线ID
+     * @param color 文字颜色
+     */
+    void setCurveColor(const QString& curveId, const QColor& color);
+
+    /**
      * @brief 获取指定索引对应的曲线ID
      * @param index 模型索引
      * @return 曲线ID,如果是项目节点则返回空字符串

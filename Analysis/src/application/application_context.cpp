@@ -10,6 +10,7 @@
 #include "infrastructure/algorithm/differentiation_algorithm.h"
 #include "infrastructure/algorithm/integration_algorithm.h"
 #include "infrastructure/algorithm/moving_average_filter_algorithm.h"
+#include "infrastructure/algorithm/peak_area_algorithm.h"
 #include "ui/chart_view.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/controller/main_controller.h"
@@ -40,6 +41,12 @@ ApplicationContext::ApplicationContext(QObject* parent)
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
     m_mainWindow->bindHistoryManager(*HistoryManager::instance());
 
+    // 连接 AlgorithmManager 的标注点信号到 ChartView（使用 lambda 处理默认参数）
+    connect(AlgorithmManager::instance(), &AlgorithmManager::markersGenerated,
+            m_chartView, [this](const QString& curveId, const QList<QPointF>& markers, const QColor& color) {
+                m_chartView->addCurveMarkers(curveId, markers, color);  // size 使用默认值 12.0
+            });
+
     // 3. Controller
     m_mainController = new MainController(m_curveManager, this);
     m_mainController->setPlotWidget(m_chartView);
@@ -68,4 +75,5 @@ void ApplicationContext::registerAlgorithms()
     manager->registerAlgorithm(new IntegrationAlgorithm());
 
     manager->registerAlgorithm(new BaselineCorrectionAlgorithm());
+    manager->registerAlgorithm(new PeakAreaAlgorithm());
 }

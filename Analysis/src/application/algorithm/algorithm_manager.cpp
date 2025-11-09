@@ -5,6 +5,7 @@
 #include "application/history/history_manager.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "domain/model/thermal_curve.h"
+#include <QColor>
 #include <QDebug>
 #include <QUuid>
 #include <memory>
@@ -135,7 +136,12 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
         for (int i = 0; i < result.markerCount(); ++i) {
             qDebug() << "  标注点" << i << ":" << result.markers()[i];
         }
-        // TODO: 发送标注点到 ChartView
+
+        // 发送标注点到 ChartView
+        if (result.hasMarkers()) {
+            QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));  // 默认红色，与用户选点颜色一致
+            emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
+        }
         break;
     }
 
@@ -169,7 +175,16 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 
         if (result.hasMarkers()) {
             qDebug() << "  包含" << result.markerCount() << "个标注点";
-            // TODO: 发送标注点到 ChartView
+
+            // 发送标注点到 ChartView（关联到生成的第一条曲线）
+            QString targetCurveId = result.parentCurveId();
+            if (result.hasCurves() && !result.curves().isEmpty()) {
+                // 如果生成了新曲线，标注点关联到新曲线
+                targetCurveId = result.curves().first().id();
+            }
+
+            QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));  // 默认红色，与用户选点颜色一致
+            emit markersGenerated(targetCurveId, result.markers(), markerColor);
         }
 
         if (result.hasRegions()) {
@@ -179,6 +194,16 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 
         if (result.hasMeta("area")) {
             qDebug() << "  面积:" << result.area() << result.meta("unit").toString();
+
+            // 如果有标签文本和位置，创建 FloatingLabel
+            if (result.hasMeta("label") && result.hasMeta("labelPosition")) {
+                QString labelText = result.meta("label").toString();
+                QPointF labelPos = result.metaValue<QPointF>("labelPosition");
+                QString targetCurveId = result.parentCurveId();
+
+                qDebug() << "  发出 FloatingLabel 请求：" << labelText << "位置：" << labelPos;
+                emit floatingLabelRequested(labelText, labelPos, targetCurveId);
+            }
         }
         break;
     }

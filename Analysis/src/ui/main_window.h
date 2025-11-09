@@ -110,6 +110,11 @@ signals:
      */
     void fitViewRequested();
 
+    /**
+     * @brief 请求激活质量损失测量工具
+     */
+    void massLossToolRequested();
+
 private slots:
     /**
      * @brief 处理"打开文件"按钮点击
@@ -131,6 +136,11 @@ private slots:
      * @brief 移动平均滤波算法触发槽
      */
     void onMovingAverageAction();
+
+    /**
+     * @brief 处理质量损失测量工具请求
+     */
+    void onMassLossToolRequested();
 
 private:
     /**

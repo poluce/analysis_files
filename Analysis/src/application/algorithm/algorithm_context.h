@@ -220,7 +220,7 @@ namespace ContextKeys {
  *     double threshold = context->get<double>(ContextKeys::ParamThreshold).value_or(0.1);
  *
  *     // 3. 获取用户选择的点（如果算法需要）
- *     auto points = context->get<QVector<QPointF>>(ContextKeys::SelectedPoints);
+ *     auto points = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
  *     if (points.has_value() && points.value().size() >= 2) {
  *         // 使用选点数据
  *     }
@@ -252,7 +252,7 @@ namespace ContextKeys {
  * |-----------------------------------|---------------------------|-------------------------|
  * | `ContextKeys::ActiveCurve`        | `ThermalCurve*`           | 当前活动曲线            |
  * | `ContextKeys::BaselineCurves`     | `QVector<ThermalCurve*>`  | 活动曲线的所有基线      |
- * | `ContextKeys::SelectedPoints`     | `QVector<QPointF>`        | 用户选择的点集合        |
+ * | `ContextKeys::SelectedPoints`     | `QVector<ThermalDataPoint>`        | 用户选择的点集合        |
  * | `ContextKeys::ParamWindow`        | `int`                     | 窗口大小（移动平均）    |
  * | `ContextKeys::ParamThreshold`     | `double`                  | 阈值（峰值检测等）      |
  * | `ContextKeys::BaselineType`       | `int`                     | 基线类型 (0=线性, 1=多项式) |

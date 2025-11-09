@@ -2,6 +2,7 @@
 #define APPLICATION_ALGORITHM_COORDINATOR_H
 
 #include "domain/algorithm/algorithm_descriptor.h"
+#include "domain/model/thermal_data_point.h"
 #include <QObject>
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include <QVector>
@@ -29,7 +30,7 @@ public:
 
     void handleAlgorithmTriggered(const QString& algorithmName, const QVariantMap& presetParameters = {});
     void handleParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
-    void handlePointSelectionResult(const QVector<QPointF>& points);
+    void handlePointSelectionResult(const QVector<ThermalDataPoint>& points);
     void cancelPendingRequest();
 
 signals:
@@ -56,13 +57,13 @@ private:
         QString curveId;
         QVariantMap parameters;
         int pointsRequired = 0;
-        QVector<QPointF> collectedPoints;
+        QVector<ThermalDataPoint> collectedPoints;
         PendingPhase phase = PendingPhase::None;
     };
 
     bool ensurePrerequisites(const AlgorithmDescriptor& descriptor, ThermalCurve* curve);
     bool populateDefaultParameters(const AlgorithmDescriptor& descriptor, QVariantMap& parameters) const;
-    void executeAlgorithm(const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<QPointF>& points);
+    void executeAlgorithm(const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
     void resetPending();
     [[nodiscard]] std::optional<AlgorithmDescriptor> descriptorFor(const QString& algorithmName);
 

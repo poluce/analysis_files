@@ -22,6 +22,8 @@ SOURCES += \
     src/ui/main.cpp \
     src/ui/main_window.cpp \
     src/ui/chart_view.cpp \
+    src/ui/floating_label.cpp \
+    src/ui/trapezoid_measure_tool.cpp \
     src/ui/controller/main_controller.cpp \
     src/ui/controller/curve_view_controller.cpp \
     \
@@ -45,7 +47,8 @@ SOURCES += \
     src/infrastructure/algorithm/differentiation_algorithm.cpp \
     src/infrastructure/algorithm/moving_average_filter_algorithm.cpp \
     src/infrastructure/algorithm/integration_algorithm.cpp \
-    src/infrastructure/algorithm/baseline_correction_algorithm.cpp
+    src/infrastructure/algorithm/baseline_correction_algorithm.cpp \
+    src/infrastructure/algorithm/peak_area_algorithm.cpp
 
 
 HEADERS += \
@@ -54,6 +57,8 @@ HEADERS += \
     src/ui/project_explorer_view.h \
     src/ui/main_window.h \
     src/ui/chart_view.h \
+    src/ui/floating_label.h \
+    src/ui/trapezoid_measure_tool.h \
     src/ui/controller/main_controller.h \
     src/ui/controller/curve_view_controller.h \
     \
@@ -83,7 +88,8 @@ HEADERS += \
     src/infrastructure/algorithm/differentiation_algorithm.h \
     src/infrastructure/algorithm/moving_average_filter_algorithm.h \
     src/infrastructure/algorithm/integration_algorithm.h \
-    src/infrastructure/algorithm/baseline_correction_algorithm.h
+    src/infrastructure/algorithm/baseline_correction_algorithm.h \
+    src/infrastructure/algorithm/peak_area_algorithm.h
 
 
 # FORMS section removed as UI is now code-based

@@ -5,6 +5,7 @@
 #include "ui/chart_view.h"
 #include "ui/project_explorer_view.h"
 #include <QAbstractItemModel>
+#include <QColor>
 #include <QDebug>
 #include <QModelIndex>
 #include <QTreeView>
@@ -98,6 +99,10 @@ void CurveViewController::onCurveAdded(const QString& curveId)
     }
 
     m_plotWidget->addCurve(*curve);
+
+    // 获取曲线颜色并同步到项目浏览器
+    QColor curveColor = m_plotWidget->getCurveColor(curveId);
+    m_treeManager->setCurveColor(curveId, curveColor);
 
     if (m_projectExplorer && m_projectExplorer->treeView()) {
         m_projectExplorer->treeView()->expandAll();

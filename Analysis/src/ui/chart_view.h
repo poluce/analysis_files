@@ -11,10 +11,12 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
+#include "domain/model/thermal_data_point.h"
 
 class ThermalCurve;
 class QPainter;
 class QGraphicsLineItem;
+class FloatingLabel;
 QT_CHARTS_USE_NAMESPACE
 
 /**
@@ -138,14 +140,108 @@ public:
     const ActiveAlgorithmInfo& activeAlgorithm() const { return m_activeAlgorithm; }
 
     /**
-     * @brief 获取已选择的点
+     * @brief 获取已选择的点（完整数据点，包含温度、时间、值）
      */
-    const QVector<QPointF>& selectedPoints() const { return m_selectedPoints; }
+    const QVector<ThermalDataPoint>& selectedPoints() const { return m_selectedPoints; }
+
+    /**
+     * @brief 获取选中点所属的曲线ID
+     */
+    const QString& selectedPointsCurveId() const { return m_selectedPointsCurveId; }
 
     void addAnnotationLine(
         const QString& id, const QString& curveId, const QPointF& start, const QPointF& end, const QPen& pen = QPen(Qt::red, 2));
     void removeAnnotation(const QString& id);
     void clearAllAnnotations();
+
+    /**
+     * @brief 获取指定曲线的颜色
+     * @param curveId 曲线ID
+     * @return 曲线的颜色，如果找不到曲线则返回黑色
+     */
+    QColor getCurveColor(const QString& curveId) const;
+
+    // ==================== 浮动标签管理 ====================
+    /**
+     * @brief 添加浮动标签（数据锚定模式）
+     * @param text 标签文本（支持多行，使用 \n 分隔）
+     * @param dataPos 数据坐标锚点 (x, y)
+     * @param curveId 所属曲线ID（用于确定Y轴和自动跟随）
+     * @return FloatingLabel 指针（可用于后续配置）
+     */
+    FloatingLabel* addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId);
+
+    /**
+     * @brief 添加浮动标签（视图锚定模式，HUD）
+     * @param text 标签文本
+     * @param viewPos 视图像素位置（相对于 plotArea）
+     * @return FloatingLabel 指针
+     */
+    FloatingLabel* addFloatingLabelHUD(const QString& text, const QPointF& viewPos);
+
+    /**
+     * @brief 移除指定浮动标签
+     * @param label 要移除的标签指针
+     */
+    void removeFloatingLabel(FloatingLabel* label);
+
+    /**
+     * @brief 清空所有浮动标签
+     */
+    void clearFloatingLabels();
+
+    /**
+     * @brief 获取所有浮动标签
+     */
+    const QVector<FloatingLabel*>& floatingLabels() const { return m_floatingLabels; }
+
+    // ==================== 标注点（Markers）管理接口 ====================
+
+    /**
+     * @brief 为指定曲线添加标注点（用于显示算法生成的特征点，如基线定义点）
+     * @param curveId 曲线ID
+     * @param markers 标注点列表（数据坐标）
+     * @param color 标注点颜色（默认红色，与用户选点时的颜色一致）
+     * @param size 标注点大小（默认12，与用户选点时的大小一致）
+     */
+    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
+                         const QColor& color = Qt::red, qreal size = 12.0);
+
+    /**
+     * @brief 移除指定曲线的标注点
+     * @param curveId 曲线ID
+     */
+    void removeCurveMarkers(const QString& curveId);
+
+    /**
+     * @brief 清空所有标注点
+     */
+    void clearAllMarkers();
+
+    // ==================== 测量工具管理 ====================
+    /**
+     * @brief 启动质量损失测量工具（进入拖动选择模式）
+     */
+    void startMassLossTool();
+
+    /**
+     * @brief 添加质量损失测量工具到图表
+     * @param point1 第一个测量点（完整数据点）
+     * @param point2 第二个测量点（完整数据点）
+     * @param curveId 曲线ID（用于确定坐标轴）
+     */
+    void addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+
+    /**
+     * @brief 移除指定的测量工具
+     * @param tool 要移除的工具指针
+     */
+    void removeMassLossTool(QGraphicsObject* tool);
+
+    /**
+     * @brief 清空所有测量工具
+     */
+    void clearAllMassLossTools();
 
 public slots:
     void addCurve(const ThermalCurve& curve);
@@ -164,6 +260,9 @@ public:
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
@@ -176,9 +275,9 @@ signals:
      * 当用户完成所有必需的交互步骤后发出，包含算法名称和选择的点
      *
      * @param algorithmName 算法名称
-     * @param points 用户选择的点
+     * @param points 用户选择的点（完整数据点，包含温度、时间、值）
      */
-    void algorithmInteractionCompleted(const QString& algorithmName, const QVector<QPointF>& points);
+    void algorithmInteractionCompleted(const QString& algorithmName, const QVector<ThermalDataPoint>& points);
 
     /**
      * @brief 交互状态改变信号
@@ -205,6 +304,7 @@ private:
     void transitionToState(InteractionState newState);
     QPointF convertToValueCoordinates(const QPointF& chartViewPos);
     void completePointSelection();
+    void updateSelectedPointsDisplay();  // 更新选中点的显示位置（用于切换横轴模式）
 
     // --- 曲线系列管理：封装 QLineSeries 的创建、数据填充与映射维护 ---
     QLineSeries* seriesForCurve(const QString& curveId) const;
@@ -229,6 +329,8 @@ private:
     void updateCrosshairVisibility();
     void updateCrosshairPosition(const QPointF& viewportPos);
     void clearCrosshair();
+    // --- 标注点辅助函数：根据温度查找最接近的数据点 ---
+    ThermalDataPoint findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const;
 
 private:
     QChartView* m_chartView;
@@ -263,10 +365,29 @@ private:
     // ==================== 交互状态管理 ====================
     InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态
     ActiveAlgorithmInfo m_activeAlgorithm;                        // 当前活动算法信息
-    QVector<QPointF> m_selectedPoints;                            // 用户已选择的点
+    QVector<ThermalDataPoint> m_selectedPoints;                   // 用户已选择的点（完整数据，包含温度、时间、值）
+    QString m_selectedPointsCurveId;                              // 选中点所属的曲线ID
     QScatterSeries* m_selectedPointsSeries = nullptr;             // 显示选中点的散点图系列（红色高亮）
 
     QVector<AnnotationLine> m_annotations;
+
+    // ==================== 浮动标签管理 ====================
+    QVector<FloatingLabel*> m_floatingLabels;                     // 浮动标签列表
+
+    // ==================== 标注点（Markers）管理 ====================
+    struct CurveMarkerData {
+        QScatterSeries* series;                      // 散点图系列
+        QVector<ThermalDataPoint> dataPoints;        // 原始数据点（包含温度和时间）
+    };
+    QMap<QString, CurveMarkerData> m_curveMarkers;   // 曲线ID → 标注点数据
+
+    // ==================== 测量工具管理 ====================
+    QVector<QGraphicsObject*> m_massLossTools;       // 质量损失测量工具列表
+    bool m_massLossToolActive = false;               // 是否正在创建新的测量工具
+
+    // ==================== 右键拖动图表 ====================
+    bool m_isRightDragging = false;                  // 是否正在右键拖动图表
+    QPointF m_rightDragStartPos;                     // 右键拖动起始位置（场景坐标）
 };
 
 #endif // CHARTVIEW_H
