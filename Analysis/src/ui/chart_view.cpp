@@ -280,10 +280,10 @@ void ChartView::clearAllMassLossTools()
 
 // ==================== 峰面积工具（转发给 ThermalChartView/ThermalChart）====================
 
-void ChartView::startPeakAreaTool()
+void ChartView::startPeakAreaTool(const QString& curveId, bool useLinearBaseline, const QString& referenceCurveId)
 {
     if (m_chartView) {
-        m_chartView->startPeakAreaTool();
+        m_chartView->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
     }
 }
 

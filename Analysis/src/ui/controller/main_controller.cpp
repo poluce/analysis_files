@@ -4,6 +4,7 @@
 #include "infrastructure/io/text_file_reader.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
+#include "ui/peak_area_dialog.h"
 #include <QDebug>
 #include <QtGlobal>
 
@@ -117,7 +118,8 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
     if (m_plotWidget) {
         connect(mainWindow, &MainWindow::fitViewRequested, m_plotWidget, &ChartView::rescaleAxes, Qt::UniqueConnection);
         connect(mainWindow, &MainWindow::massLossToolRequested, m_plotWidget, &ChartView::startMassLossTool, Qt::UniqueConnection);
-        connect(mainWindow, &MainWindow::peakAreaToolRequested, m_plotWidget, &ChartView::startPeakAreaTool, Qt::UniqueConnection);
+        // 峰面积工具需要参数对话框，不直接连接到 ChartView
+        connect(mainWindow, &MainWindow::peakAreaToolRequested, this, &MainController::onPeakAreaToolRequested, Qt::UniqueConnection);
         // TODO: 放大和缩小功能需要在 ChartView 中实现
         // connect(mainWindow, &MainWindow::zoomInRequested, m_plotWidget, &ChartView::zoomIn, Qt::UniqueConnection);
         // connect(mainWindow, &MainWindow::zoomOutRequested, m_plotWidget, &ChartView::zoomOut, Qt::UniqueConnection);
@@ -386,4 +388,47 @@ void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmNam
 {
     qInfo() << "算法执行完成:" << algorithmName;
     // 预留：可在此刷新状态栏或提示用户
+}
+
+void MainController::onPeakAreaToolRequested()
+{
+    qDebug() << "MainController::onPeakAreaToolRequested - 峰面积工具请求";
+
+    if (!m_curveManager || !m_plotWidget || !m_mainWindow) {
+        qWarning() << "MainController::onPeakAreaToolRequested - 缺少必要组件";
+        return;
+    }
+
+    // 检查是否有可用曲线
+    if (m_curveManager->getAllCurves().isEmpty()) {
+        QMessageBox::warning(
+            m_mainWindow,
+            tr("无可用曲线"),
+            tr("请先导入数据文件，才能使用峰面积测量工具。")
+        );
+        return;
+    }
+
+    // 显示峰面积参数对话框
+    PeakAreaDialog dialog(m_curveManager, m_mainWindow);
+    if (dialog.exec() != QDialog::Accepted) {
+        qDebug() << "MainController::onPeakAreaToolRequested - 用户取消";
+        return;
+    }
+
+    // 获取用户选择的参数
+    QString curveId = dialog.selectedCurveId();
+    PeakAreaDialog::BaselineType baselineType = dialog.baselineType();
+    QString referenceCurveId = dialog.referenceCurveId();
+
+    qDebug() << "MainController::onPeakAreaToolRequested - 用户选择:";
+    qDebug() << "  计算曲线:" << curveId;
+    qDebug() << "  基线类型:" << (baselineType == PeakAreaDialog::BaselineType::Linear ? "直线基线" : "参考曲线基线");
+    if (!referenceCurveId.isEmpty()) {
+        qDebug() << "  参考曲线:" << referenceCurveId;
+    }
+
+    // 启动峰面积工具（进入选点模式）
+    bool useLinearBaseline = (baselineType == PeakAreaDialog::BaselineType::Linear);
+    m_plotWidget->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
 }

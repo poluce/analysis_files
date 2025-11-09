@@ -63,7 +63,14 @@ public:
 
     // ==================== 测量工具 ====================
     void startMassLossTool();
-    void startPeakAreaTool();
+
+    /**
+     * @brief 启动峰面积测量工具
+     * @param curveId 计算曲线ID
+     * @param useLinearBaseline true=直线基线，false=参考曲线基线
+     * @param referenceCurveId 参考曲线ID（仅当 useLinearBaseline=false 时有效）
+     */
+    void startPeakAreaTool(const QString& curveId, bool useLinearBaseline, const QString& referenceCurveId = QString());
 
 signals:
     /**
@@ -135,6 +142,11 @@ private:
     // ==================== 测量工具状态 ====================
     bool m_massLossToolActive = false;
     bool m_peakAreaToolActive = false;
+
+    // 峰面积工具配置（用户通过对话框选择）
+    QString m_peakAreaCurveId;
+    bool m_peakAreaUseLinearBaseline = true;
+    QString m_peakAreaReferenceCurveId;
 };
 
 #endif // THERMAL_CHART_VIEW_H

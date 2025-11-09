@@ -86,9 +86,20 @@ void ThermalChartView::startMassLossTool()
     m_massLossToolActive = true;
 }
 
-void ThermalChartView::startPeakAreaTool()
+void ThermalChartView::startPeakAreaTool(const QString& curveId, bool useLinearBaseline, const QString& referenceCurveId)
 {
     qDebug() << "ThermalChartView::startPeakAreaTool - 启动峰面积测量工具";
+    qDebug() << "  计算曲线:" << curveId;
+    qDebug() << "  基线类型:" << (useLinearBaseline ? "直线基线" : "参考曲线基线");
+    if (!referenceCurveId.isEmpty()) {
+        qDebug() << "  参考曲线:" << referenceCurveId;
+    }
+
+    // 存储用户选择的参数
+    m_peakAreaCurveId = curveId;
+    m_peakAreaUseLinearBaseline = useLinearBaseline;
+    m_peakAreaReferenceCurveId = referenceCurveId;
+
     setInteractionMode(InteractionMode::Pick);
     m_peakAreaToolActive = true;
 }
@@ -300,23 +311,23 @@ bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
 
                 qDebug() << "ThermalChartView::eventFilter - 单次点击创建峰面积测量工具，点击位置:" << viewportPos;
 
-                // 使用当前活动曲线进行测量
-                if (m_curveManager) {
-                    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-                    if (activeCurve && m_thermalChart) {
-                        qDebug() << "ThermalChartView::eventFilter - 使用活动曲线:" << activeCurve->name();
+                // 使用用户选择的计算曲线（不再依赖活动曲线）
+                if (m_curveManager && !m_peakAreaCurveId.isEmpty()) {
+                    ThermalCurve* targetCurve = m_curveManager->getCurve(m_peakAreaCurveId);
+                    if (targetCurve && m_thermalChart) {
+                        qDebug() << "ThermalChartView::eventFilter - 使用用户选择的曲线:" << targetCurve->name();
 
-                        // 获取活动曲线的系列（用于正确的坐标转换）
-                        QLineSeries* activeSeries = m_thermalChart->seriesForCurve(activeCurve->id());
-                        if (activeSeries) {
-                            // 使用活动曲线的坐标系进行转换
+                        // 获取目标曲线的系列（用于正确的坐标转换）
+                        QLineSeries* targetSeries = m_thermalChart->seriesForCurve(targetCurve->id());
+                        if (targetSeries) {
+                            // 使用目标曲线的坐标系进行转换
                             QPointF scenePos = mapToScene(viewportPos.toPoint());
                             QPointF chartPos = chart()->mapFromScene(scenePos);
-                            QPointF dataClick = chart()->mapToValue(chartPos, activeSeries);
+                            QPointF dataClick = chart()->mapToValue(chartPos, targetSeries);
 
                             qDebug() << "ThermalChartView::eventFilter - 点击位置数据坐标:" << dataClick;
 
-                            const auto& data = activeCurve->getProcessedData();
+                            const auto& data = targetCurve->getProcessedData();
                             if (!data.isEmpty()) {
                                 // 自动在点击位置左右延伸范围（默认左右各延伸20°C）
                                 qreal rangeExtension = 20.0;
@@ -330,7 +341,14 @@ bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
                                 qDebug() << "ThermalChartView::eventFilter - 自动延伸范围: ±" << rangeExtension;
 
                                 // 创建峰面积测量工具（委托给 ThermalChart）
-                                m_thermalChart->addPeakAreaTool(point1, point2, activeCurve->id());
+                                m_thermalChart->addPeakAreaTool(point1, point2, targetCurve->id());
+
+                                // TODO: 应用基线模式（直线基线 或 参考曲线基线）
+                                // if (!m_peakAreaUseLinearBaseline && !m_peakAreaReferenceCurveId.isEmpty()) {
+                                //     // 设置参考曲线基线
+                                //     tool->setBaselineMode(PeakAreaTool::BaselineMode::ReferenceCurve);
+                                //     tool->setReferenceCurve(m_peakAreaReferenceCurveId);
+                                // }
                             }
                         }
                     }
@@ -338,6 +356,8 @@ bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
 
                 // 重置状态
                 m_peakAreaToolActive = false;
+                m_peakAreaCurveId.clear();
+                m_peakAreaReferenceCurveId.clear();
                 setInteractionMode(InteractionMode::View);
 
                 return false;

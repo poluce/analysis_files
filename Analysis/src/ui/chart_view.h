@@ -155,7 +155,7 @@ public:
     void clearAllMassLossTools();
 
     // 峰面积工具
-    void startPeakAreaTool();
+    void startPeakAreaTool(const QString& curveId, bool useLinearBaseline, const QString& referenceCurveId = QString());
     void addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
