@@ -84,26 +84,27 @@ void PeakAreaDialog::loadCurves()
 
     m_curveComboBox->clear();
 
-    // 获取所有曲线
-    const auto& curves = m_curveManager->getAllCurves();
-    if (curves.isEmpty()) {
+    // 获取所有曲线（QMap<QString, ThermalCurve>）
+    const auto& curvesMap = m_curveManager->getAllCurves();
+    if (curvesMap.isEmpty()) {
         m_curveComboBox->addItem(tr("（无可用曲线）"), QString());
         m_okButton->setEnabled(false);
         return;
     }
 
     // 添加所有曲线到下拉列表
-    for (const ThermalCurve* curve : curves) {
-        if (curve) {
-            QString displayName = curve->name();
-            // 显示曲线类型信息
-            if (curve->signalType() == SignalType::Derivative) {
-                displayName += tr(" [微分]");
-            } else if (curve->signalType() == SignalType::Baseline) {
-                displayName += tr(" [基线]");
-            }
-            m_curveComboBox->addItem(displayName, curve->id());
+    for (auto it = curvesMap.begin(); it != curvesMap.end(); ++it) {
+        const ThermalCurve& curve = it.value();
+        QString displayName = curve.name();
+
+        // 显示曲线类型信息
+        if (curve.signalType() == SignalType::Derivative) {
+            displayName += tr(" [微分]");
+        } else if (curve.signalType() == SignalType::Baseline) {
+            displayName += tr(" [基线]");
         }
+
+        m_curveComboBox->addItem(displayName, curve.id());
     }
 
     // 默认选择活动曲线
