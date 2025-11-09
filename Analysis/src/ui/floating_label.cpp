@@ -217,23 +217,29 @@ void FloatingLabel::mousePressEvent(QGraphicsSceneMouseEvent* event) {
 
 void FloatingLabel::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
     if (!m_locked && m_isDragging) {
-        QGraphicsObject::mouseMoveEvent(event);
-
-        // 数据锚定模式：更新锚点
-        if (m_mode == Mode::DataAnchored && m_series && m_chart) {
-            QPointF scenePos = pos() - m_offset;
-            QPointF dataValue = m_chart->mapToValue(scenePos, m_series);
-            m_anchorValue = dataValue;
-        }
+        // 计算场景坐标的偏移量（不受缩放影响）
+        QPointF sceneOffset = event->scenePos() - event->buttonDownScenePos(Qt::LeftButton);
+        QPointF newPos = m_dragStartPos + sceneOffset;
 
         // 限制在 plotArea 内
         if (m_chart) {
             QRectF plotArea = m_chart->plotArea();
-            QPointF p = pos();
-            p.setX(qBound(plotArea.left(), p.x(), plotArea.right()));
-            p.setY(qBound(plotArea.top(), p.y(), plotArea.bottom()));
-            setPos(p);
+            newPos.setX(qBound(plotArea.left(), newPos.x(), plotArea.right()));
+            newPos.setY(qBound(plotArea.top(), newPos.y(), plotArea.bottom()));
         }
+
+        setPos(newPos);
+
+        // 数据锚定模式：更新锚点
+        if (m_mode == Mode::DataAnchored && m_series && m_chart) {
+            QPointF scenePos = newPos - m_offset;
+            QPointF dataValue = m_chart->mapToValue(scenePos, m_series);
+            m_anchorValue = dataValue;
+        }
+
+        event->accept();
+    } else {
+        QGraphicsObject::mouseMoveEvent(event);
     }
 }
 
