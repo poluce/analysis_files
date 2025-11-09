@@ -881,7 +881,8 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
                         qreal yRange = yMax - yMin;
 
                         // 像素偏移转换为该轴的数据偏移（像素比例 × 轴范围）
-                        qreal yDataDelta = (pixelDelta.y() / plotHeight) * yRange;
+                        // 注意：屏幕Y轴向下为正，需要取负以符合直觉（向上拖→图表向上移）
+                        qreal yDataDelta = -(pixelDelta.y() / plotHeight) * yRange;
 
                         yAxis->setRange(yMin + yDataDelta, yMax + yDataDelta);
                     }
