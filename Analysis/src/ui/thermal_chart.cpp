@@ -1034,9 +1034,9 @@ void ThermalChart::clearAllMassLossTools()
 
 // ==================== 峰面积工具实现 ====================
 
-void ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
-                                    const ThermalDataPoint& point2,
-                                    const QString& curveId)
+PeakAreaTool* ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
+                                             const ThermalDataPoint& point2,
+                                             const QString& curveId)
 {
     // 创建峰面积工具
     auto* tool = new PeakAreaTool(this);
@@ -1066,11 +1066,22 @@ void ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
         // 未来可以在这里更新 FloatingLabel
     });
 
+    // 连接坐标轴变化信号，确保缩放/平移后刷新阴影区域
+    connect(this, &QChart::plotAreaChanged, tool, &PeakAreaTool::updateCache);
+
+    // 连接横轴模式变化信号，确保切换温度/时间轴后同步更新
+    connect(this, &ThermalChart::xAxisModeChanged, tool, [tool](XAxisMode mode) {
+        tool->setXAxisMode(mode == XAxisMode::Time);
+    });
+
     // 添加到场景
     scene()->addItem(tool);
     m_peakAreaTools.append(tool);
 
     qDebug() << "ThermalChart::addPeakAreaTool - 添加峰面积工具，面积:" << tool->peakArea();
+
+    // 返回工具指针，供调用者进一步配置（如设置基线模式）
+    return tool;
 }
 
 void ThermalChart::removePeakAreaTool(QGraphicsObject* tool)

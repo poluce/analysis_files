@@ -107,9 +107,9 @@ public:
     void clearAllMassLossTools();
 
     // ==================== 峰面积工具管理 ====================
-    void addPeakAreaTool(const struct ThermalDataPoint& point1,
-                         const struct ThermalDataPoint& point2,
-                         const QString& curveId);
+    class PeakAreaTool* addPeakAreaTool(const struct ThermalDataPoint& point1,
+                                         const struct ThermalDataPoint& point2,
+                                         const QString& curveId);
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
 
