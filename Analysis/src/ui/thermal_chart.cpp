@@ -176,6 +176,16 @@ void ThermalChart::clearCrosshair()
     }
 }
 
+void ThermalChart::setVerticalCrosshairEnabled(bool enabled)
+{
+    setCrosshairEnabled(enabled, m_horizontalCrosshairEnabled);
+}
+
+void ThermalChart::setHorizontalCrosshairEnabled(bool enabled)
+{
+    setCrosshairEnabled(m_verticalCrosshairEnabled, enabled);
+}
+
 // ==================== 选中点管理（用于算法交互）====================
 
 void ThermalChart::setupSelectedPointsSeries(QValueAxis* targetYAxis)
@@ -708,6 +718,12 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
 
     // 发出信号通知浮动标签更新（FloatingLabel 会监听此信号）
     emit xAxisModeChanged(m_xAxisMode);
+}
+
+void ThermalChart::toggleXAxisMode()
+{
+    XAxisMode newMode = (m_xAxisMode == XAxisMode::Temperature) ? XAxisMode::Time : XAxisMode::Temperature;
+    setXAxisMode(newMode);
 }
 
 // ==================== Phase 3: 浮动标签管理实现 ====================

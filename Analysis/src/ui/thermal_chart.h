@@ -62,6 +62,7 @@ public:
     // ==================== 坐标轴管理 ====================
     void rescaleAxes();
     void setXAxisMode(XAxisMode mode);
+    void toggleXAxisMode();  // 切换横轴模式（温度 ↔ 时间）
     XAxisMode xAxisMode() const { return m_xAxisMode; }
 
     // 查询接口（供 ThermalChartView 和叠加物使用）
@@ -77,6 +78,10 @@ public:
 
     // ==================== 十字线管理（仅图元接口）====================
     void setCrosshairEnabled(bool vertical, bool horizontal);
+    void setVerticalCrosshairEnabled(bool enabled);
+    void setHorizontalCrosshairEnabled(bool enabled);
+    bool verticalCrosshairEnabled() const { return m_verticalCrosshairEnabled; }
+    bool horizontalCrosshairEnabled() const { return m_horizontalCrosshairEnabled; }
     void updateCrosshairAtChartPos(const QPointF& chartPos);
     void clearCrosshair();
 
