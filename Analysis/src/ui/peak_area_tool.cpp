@@ -639,20 +639,28 @@ ThermalDataPoint PeakAreaTool::findNearestPointOnCurve(qreal xValue)
 
 bool PeakAreaTool::isPointInCloseButton(const QPointF& pos) const
 {
-    return m_closeButtonRect.contains(pos);
+    // pos 是本地坐标，m_closeButtonRect 是场景坐标
+    // 需要将 pos 转换为场景坐标进行比较
+    QPointF scenePos = mapToScene(pos);
+    return m_closeButtonRect.contains(scenePos);
 }
 
 int PeakAreaTool::getHandleAtPosition(const QPointF& pos) const
 {
+    // pos 是本地坐标（相对于 plotArea），scene1/scene2 是场景坐标
+    // 由于 boundingRect() 返回 plotArea()，本地坐标原点在 plotArea 左上角
+    // 需要将 pos 转换为场景坐标进行比较
+    QPointF scenePos = mapToScene(pos);
+
     QPointF scene1 = dataToScene(m_point1);
     QPointF scene2 = dataToScene(m_point2);
 
     qreal threshold = m_handleRadius + 3.0;  // 增加一点容差
 
-    if (QLineF(pos, scene1).length() < threshold) {
+    if (QLineF(scenePos, scene1).length() < threshold) {
         return 1;
     }
-    if (QLineF(pos, scene2).length() < threshold) {
+    if (QLineF(scenePos, scene2).length() < threshold) {
         return 2;
     }
 
