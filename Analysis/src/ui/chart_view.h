@@ -5,7 +5,10 @@
 #include <QVector>
 #include <QWidget>
 #include <QColor>
+#include <QAbstractSeries>
 #include "domain/model/thermal_data_point.h"
+
+QT_CHARTS_USE_NAMESPACE
 
 class ThermalChart;
 class ThermalChartView;
@@ -14,7 +17,6 @@ class CurveManager;
 class FloatingLabel;
 class QGraphicsObject;
 class QPen;
-class QAbstractSeries;
 
 /**
  * @brief 图表交互状态
