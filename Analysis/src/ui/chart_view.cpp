@@ -8,6 +8,7 @@
 #include <QGraphicsLineItem>
 #include <QCursor>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QPainter>
@@ -138,6 +139,70 @@ void ChartView::mouseReleaseEvent(QMouseEvent* event)
     // 测量工具逻辑已移至 eventFilter
     // 这个方法保留用于未来可能的扩展
     QWidget::mouseReleaseEvent(event);
+}
+
+void ChartView::wheelEvent(QWheelEvent* event)
+{
+    // Ctrl+滚轮：缩放图表
+    if (event->modifiers() & Qt::ControlModifier) {
+        if (!m_chartView || !m_chartView->chart()) {
+            event->ignore();
+            return;
+        }
+
+        QChart* chart = m_chartView->chart();
+
+        // 获取鼠标在图表中的位置（数据坐标）
+        QPointF chartPos = m_chartView->mapToScene(event->pos());
+        QPointF valuePos = chart->mapToValue(chartPos);
+
+        // 缩放因子
+        qreal factor = event->angleDelta().y() > 0 ? 0.8 : 1.25;  // 向上滚动缩小范围（放大），向下滚动扩大范围（缩小）
+
+        // 缩放 X 轴
+        if (m_axisX) {
+            qreal xMin = m_axisX->min();
+            qreal xMax = m_axisX->max();
+            qreal xRange = xMax - xMin;
+            qreal xCenter = valuePos.x();
+
+            // 以鼠标位置为中心缩放
+            qreal leftRatio = (xCenter - xMin) / xRange;
+            qreal rightRatio = (xMax - xCenter) / xRange;
+
+            qreal newRange = xRange * factor;
+            qreal newMin = xCenter - newRange * leftRatio;
+            qreal newMax = xCenter + newRange * rightRatio;
+
+            m_axisX->setRange(newMin, newMax);
+        }
+
+        // 缩放所有 Y 轴
+        for (QAbstractAxis* axis : chart->axes(Qt::Vertical)) {
+            QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
+            if (yAxis) {
+                qreal yMin = yAxis->min();
+                qreal yMax = yAxis->max();
+                qreal yRange = yMax - yMin;
+                qreal yCenter = valuePos.y();
+
+                // 以鼠标位置为中心缩放
+                qreal topRatio = (yMax - yCenter) / yRange;
+                qreal bottomRatio = (yCenter - yMin) / yRange;
+
+                qreal newRange = yRange * factor;
+                qreal newMin = yCenter - newRange * bottomRatio;
+                qreal newMax = yCenter + newRange * topRatio;
+
+                yAxis->setRange(newMin, newMax);
+            }
+        }
+
+        event->accept();
+    } else {
+        // 不是 Ctrl+滚轮，让基类处理（可能是垂直滚动）
+        QWidget::wheelEvent(event);
+    }
 }
 
 void ChartView::contextMenuEvent(QContextMenuEvent* event)
