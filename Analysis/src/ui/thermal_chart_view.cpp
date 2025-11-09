@@ -33,6 +33,15 @@ ThermalChartView::~ThermalChartView()
 void ThermalChartView::setCurveManager(CurveManager* manager)
 {
     m_curveManager = manager;
+
+    // 关键修复：将 CurveManager 传递给 ThermalChart
+    // ThermalChart 需要 CurveManager 来执行以下功能：
+    // 1. 横轴切换时重新加载所有曲线数据 (setXAxisMode)
+    // 2. 级联删除子曲线 (removeCurve)
+    // 3. 测量工具访问曲线数据 (addMassLossTool)
+    if (m_thermalChart) {
+        m_thermalChart->setCurveManager(manager);
+    }
 }
 
 // ==================== 交互模式 ====================
