@@ -317,14 +317,14 @@ qreal PeakAreaTool::calculateArea()
         double effectiveX1 = qMax(xi, x1);
         double effectiveX2 = qMin(xi1, x2);
 
-        // 计算有效的Y值（曲线值 - 基线值）
+        // 计算有效的Y值（计算曲线 - 参考曲线）
         double yi = data[i].value - getBaselineValue(xi);
         double yi1 = data[i + 1].value - getBaselineValue(xi1);
 
-        // 梯形面积
+        // 梯形面积（使用绝对值，不关心曲线在基线上方还是下方）
         double dx = effectiveX2 - effectiveX1;
-        double avgY = (yi + yi1) / 2.0;
-        area += avgY * dx;
+        double trapezoidArea = (yi + yi1) / 2.0 * dx;
+        area += qAbs(trapezoidArea);
     }
 
     return area;
