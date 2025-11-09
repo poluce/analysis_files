@@ -44,7 +44,7 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 连接 AlgorithmManager 的标注点信号到 ChartView（使用 lambda 处理默认参数）
     connect(AlgorithmManager::instance(), &AlgorithmManager::markersGenerated,
             m_chartView, [this](const QString& curveId, const QList<QPointF>& markers, const QColor& color) {
-                m_chartView->addCurveMarkers(curveId, markers, color);  // size 使用默认值 12.0
+                m_chartView->addCurveMarkers(curveId, markers, color, 12.0);  // size 使用默认值 12.0
             });
 
     // 3. Controller

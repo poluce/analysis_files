@@ -63,19 +63,9 @@ void ThermalChartView::setHitTestBasePixelThreshold(qreal px)
     m_hitTestBasePx = (px <= 0) ? 1.0 : px;
 }
 
-qreal ThermalChartView::hitTestBasePixelThreshold() const
-{
-    return m_hitTestBasePx;
-}
-
 void ThermalChartView::setHitTestIncludePenWidth(bool enabled)
 {
     m_hitTestIncludePen = enabled;
-}
-
-bool ThermalChartView::hitTestIncludePenWidth() const
-{
-    return m_hitTestIncludePen;
 }
 
 // ==================== 测量工具 ====================

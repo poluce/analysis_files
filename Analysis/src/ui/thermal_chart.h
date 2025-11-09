@@ -7,12 +7,13 @@
 #include <QVector>
 #include <QPointF>
 #include <QColor>
+#include <QtCharts/QValueAxis>
+#include <QtCharts/QLineSeries>
+#include <QtCharts/QScatterSeries>
+#include <QtCharts/QAbstractSeries>
 
 QT_CHARTS_USE_NAMESPACE
 
-class QValueAxis;
-class QLineSeries;
-class QScatterSeries;
 class QGraphicsLineItem;
 class QGraphicsObject;
 class ThermalCurve;

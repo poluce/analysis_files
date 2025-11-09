@@ -4,6 +4,8 @@
 #include <QChartView>
 #include <QPointF>
 #include <QVector>
+#include <QtCharts/QAbstractSeries>
+#include <QtCharts/QLineSeries>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -11,8 +13,6 @@ class ThermalChart;
 class QMouseEvent;
 class QWheelEvent;
 class QContextMenuEvent;
-class QAbstractSeries;
-class QLineSeries;
 class CurveManager;
 struct ThermalDataPoint;
 
