@@ -821,11 +821,26 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
             return false;
         }
         case QEvent::MouseButtonPress: {
-            // 不处理按下事件，所有逻辑在释放事件中
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+
+            // 处理右键拖动
+            if (mouseEvent->button() == Qt::RightButton) {
+                m_isRightDragging = true;
+                m_rightDragStartPos = mouseEvent->pos();
+                m_chartView->setCursor(Qt::ClosedHandCursor);
+                return false;  // 让事件继续传递
+            }
             break;
         }
         case QEvent::MouseButtonRelease: {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
+
+            // 处理右键释放
+            if (mouseEvent->button() == Qt::RightButton && m_isRightDragging) {
+                m_isRightDragging = false;
+                m_chartView->setCursor(Qt::ArrowCursor);
+                return false;  // 让事件继续传递
+            }
 
             if (mouseEvent->button() == Qt::LeftButton && m_massLossToolActive && m_mode == InteractionMode::Pick) {
                 const QPointF chartViewPos = mapToChartCoordinates(mouseEvent->pos());
@@ -882,6 +897,39 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
         }
         case QEvent::MouseMove: {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
+
+            // 处理右键拖动
+            if (m_isRightDragging && m_chartView && m_chartView->chart()) {
+                QPointF currentPos = mouseEvent->pos();
+                QChart* chart = m_chartView->chart();
+
+                // 计算起始位置和当前位置在数据坐标系中的差值
+                QPointF startValue = chart->mapToValue(m_chartView->mapFromParent(m_rightDragStartPos.toPoint()));
+                QPointF currentValue = chart->mapToValue(m_chartView->mapFromParent(currentPos.toPoint()));
+                QPointF valueDelta = startValue - currentValue;
+
+                // 移动 X 轴
+                if (m_axisX) {
+                    qreal xMin = m_axisX->min();
+                    qreal xMax = m_axisX->max();
+                    m_axisX->setRange(xMin + valueDelta.x(), xMax + valueDelta.x());
+                }
+
+                // 移动所有 Y 轴
+                for (QAbstractAxis* axis : chart->axes(Qt::Vertical)) {
+                    QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
+                    if (yAxis) {
+                        qreal yMin = yAxis->min();
+                        qreal yMax = yAxis->max();
+                        yAxis->setRange(yMin + valueDelta.y(), yMax + valueDelta.y());
+                    }
+                }
+
+                // 更新起始位置
+                m_rightDragStartPos = currentPos;
+                return false;  // 让事件继续传递
+            }
+
             updateCrosshairPosition(mouseEvent->pos());
             break;
         }
