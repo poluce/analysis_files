@@ -764,23 +764,38 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
   - 横轴切换：温度/时间模式（XAxisMode）
   - 修复多Y轴缩放导致曲线丢失的问题
   - 修复右键拖动Y方向相反的问题
+- ✅ **ChartView 三层架构重构** (Phase 1-5 完成)
+  - 将单体 ChartView (2207行) 重构为三层架构 (2553行)
+  - **ThermalChart** (1064行): 数据管理层 - 曲线/坐标轴/叠加物管理
+  - **ThermalChartView** (493行): 交互处理层 - 鼠标/键盘事件、碰撞检测、缩放平移
+  - **ChartView** (693行): 容器层 + 算法状态机 - 转发调用、管理交互状态
+  - 代码简化 68.6%，职责分离清晰，易于维护和测试
+  - 单向依赖：ChartView → ThermalChartView → ThermalChart
+  - 保持向后兼容，外部 API 不变
+- ✅ **撤销/重做功能完全集成** (HistoryManager + Command Pattern)
+  - HistoryManager 单例管理命令历史 (支持50步撤销/重做)
+  - ICommand 接口定义命令模式（execute/undo/redo）
+  - AddCurveCommand、AlgorithmCommand、BaselineCommand 已实现
+  - AlgorithmManager 使用 AddCurveCommand 通过 HistoryManager 添加曲线
+  - MainWindow 添加撤销/重做按钮和快捷键 (Ctrl+Z/Ctrl+Y)
+  - MainController 实现 onUndo/onRedo 槽函数
+  - 所有算法执行自动支持撤销/重做
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)
 2. 算法参数收集对话框尚未实现
-3. 撤销/重做功能框架已建立,但集成尚未完成
-4. 动力学计算功能待实现
-5. 项目保存/加载功能待实现
-6. 曲线导出功能待实现
-7. 峰值检测算法待实现
-8. 归一化算法待实现
+3. 动力学计算功能待实现
+4. 项目保存/加载功能待实现
+5. 曲线导出功能待实现
+6. 峰值检测算法待实现
+7. 归一化算法待实现
 
 ### 开发计划 (详见 `Analysis/ARCHITECTURE_OPTIMIZATION_PLAN.md`)
 
-**短期 (Phase 1 - 命令模式和历史管理)**:
-- 完善 HistoryManager 和命令模式集成
-- 实现所有修改操作的 Command 封装
-- 完成撤销/重做功能测试
+**短期 (Phase 1 - 命令模式和历史管理)** ✅ 已完成:
+- ✅ HistoryManager 和命令模式集成完成
+- ✅ 所有修改操作已使用 Command 封装 (AddCurveCommand 等)
+- ✅ 撤销/重做功能已集成并测试
 
 **中期 (Phase 2 - 项目管理)**:
 - ProjectManager 多项目支持
