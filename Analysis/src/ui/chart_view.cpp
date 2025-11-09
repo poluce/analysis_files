@@ -855,25 +855,35 @@ bool ChartView::eventFilter(QObject* watched, QEvent* event)
                 QPointF currentPos = mouseEvent->pos();
                 QChart* chart = m_chartView->chart();
 
-                // 计算起始位置和当前位置在数据坐标系中的差值
-                QPointF startValue = chart->mapToValue(m_chartView->mapFromParent(m_rightDragStartPos.toPoint()));
-                QPointF currentValue = chart->mapToValue(m_chartView->mapFromParent(currentPos.toPoint()));
-                QPointF valueDelta = startValue - currentValue;
+                // 计算像素偏移
+                QPointF pixelDelta = m_rightDragStartPos - currentPos;
 
-                // 移动 X 轴
+                // 移动 X 轴（使用数据坐标偏移）
                 if (m_axisX) {
+                    QPointF startValue = chart->mapToValue(m_chartView->mapFromParent(m_rightDragStartPos.toPoint()));
+                    QPointF currentValue = chart->mapToValue(m_chartView->mapFromParent(currentPos.toPoint()));
+                    qreal xDataDelta = startValue.x() - currentValue.x();
+
                     qreal xMin = m_axisX->min();
                     qreal xMax = m_axisX->max();
-                    m_axisX->setRange(xMin + valueDelta.x(), xMax + valueDelta.x());
+                    m_axisX->setRange(xMin + xDataDelta, xMax + xDataDelta);
                 }
 
-                // 移动所有 Y 轴
+                // 移动所有 Y 轴（每个轴根据自己的范围独立计算偏移）
+                QRectF plotArea = chart->plotArea();
+                qreal plotHeight = plotArea.height();
+
                 for (QAbstractAxis* axis : chart->axes(Qt::Vertical)) {
                     QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
-                    if (yAxis) {
+                    if (yAxis && plotHeight > 0) {
                         qreal yMin = yAxis->min();
                         qreal yMax = yAxis->max();
-                        yAxis->setRange(yMin + valueDelta.y(), yMax + valueDelta.y());
+                        qreal yRange = yMax - yMin;
+
+                        // 像素偏移转换为该轴的数据偏移（像素比例 × 轴范围）
+                        qreal yDataDelta = (pixelDelta.y() / plotHeight) * yRange;
+
+                        yAxis->setRange(yMin + yDataDelta, yMax + yDataDelta);
                     }
                 }
 
