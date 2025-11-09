@@ -320,6 +320,9 @@ void ChartView::cancelAlgorithmInteraction()
 
     qDebug() << "ChartView::cancelAlgorithmInteraction - 取消算法交互:" << m_activeAlgorithm.displayName;
 
+    // 清除临时选点标记
+    removeCurveMarkers(TEMP_SELECTION_MARKER_ID);
+
     // 清空活动算法信息和交互状态
     m_activeAlgorithm.clear();
     m_selectedPoints.clear();
@@ -417,6 +420,11 @@ void ChartView::handlePointSelection(const QPointF& value)
     qDebug() << "ChartView: 算法" << m_activeAlgorithm.displayName
              << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount;
 
+    // ==================== 关键修复：立即显示选点标记 ====================
+    // 每次选点后立即显示标记，让用户看到已选的点的位置
+    // 这样用户可以确认第一个点的位置，避免两个点都点到同一位置
+    updateSelectionMarkers();
+
     // 检查是否已收集足够的点
     if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
         completePointSelection();
@@ -445,6 +453,9 @@ void ChartView::completePointSelection()
     QVector<ThermalDataPoint> completedPoints = m_selectedPoints;
     emit algorithmInteractionCompleted(completedAlgorithmName, completedPoints);
 
+    // 清除临时选点标记
+    removeCurveMarkers(TEMP_SELECTION_MARKER_ID);
+
     // 清空临时选择点
     m_selectedPoints.clear();
     m_selectedPointsCurveId.clear();
@@ -459,4 +470,34 @@ void ChartView::completePointSelection()
     setInteractionMode(static_cast<int>(InteractionMode::View));
 
     qDebug() << "ChartView::completePointSelection - 算法交互状态已清理，回到空闲状态";
+}
+
+void ChartView::updateSelectionMarkers()
+{
+    // 如果没有选点，清除标记并返回
+    if (m_selectedPoints.isEmpty()) {
+        removeCurveMarkers(TEMP_SELECTION_MARKER_ID);
+        return;
+    }
+
+    // 根据当前横轴模式构建标记点列表
+    QList<QPointF> markers;
+    bool useTemperature = (xAxisMode() == 0);  // 0 = Temperature
+
+    for (const ThermalDataPoint& point : m_selectedPoints) {
+        if (useTemperature) {
+            markers.append(QPointF(point.temperature, point.value));
+        } else {
+            markers.append(QPointF(point.time, point.value));
+        }
+    }
+
+    // 使用橙色高亮显示临时选点标记
+    QColor highlightColor = QColor(255, 140, 0);  // 橙色，醒目但不刺眼
+    qreal markerSize = 15.0;  // 比正常标记稍大，更容易看到
+
+    // 添加临时标记（使用特殊ID以便后续清除）
+    addCurveMarkers(TEMP_SELECTION_MARKER_ID, markers, highlightColor, markerSize);
+
+    qDebug() << "ChartView::updateSelectionMarkers - 已显示" << markers.size() << "个临时选点标记";
 }
