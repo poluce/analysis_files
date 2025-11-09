@@ -456,8 +456,11 @@ void PeakAreaTool::mousePressEvent(QGraphicsSceneMouseEvent* event)
     if (event->button() == Qt::LeftButton) {
         QPointF pos = event->pos();
 
+        qDebug() << "PeakAreaTool::mousePressEvent - 点击位置(本地):" << pos;
+
         // 检查是否点击关闭按钮
         if (isPointInCloseButton(pos)) {
+            qDebug() << "PeakAreaTool::mousePressEvent - 点击关闭按钮";
             emit removeRequested();
             event->accept();
             return;
@@ -466,13 +469,17 @@ void PeakAreaTool::mousePressEvent(QGraphicsSceneMouseEvent* event)
         // 检查是否点击拖动手柄
         int handle = getHandleAtPosition(pos);
         if (handle == 1) {
+            qDebug() << "PeakAreaTool::mousePressEvent - 开始拖动手柄1";
             m_dragState = DraggingHandle1;
             setCursor(Qt::ClosedHandCursor);
             event->accept();
+            return;  // 重要：立即返回，不要调用父类
         } else if (handle == 2) {
+            qDebug() << "PeakAreaTool::mousePressEvent - 开始拖动手柄2";
             m_dragState = DraggingHandle2;
             setCursor(Qt::ClosedHandCursor);
             event->accept();
+            return;  // 重要：立即返回，不要调用父类
         }
     }
 
@@ -482,19 +489,28 @@ void PeakAreaTool::mousePressEvent(QGraphicsSceneMouseEvent* event)
 void PeakAreaTool::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 {
     if (m_dragState == DraggingHandle1 || m_dragState == DraggingHandle2) {
-        // 转换坐标
+        // 转换坐标：场景坐标 → 数据坐标
         QPointF scenePos = event->scenePos();
         QPointF dataPos = sceneToData(scenePos);
 
+        // 从数据坐标中提取 X 值（横轴的值，无论是温度还是时间）
+        // mapToValue 返回的 QPointF.x() 就是横轴的值
+        double xValue = dataPos.x();
+
+        qDebug() << "PeakAreaTool::mouseMoveEvent - 场景坐标:" << scenePos
+                 << ", 数据坐标:" << dataPos
+                 << ", xValue:" << xValue;
+
         // 吸附到曲线
-        double xValue = m_useTimeAxis ? dataPos.y() : dataPos.x();  // 注意：sceneToData返回的是图表坐标
         ThermalDataPoint snappedPoint = findNearestPointOnCurve(xValue);
 
         // 更新端点
         if (m_dragState == DraggingHandle1) {
             m_point1 = snappedPoint;
+            qDebug() << "PeakAreaTool::mouseMoveEvent - 更新端点1:" << snappedPoint.temperature << snappedPoint.time << snappedPoint.value;
         } else {
             m_point2 = snappedPoint;
+            qDebug() << "PeakAreaTool::mouseMoveEvent - 更新端点2:" << snappedPoint.temperature << snappedPoint.time << snappedPoint.value;
         }
 
         // 重新计算面积和多边形
@@ -676,10 +692,21 @@ int PeakAreaTool::getHandleAtPosition(const QPointF& pos) const
 
     qreal threshold = m_handleRadius + 3.0;  // 增加一点容差
 
-    if (QLineF(scenePos, scene1).length() < threshold) {
+    qreal dist1 = QLineF(scenePos, scene1).length();
+    qreal dist2 = QLineF(scenePos, scene2).length();
+
+    qDebug() << "PeakAreaTool::getHandleAtPosition - pos(本地):" << pos
+             << ", scenePos:" << scenePos
+             << ", scene1:" << scene1 << ", dist1:" << dist1
+             << ", scene2:" << scene2 << ", dist2:" << dist2
+             << ", threshold:" << threshold;
+
+    if (dist1 < threshold) {
+        qDebug() << "PeakAreaTool::getHandleAtPosition - 检测到手柄1";
         return 1;
     }
-    if (QLineF(scenePos, scene2).length() < threshold) {
+    if (dist2 < threshold) {
+        qDebug() << "PeakAreaTool::getHandleAtPosition - 检测到手柄2";
         return 2;
     }
 
