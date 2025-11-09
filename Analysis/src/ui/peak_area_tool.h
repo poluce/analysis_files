@@ -139,6 +139,14 @@ signals:
      */
     void areaChanged(qreal newArea);
 
+public slots:
+    /**
+     * @brief 更新缓存的面积和多边形
+     *
+     * 当坐标轴范围变化（缩放/平移）或横轴模式切换时调用
+     */
+    void updateCache();
+
 protected:
     // ==================== 鼠标事件 ====================
     void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
@@ -227,11 +235,6 @@ private:
      * @return 0=不在手柄上，1=在第一个手柄上，2=在第二个手柄上
      */
     int getHandleAtPosition(const QPointF& pos) const;
-
-    /**
-     * @brief 更新缓存的面积和多边形
-     */
-    void updateCache();
 
     // ==================== 成员变量 ====================
     QChart* m_chart;                    ///< 所属图表
