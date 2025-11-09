@@ -3,6 +3,7 @@
 
 #include <QChartView>
 #include <QPointF>
+#include <QVector>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -13,6 +14,7 @@ class QContextMenuEvent;
 class QAbstractSeries;
 class QLineSeries;
 class CurveManager;
+struct ThermalDataPoint;
 
 /**
  * @brief 定义图表的交互模式
@@ -110,6 +112,10 @@ private:
     QPointF sceneToChart(const QPointF& scenePos) const;
     QPointF chartToValue(const QPointF& chartPos) const;
 
+    // ==================== 数据查询辅助函数 ====================
+    ThermalDataPoint findNearestDataPoint(const QVector<ThermalDataPoint>& curveData,
+                                           double xValue) const;
+
 private:
     ThermalChart* m_thermalChart = nullptr;
     CurveManager* m_curveManager = nullptr;
@@ -123,7 +129,7 @@ private:
 
     // ==================== 右键拖动 ====================
     bool m_isRightDragging = false;
-    QPointF m_dragStartPos;
+    QPointF m_rightDragStartPos;
 
     // ==================== 测量工具状态 ====================
     bool m_massLossToolActive = false;
