@@ -1,6 +1,7 @@
 #include "thermal_chart.h"
 #include "floating_label.h"
 #include "trapezoid_measure_tool.h"
+#include "peak_area_tool.h"
 #include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
 #include "application/curve/curve_manager.h"
@@ -678,6 +679,15 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     }
     qDebug() << "ThermalChart::setXAxisMode - 已通知" << m_massLossTools.size() << "个测量工具更新横轴模式";
 
+    // 通知所有峰面积工具更新横轴模式
+    for (QGraphicsObject* obj : m_peakAreaTools) {
+        PeakAreaTool* tool = qobject_cast<PeakAreaTool*>(obj);
+        if (tool) {
+            tool->setXAxisMode(useTimeAxis);
+        }
+    }
+    qDebug() << "ThermalChart::setXAxisMode - 已通知" << m_peakAreaTools.size() << "个峰面积工具更新横轴模式";
+
     // 重新加载所有曲线数据
     if (!m_curveManager) {
         qWarning() << "ThermalChart::setXAxisMode - CurveManager 未设置";
@@ -1020,6 +1030,80 @@ void ThermalChart::clearAllMassLossTools()
     m_massLossTools.clear();
 
     qDebug() << "ThermalChart::clearAllMassLossTools - 清空所有测量工具";
+}
+
+// ==================== 峰面积工具实现 ====================
+
+void ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
+                                    const ThermalDataPoint& point2,
+                                    const QString& curveId)
+{
+    // 创建峰面积工具
+    auto* tool = new PeakAreaTool(this);
+    tool->setCurveManager(m_curveManager);
+
+    // 设置坐标轴和系列（用于正确的坐标转换）
+    if (m_curveManager && !curveId.isEmpty()) {
+        QValueAxis* yAxis = yAxisForCurve(curveId);
+        QLineSeries* series = seriesForCurve(curveId);
+        tool->setAxes(curveId, m_axisX, yAxis, series);
+    }
+
+    // 设置当前横轴模式
+    tool->setXAxisMode(m_xAxisMode == XAxisMode::Time);
+
+    // 设置测量点（传递完整的 ThermalDataPoint）
+    tool->setMeasurePoints(point1, point2);
+
+    // 连接删除信号
+    connect(tool, &PeakAreaTool::removeRequested, this, [this, tool]() {
+        removePeakAreaTool(tool);
+    });
+
+    // 连接面积变化信号（用于实时更新 FloatingLabel 等）
+    connect(tool, &PeakAreaTool::areaChanged, this, [tool](qreal newArea) {
+        qDebug() << "峰面积已更新:" << newArea;
+        // 未来可以在这里更新 FloatingLabel
+    });
+
+    // 添加到场景
+    scene()->addItem(tool);
+    m_peakAreaTools.append(tool);
+
+    qDebug() << "ThermalChart::addPeakAreaTool - 添加峰面积工具，面积:" << tool->peakArea();
+}
+
+void ThermalChart::removePeakAreaTool(QGraphicsObject* tool)
+{
+    if (!tool) {
+        return;
+    }
+
+    m_peakAreaTools.removeOne(tool);
+
+    if (scene()) {
+        scene()->removeItem(tool);
+    }
+
+    tool->deleteLater();
+
+    qDebug() << "ThermalChart::removePeakAreaTool - 移除峰面积工具";
+}
+
+void ThermalChart::clearAllPeakAreaTools()
+{
+    for (QGraphicsObject* tool : m_peakAreaTools) {
+        if (tool) {
+            if (scene()) {
+                scene()->removeItem(tool);
+            }
+            tool->deleteLater();
+        }
+    }
+
+    m_peakAreaTools.clear();
+
+    qDebug() << "ThermalChart::clearAllPeakAreaTools - 清空所有峰面积工具";
 }
 
 // ==================== Phase 3: 注释线管理实现 ====================

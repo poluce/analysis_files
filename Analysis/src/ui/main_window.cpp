@@ -213,15 +213,14 @@ QToolBar* MainWindow::createMathToolBar()
     // 添加基线绘制按钮
     QAction* baselineAction = toolbar->addAction(tr("绘制基线"));
     baselineAction->setData("baseline_correction");
-    // 添加峰面积计算按钮
-    QAction* peakAreaAction = toolbar->addAction(tr("峰面积计算"));
-    peakAreaAction->setData("peak_area");
+    // 添加峰面积测量工具按钮（可交互式）
+    QAction* peakAreaAction = toolbar->addAction(tr("峰面积"));
+    connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onPeakAreaToolRequested);
     // 添加质量损失测量工具按钮
     QAction* massLossAction = toolbar->addAction(tr("质量损失"));
     connect(massLossAction, &QAction::triggered, this, &MainWindow::onMassLossToolRequested);
 
     connect(baselineAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
-    connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
 
     connect(diffAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
@@ -277,6 +276,12 @@ void MainWindow::onMassLossToolRequested()
 {
     qDebug() << "MainWindow::onMassLossToolRequested - 请求激活质量损失测量工具";
     emit massLossToolRequested();
+}
+
+void MainWindow::onPeakAreaToolRequested()
+{
+    qDebug() << "MainWindow::onPeakAreaToolRequested - 请求激活峰面积测量工具";
+    emit peakAreaToolRequested();
 }
 
 void MainWindow::triggerAlgorithmFromAction(void (MainWindow::*signal)(const QString&))

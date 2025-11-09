@@ -106,6 +106,13 @@ public:
     void removeMassLossTool(QGraphicsObject* tool);
     void clearAllMassLossTools();
 
+    // ==================== 峰面积工具管理 ====================
+    void addPeakAreaTool(const struct ThermalDataPoint& point1,
+                         const struct ThermalDataPoint& point2,
+                         const QString& curveId);
+    void removePeakAreaTool(QGraphicsObject* tool);
+    void clearAllPeakAreaTools();
+
     // ==================== 注释线管理 ====================
     struct AnnotationLine {
         QString id;
@@ -192,6 +199,7 @@ private:
 
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;
+    QVector<QGraphicsObject*> m_peakAreaTools;
 
     // ==================== 注释线 ====================
     QVector<AnnotationLine> m_annotations;

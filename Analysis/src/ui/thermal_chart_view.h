@@ -63,6 +63,7 @@ public:
 
     // ==================== 测量工具 ====================
     void startMassLossTool();
+    void startPeakAreaTool();
 
 signals:
     /**
@@ -133,6 +134,7 @@ private:
 
     // ==================== 测量工具状态 ====================
     bool m_massLossToolActive = false;
+    bool m_peakAreaToolActive = false;
 };
 
 #endif // THERMAL_CHART_VIEW_H

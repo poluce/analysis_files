@@ -154,6 +154,12 @@ public:
     void removeMassLossTool(QGraphicsObject* tool);
     void clearAllMassLossTools();
 
+    // 峰面积工具
+    void startPeakAreaTool();
+    void addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+    void removePeakAreaTool(QGraphicsObject* tool);
+    void clearAllPeakAreaTools();
+
     // ==================== 曲线查询（转发给 ThermalChart）====================
     QColor getCurveColor(const QString& curveId) const;
 

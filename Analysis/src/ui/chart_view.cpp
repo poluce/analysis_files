@@ -278,6 +278,36 @@ void ChartView::clearAllMassLossTools()
     }
 }
 
+// ==================== 峰面积工具（转发给 ThermalChartView/ThermalChart）====================
+
+void ChartView::startPeakAreaTool()
+{
+    if (m_chartView) {
+        m_chartView->startPeakAreaTool();
+    }
+}
+
+void ChartView::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+{
+    if (m_chart) {
+        m_chart->addPeakAreaTool(point1, point2, curveId);
+    }
+}
+
+void ChartView::removePeakAreaTool(QGraphicsObject* tool)
+{
+    if (m_chart) {
+        m_chart->removePeakAreaTool(tool);
+    }
+}
+
+void ChartView::clearAllPeakAreaTools()
+{
+    if (m_chart) {
+        m_chart->clearAllPeakAreaTools();
+    }
+}
+
 QColor ChartView::getCurveColor(const QString& curveId) const
 {
     return m_chart ? m_chart->getCurveColor(curveId) : Qt::black;
