@@ -260,6 +260,7 @@ public:
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -383,6 +384,10 @@ private:
     // ==================== 测量工具管理 ====================
     QVector<QGraphicsObject*> m_massLossTools;       // 质量损失测量工具列表
     bool m_massLossToolActive = false;               // 是否正在创建新的测量工具
+
+    // ==================== 右键拖动图表 ====================
+    bool m_isRightDragging = false;                  // 是否正在右键拖动图表
+    QPointF m_rightDragStartPos;                     // 右键拖动起始位置（场景坐标）
 };
 
 #endif // CHARTVIEW_H
