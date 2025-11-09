@@ -60,6 +60,17 @@ Analysis.exe
     - `startAlgorithmInteraction()`: 启动算法交互,进入等待选点状态
     - `cancelAlgorithmInteraction()`: 取消当前交互,回到空闲状态
     - `algorithmInteractionCompleted(algorithmName, points)`: 当用户完成选点后自动发出,触发算法执行
+  - **交互模式**: InteractionMode (View/Pick)
+  - **横轴模式**: XAxisMode (Temperature/Time)
+  - **交互功能**: 右键拖动平移、Ctrl+滚轮缩放、多Y轴支持
+- **FloatingLabel**: 🆕 浮动标签组件,可拖动、可缩放的文本标签
+  - **锚定模式**: DataAnchored (跟随数据) / ViewAnchored (固定HUD)
+  - **交互功能**: 拖动移动、Ctrl+滚轮缩放、关闭按钮、锁定/解锁
+  - **应用场景**: 峰面积数值显示、测量结果、注释标签
+- **TrapezoidMeasureTool**: 🆕 直角梯形测量工具
+  - **功能**: 测量曲线上两点之间的垂直高度差（质量损失）
+  - **特性**: 可拖动端点、自动吸附曲线、实时显示测量值
+  - **支持**: 横轴切换同步（温度/时间模式）
 - **ProjectExplorerView**: 项目浏览器视图,树形结构展示曲线及其衍生关系(模型由 ProjectTreeManager 提供)
 - **DataImportWidget**: 数据导入对话框,智能列识别和预览
 
@@ -111,12 +122,29 @@ Analysis.exe
     - `InstrumentType`: 仪器类型(TGA/DSC/ARC)
     - `SignalType`: 信号类型(Raw/Derivative/Baseline/PeakArea)
   - **显示样式**:
-    - `PlotStyle`: 图表样式(Line/Scatter/Both)
+    - `PlotStyle`: 图表样式(Line/Scatter/Area)
+  - **曲线属性**: 🆕
+    - `isAuxiliaryCurve`: 是否为辅助曲线（决定Y轴继承策略）
+    - `isStronglyBound`: 是否强绑定（决定树中显示策略）
+    - `isMainCurve`: 是否为主曲线（数据源，不可删除）
   - 动态单位推断: `getYAxisLabel()` 根据类型自动生成Y轴标签
 
 #### 算法接口 - `src/domain/algorithm/`
-- **IThermalAlgorithm**: 算法接口,定义 `process()`, `name()`, `category()`, `getOutputSignalType()`
-- **AlgorithmDescriptor**: 算法描述符,定义算法的参数元数据和配置
+- **IThermalAlgorithm**: 算法接口,定义核心方法
+  - `executeWithContext(AlgorithmContext*)`: 上下文驱动执行（纯虚函数）
+  - `prepareContext(AlgorithmContext*)`: 数据完整性验证（两阶段执行-阶段1）
+  - `name()`, `displayName()`, `category()`: 基本信息
+  - `getOutputSignalType(SignalType)`: 信号类型转换规则
+  - `inputType()`: 🆕 输入类型（None/PointSelection/DualCurve/Intersect/MultiPoint）
+  - `outputType()`: 🆕 输出类型（Curve/Marker/Region/ScalarValue/Composite）
+  - `isAuxiliaryCurve()`: 🆕 声明是否为辅助曲线
+  - `isStronglyBound()`: 🆕 声明是否强绑定
+- **AlgorithmDescriptor**: 算法描述符,定义算法的参数元数据和交互配置
+- **AlgorithmResult**: 🆕 统一输出容器,结构化封装算法执行结果
+  - `ResultType`: 结果类型枚举（Curve/Marker/Region/ScalarValue/Composite）
+  - 支持多种输出：曲线、标注点、区域、数值、混合
+  - 内置成功/失败状态和错误处理
+  - 元数据存储（area, peakHeight, unit等）
 - **ICommand**: 命令模式接口,定义 `execute()`, `undo()`, `redo()`
 
 ### 4. 基础设施层 (Infrastructure Layer) - `src/infrastructure/`
@@ -131,6 +159,11 @@ Analysis.exe
 - **IntegrationAlgorithm**: 积分算法(梯形法则)
 - **MovingAverageFilterAlgorithm**: 移动平均滤波算法
 - **BaselineCorrectionAlgorithm**: 基线校正算法
+- **PeakAreaAlgorithm**: 🆕 峰面积计算算法(梯形积分法)
+  - **类型**: B类算法（交互式，需要用户选点）
+  - **输入**: 用户选择2个点定义积分范围
+  - **输出**: Composite (数值 + FloatingLabel)
+  - **应用**: TGA质量损失、DSC焓变计算
 
 ## 核心设计模式和原则
 
@@ -221,7 +254,59 @@ signals:
 - 基线校正参数(6项): 校正类型、多项式次数、锚点等
 - 15个类别,共60+数据项
 
-### 8. 纯上下文驱动执行模式 🆕✨
+### 8. AlgorithmResult 统一输出容器 🆕✨
+
+**设计目标**: 创建统一的结果容器类，封装所有算法输出类型，提供结构化、类型安全的结果访问接口。
+
+**核心理念**:
+```
+算法输入：AlgorithmContext (拉取数据)
+           ↓
+      算法执行逻辑
+           ↓
+算法输出：AlgorithmResult (结构化结果)
+```
+
+**结果类型**:
+```cpp
+enum class ResultType {
+    Curve,          // 输出曲线（如微分、积分、滤波后的曲线）
+    Marker,         // 标注点（如峰值点、外推点、拐点）
+    Region,         // 区域（如峰面积、积分区域）
+    ScalarValue,    // 单个数值（如外推温度、峰高、斜率）
+    Composite       // 混合结果（包含多种类型）
+};
+```
+
+**关键特性**:
+- ✅ **结构化**: 所有输出封装在单一对象中，清晰明确
+- ✅ **类型安全**: 强类型字段，编译时检查
+- ✅ **多输出支持**: `Composite` 类型支持同时返回多种结果
+- ✅ **易于解析**: 专门的处理方法针对不同结果类型
+- ✅ **可扩展**: 通过 `meta` 字段灵活扩展
+- ✅ **错误处理**: 内置成功/失败状态和错误信息
+- ✅ **可追溯**: 包含时间戳和来源信息
+
+**使用示例**:
+```cpp
+// 简单曲线输出（微分）
+AlgorithmResult result = AlgorithmResult::success("differentiation", curveId, ResultType::Curve);
+result.setCurve(outputCurve);
+result.setMeta("unit", "mg/min");
+return result;
+
+// 混合输出（峰面积）
+AlgorithmResult result = AlgorithmResult::success("peakArea", curveId, ResultType::Composite);
+result.addCurve(baselineCurve);        // 添加基线曲线
+result.setArea(area, "J/g");           // 设置面积数值
+result.addRegion(areaPolygon);         // 添加区域（用于阴影填充）
+result.addMarker(startPoint, "起点"); // 添加标注点
+return result;
+```
+
+详见: `新设计文档/统一输出算法_AlgorithmResult设计.md`
+
+### 9. 纯上下文驱动执行模式 🆕✨
 
 **核心理念**：算法采用**拉取 (Pull)** 模式从上下文获取数据，彻底消除参数传递。
 
@@ -376,7 +461,7 @@ AlgorithmManager::executeWithContext(name, context)
   → emit algorithmResultReady(...)
 ```
 
-### 9. 统一初始化模式 🆕
+### 10. 统一初始化模式 🆕
 使用 ApplicationContext 统一管理所有 MVC 实例的构造顺序:
 ```cpp
 class ApplicationContext {
@@ -646,16 +731,49 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
   - 防止算法在用户未完成交互时过早执行
   - BaselineCorrectionAlgorithm 验证至少2个选点
   - 所有算法实现数据完整性验证逻辑
+- ✅ **AlgorithmResult 统一输出容器** (v1.0)
+  - 结构化算法输出：Curve, Marker, Region, ScalarValue, Composite
+  - 类型安全的结果访问接口
+  - 内置成功/失败状态和错误处理
+  - 支持混合输出（如峰面积=数值+曲线+区域+标注）
+  - 所有算法迁移到新的返回值类型
+- ✅ **峰面积计算算法** (PeakAreaAlgorithm)
+  - B类交互算法，用户选择2个点定义积分范围
+  - 使用梯形积分法计算峰面积
+  - 混合输出：数值结果 + FloatingLabel 显示
+  - 支持所有仪器类型（TGA/DSC/ARC）
+- ✅ **浮动标签组件** (FloatingLabel)
+  - 数据锚定模式：跟随图表缩放
+  - 视图锚定模式：HUD固定位置
+  - 拖动、缩放（Ctrl+滚轮）、锁定功能
+  - 关闭按钮、锁定按钮
+  - 应用于峰面积、测量工具等场景
+- ✅ **测量工具** (TrapezoidMeasureTool)
+  - 直角梯形测量工具，测量垂直高度差（质量损失）
+  - 两个可拖动端点，自动吸附曲线
+  - 实时显示测量值
+  - 支持横轴切换（温度/时间）同步
+- ✅ **曲线级联删除功能** (v1.0.0)
+  - 主曲线保护：从文件导入的原始数据不能删除
+  - 派生曲线级联删除：自动递归删除所有子曲线
+  - 确认对话框：显示将删除的子曲线列表
+  - 深度优先遍历：先删除子曲线，再删除父曲线
+- ✅ **图表交互增强**
+  - 右键拖动平移功能
+  - Ctrl+滚轮缩放功能
+  - 横轴切换：温度/时间模式（XAxisMode）
+  - 修复多Y轴缩放导致曲线丢失的问题
+  - 修复右键拖动Y方向相反的问题
 
 ### 当前限制
 1. 仅支持单项目模式(导入新数据会清空已有曲线)
-2. 图表缩放和平移功能待完善
-3. 算法参数收集对话框尚未实现
-4. 点选交互功能尚未完整实现
-5. 撤销/重做功能框架已建立,但集成尚未完成
-6. 动力学计算功能待实现
-7. 项目保存/加载功能待实现
-8. 曲线导出功能待实现
+2. 算法参数收集对话框尚未实现
+3. 撤销/重做功能框架已建立,但集成尚未完成
+4. 动力学计算功能待实现
+5. 项目保存/加载功能待实现
+6. 曲线导出功能待实现
+7. 峰值检测算法待实现
+8. 归一化算法待实现
 
 ### 开发计划 (详见 `Analysis/ARCHITECTURE_OPTIMIZATION_PLAN.md`)
 
@@ -669,16 +787,97 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
 - 项目保存/加载功能
 - 曲线导出和图表导出
 
-**中期 (Phase 3 - 算法交互)**:
+**中期 (Phase 3 - 算法扩展)**:
 - 算法参数收集对话框 (基于 AlgorithmDescriptor)
-- 点选交互功能完善 (基于 AlgorithmContext)
-- 峰值检测、面积计算、归一化
+- 峰值检测算法 (Marker输出)
+- 归一化算法
+- 外推法（Onset/Endset温度）
+- 切线法
 
 **长期 (Phase 4 - 高级功能)**:
 - 动力学分析(Kissinger、Ozawa、Flynn-Wall-Ozawa 等)
 - 数据库支持
 - 批处理和脚本系统
 - 插件系统
+- 报告生成系统
+
+## UI组件使用指南
+
+### FloatingLabel 浮动标签
+
+**功能**: 可拖动、可缩放、悬浮在图表上的文本标签
+
+**特性**:
+- 数据锚定模式 (DataAnchored): 锚定到数据坐标，随图表缩放移动
+- 视图锚定模式 (ViewAnchored): 锚定到视图像素位置（HUD），不受图表缩放影响
+- 拖动移动（鼠标左键拖拽）
+- 缩放（Ctrl+滚轮）
+- 关闭按钮（右上角）
+- 固定/解锁（锁定后禁止拖动）
+
+**使用示例**:
+```cpp
+// 添加数据锚定标签
+FloatingLabel* label = chartView->addFloatingLabel(
+    "温度=350°C\n值=1.23 mg",  // 支持多行文本
+    QPointF(350.0, 1.23),       // 数据坐标
+    curveId                     // 曲线ID
+);
+
+// 添加视图锚定标签（HUD）
+FloatingLabel* hud = chartView->addFloatingLabelHUD(
+    "实验条件\nT=25°C",
+    QPointF(60, 30)  // 视图坐标（像素）
+);
+```
+
+详见: `Analysis/FloatingLabel_使用示例.md`
+
+### TrapezoidMeasureTool 测量工具
+
+**功能**: 测量曲线上两点之间的垂直高度差（质量损失）
+
+**特性**:
+- 两个可拖动的端点（自动吸附到曲线）
+- 绘制直角梯形（两条水平线 + 一条竖直线）
+- 实时显示垂直距离测量值
+- 可以删除（右上角关闭按钮）
+- 支持横轴切换（温度/时间）同步
+
+**使用方式**:
+1. 用户点击"质量损失"按钮
+2. 在图表上拖动鼠标选择两个点
+3. 工具自动绘制并显示测量值
+4. 可以拖动端点重新调整测量范围
+
+### ChartView 交互功能
+
+**交互模式**:
+- `View` 模式: 缩放、平移、区域选择
+- `Pick` 模式: 选择数据点、测量、显示坐标
+
+**横轴模式**:
+- `Temperature` 模式: 以温度为横轴（默认）
+- `Time` 模式: 以时间为横轴
+
+**鼠标操作**:
+- **右键拖动**: 平移图表
+- **Ctrl + 滚轮**: 缩放图表
+- **左键点击**: 选择曲线/选点（根据当前模式）
+
+### 曲线管理功能
+
+**曲线属性**:
+- `isMainCurve`: 主曲线（从文件导入的原始数据，不可删除）
+- `isAuxiliaryCurve`: 辅助曲线（继承父曲线的Y轴）
+- `isStronglyBound`: 强绑定曲线（不在树中独立显示，随父曲线隐藏）
+
+**删除策略**:
+- 主曲线保护：不能删除主曲线，只能通过"清空项目"移除
+- 级联删除：删除派生曲线时自动递归删除所有子曲线
+- 确认对话框：显示将删除的子曲线列表
+
+详见: `Analysis/曲线级联删除功能说明.md`
 
 ## 相关文档
 
@@ -697,10 +896,15 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
 ### 最新设计文档 🆕 (`新设计文档/`)
 - **AlgorithmContext 类设计**: `新设计文档/📘 AlgorithmContext 类设计文档.md` (核心上下文容器设计)
 - **AlgorithmContext 数据清单**: `新设计文档/AlgorithmContext_数据清单.md` (60+ 数据项, 15 个类别)
+- **AlgorithmResult 统一输出**: `新设计文档/统一输出算法_AlgorithmResult设计.md` (结构化算法输出容器)
 - **MVC 层次划分总览**: `新设计文档/一、MVC 层次划分总览.md` (最新架构分层)
 - **统一初始化**: `新设计文档/统一初始化.md` (ApplicationContext 设计)
 - **交互类**: `新设计文档/交互类.md`
 - **抽象算法行为类型**: `新设计文档/抽象算法行为类型.md`
+
+### 功能说明文档
+- **FloatingLabel 使用示例**: `Analysis/FloatingLabel_使用示例.md`
+- **曲线级联删除功能**: `Analysis/曲线级联删除功能说明.md` (v1.0.0)
 
 ### 算法文档
 - **微分算法使用说明**: `微分算法/微分算法使用说明.md` (大窗口平滑中心差分法)
