@@ -7,7 +7,6 @@
 #include <QWheelEvent>
 #include <QContextMenuEvent>
 #include <QMenu>
-#include <QPainter>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
 #include <QtMath>
@@ -594,33 +593,4 @@ QPointF ThermalChartView::chartToValue(const QPointF& chartPos) const
         return QPointF();
     }
     return chart()->mapToValue(chartPos);
-}
-
-// ==================== 前景绘制（注释线） ====================
-
-void ThermalChartView::drawForeground(QPainter* painter, const QRectF& rect)
-{
-    Q_UNUSED(rect);
-
-    if (!m_thermalChart || !chart()) {
-        return;
-    }
-
-    // 遍历所有注释线并绘制
-    const auto& annotations = m_thermalChart->annotations();
-    for (const auto& annotation : annotations) {
-        // 获取注释线所属曲线的系列（用于坐标转换）
-        QLineSeries* series = m_thermalChart->seriesForCurve(annotation.curveId);
-        if (!series) {
-            continue;
-        }
-
-        // 将数据坐标转换为像素坐标
-        QPointF startPixel = chart()->mapToPosition(annotation.start, series);
-        QPointF endPixel = chart()->mapToPosition(annotation.end, series);
-
-        // 绘制注释线
-        painter->setPen(annotation.pen);
-        painter->drawLine(startPixel, endPixel);
-    }
 }

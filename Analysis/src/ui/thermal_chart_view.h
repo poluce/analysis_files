@@ -105,9 +105,6 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
-    // ==================== 前景绘制（注释线） ====================
-    void drawForeground(QPainter* painter, const QRectF& rect) override;
-
 private:
     // ==================== 交互辅助函数 ====================
     void handleCurveSelectionClick(const QPointF& viewportPos);
