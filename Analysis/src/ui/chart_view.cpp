@@ -492,12 +492,9 @@ void ChartView::updateSelectionMarkers()
         }
     }
 
-    // 使用橙色高亮显示临时选点标记
-    QColor highlightColor = QColor(255, 140, 0);  // 橙色，醒目但不刺眼
-    qreal markerSize = 15.0;  // 比正常标记稍大，更容易看到
-
-    // 添加临时标记（使用特殊ID以便后续清除）
-    addCurveMarkers(TEMP_SELECTION_MARKER_ID, markers, highlightColor, markerSize);
+    // 使用红色高亮显示临时选点标记（与重构前保持一致）
+    // 重构前配置：setColor(Qt::red), setBorderColor(Qt::darkRed), setMarkerSize(12.0)
+    addCurveMarkers(TEMP_SELECTION_MARKER_ID, markers, Qt::red, 12.0);
 
     qDebug() << "ChartView::updateSelectionMarkers - 已显示" << markers.size() << "个临时选点标记";
 }
