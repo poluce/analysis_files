@@ -141,7 +141,7 @@ void PeakAreaDialog::loadReferenceCurves(const QString& parentCurveId)
 
     if (baselineCurves.isEmpty()) {
         m_referenceCurveComboBox->addItem(tr("（无可用基线曲线）"), QString());
-        m_hintLabel->setText(tr("提示：当前曲线没有基线子曲线。请先使用"基线校正"功能创建基线。"));
+        m_hintLabel->setText(tr("提示：当前曲线没有基线子曲线。请先使用\"基线校正\"功能创建基线。"));
         m_hintLabel->setStyleSheet("QLabel { color: orange; font-size: 11px; }");
         return;
     }
@@ -210,7 +210,7 @@ void PeakAreaDialog::onAccepted()
             QMessageBox::warning(
                 this, tr("错误"),
                 tr("当前曲线没有可用的基线子曲线。\n\n"
-                   "请先使用"基线校正"功能创建基线，或选择"直线基线"模式。")
+                   "请先使用\"基线校正\"功能创建基线，或选择\"直线基线\"模式。")
             );
             return;
         }
