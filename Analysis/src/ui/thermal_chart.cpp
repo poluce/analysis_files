@@ -7,6 +7,7 @@
 
 #include <QDebug>
 #include <QGraphicsLineItem>
+#include <QGraphicsScene>
 #include <QSignalBlocker>
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QLineSeries>
@@ -774,8 +775,8 @@ FloatingLabel* ThermalChart::addFloatingLabelHUD(const QString& text, const QPoi
     label->setText(text);
 
     // 计算绝对位置（相对于 plotArea）
-    QRectF plotArea = plotArea();
-    QPointF absolutePos = plotArea.topLeft() + viewPos;
+    QRectF area = plotArea();
+    QPointF absolutePos = area.topLeft() + viewPos;
     label->setPos(absolutePos);
 
     // 添加到场景
