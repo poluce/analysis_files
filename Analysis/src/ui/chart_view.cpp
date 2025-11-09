@@ -148,9 +148,6 @@ void ChartView::mouseMoveEvent(QMouseEvent* event)
     // 右键拖动图表
     if (m_isRightDragging && m_chartView && m_chartView->chart()) {
         QPointF currentPos = event->pos();
-        QPointF delta = currentPos - m_rightDragStartPos;
-
-        // 将像素偏移转换为数据坐标偏移
         QChart* chart = m_chartView->chart();
 
         // 计算起始位置和当前位置在数据坐标系中的差值
