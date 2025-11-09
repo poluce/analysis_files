@@ -113,21 +113,6 @@ public:
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
 
-    // ==================== 注释线管理 ====================
-    struct AnnotationLine {
-        QString id;
-        QString curveId;
-        QPointF start;
-        QPointF end;
-        QPen pen;
-    };
-
-    void addAnnotationLine(const QString& id, const QString& curveId,
-                           const QPointF& start, const QPointF& end,
-                           const QPen& pen = QPen(Qt::red, 2));
-    void removeAnnotation(const QString& id);
-    void clearAllAnnotations();
-
     // ==================== 选中点管理（用于算法交互）====================
     void setupSelectedPointsSeries(QValueAxis* targetYAxis);
     void addSelectedPoint(const QPointF& point);
@@ -200,9 +185,6 @@ private:
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;
     QVector<QGraphicsObject*> m_peakAreaTools;
-
-    // ==================== 注释线 ====================
-    QVector<AnnotationLine> m_annotations;
 
     // ==================== 外部依赖 ====================
     CurveManager* m_curveManager = nullptr;

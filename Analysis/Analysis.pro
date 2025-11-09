@@ -40,7 +40,6 @@ SOURCES += \
     src/application/history/history_manager.cpp \
     src/application/history/add_curve_command.cpp \
     src/application/history/algorithm_command.cpp \
-    src/application/history/baseline_command.cpp \
     src/application/project/project_tree_manager.cpp \
     \
     # Domain Layer
@@ -80,7 +79,6 @@ HEADERS += \
     src/application/history/add_curve_command.h \
     src/application/history/history_manager.h \
     src/application/history/algorithm_command.h \
-    src/application/history/baseline_command.h \
     src/application/project/project_tree_manager.h \
     \
     # Domain Layer

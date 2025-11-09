@@ -176,27 +176,6 @@ bool ChartView::horizontalCrosshairEnabled() const
 }
 
 // ==================== 叠加物管理（转发给 ThermalChart）====================
-void ChartView::addAnnotationLine(const QString& id, const QString& curveId, const QPointF& start,
-                                   const QPointF& end, const QPen& pen)
-{
-    if (m_chart) {
-        m_chart->addAnnotationLine(id, curveId, start, end, pen);
-    }
-}
-
-void ChartView::removeAnnotation(const QString& id)
-{
-    if (m_chart) {
-        m_chart->removeAnnotation(id);
-    }
-}
-
-void ChartView::clearAllAnnotations()
-{
-    if (m_chart) {
-        m_chart->clearAllAnnotations();
-    }
-}
 
 FloatingLabel* ChartView::addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId)
 {
@@ -515,31 +494,4 @@ void ChartView::completePointSelection()
     setInteractionMode(static_cast<int>(InteractionMode::View));
 
     qDebug() << "ChartView::completePointSelection - 算法交互状态已清理，回到空闲状态";
-}
-
-void ChartView::updateSelectionMarkers()
-{
-    // 如果没有选点，清除标记并返回
-    if (m_selectedPoints.isEmpty()) {
-        removeCurveMarkers(TEMP_SELECTION_MARKER_ID);
-        return;
-    }
-
-    // 根据当前横轴模式构建标记点列表
-    QList<QPointF> markers;
-    bool useTemperature = (xAxisMode() == 0);  // 0 = Temperature
-
-    for (const ThermalDataPoint& point : m_selectedPoints) {
-        if (useTemperature) {
-            markers.append(QPointF(point.temperature, point.value));
-        } else {
-            markers.append(QPointF(point.time, point.value));
-        }
-    }
-
-    // 使用红色高亮显示临时选点标记（与重构前保持一致）
-    // 重构前配置：setColor(Qt::red), setBorderColor(Qt::darkRed), setMarkerSize(12.0)
-    addCurveMarkers(TEMP_SELECTION_MARKER_ID, markers, Qt::red, 12.0);
-
-    qDebug() << "ChartView::updateSelectionMarkers - 已显示" << markers.size() << "个临时选点标记";
 }

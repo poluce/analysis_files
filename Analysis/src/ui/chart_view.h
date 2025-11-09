@@ -130,12 +130,6 @@ public:
     const QString& selectedPointsCurveId() const { return m_selectedPointsCurveId; }
 
     // ==================== 叠加物管理（转发给 ThermalChart）====================
-    // 注释线
-    void addAnnotationLine(const QString& id, const QString& curveId, const QPointF& start,
-                           const QPointF& end, const QPen& pen);
-    void removeAnnotation(const QString& id);
-    void clearAllAnnotations();
-
     // 浮动标签
     FloatingLabel* addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId);
     FloatingLabel* addFloatingLabelHUD(const QString& text, const QPointF& viewPos);
@@ -218,7 +212,6 @@ private:
     void handlePointSelection(const QPointF& value);
     void transitionToState(InteractionState newState);
     void completePointSelection();
-    void updateSelectionMarkers();  // 更新选点标记的显示
 
 private:
     // ==================== 组合的核心组件 ====================
@@ -232,9 +225,6 @@ private:
     ActiveAlgorithmInfo m_activeAlgorithm;                         // 当前活动算法信息
     QVector<ThermalDataPoint> m_selectedPoints;                    // 用户已选择的点
     QString m_selectedPointsCurveId;                               // 选中点所属的曲线ID
-
-    // 临时选点标记ID（用于在选点过程中显示已选点的位置）
-    static constexpr const char* TEMP_SELECTION_MARKER_ID = "__temp_selection_markers__";
 };
 
 #endif // CHARTVIEW_H

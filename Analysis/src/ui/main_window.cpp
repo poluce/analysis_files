@@ -210,8 +210,8 @@ QToolBar* MainWindow::createMathToolBar()
 
     toolbar->addSeparator();
 
-    // 添加基线绘制按钮
-    QAction* baselineAction = toolbar->addAction(tr("绘制基线"));
+    // 添加基线校正按钮
+    QAction* baselineAction = toolbar->addAction(tr("基线校正"));
     baselineAction->setData("baseline_correction");
     // 添加峰面积测量工具按钮（可交互式）
     QAction* peakAreaAction = toolbar->addAction(tr("峰面积"));

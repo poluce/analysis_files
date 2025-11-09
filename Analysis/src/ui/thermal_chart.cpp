@@ -1105,34 +1105,3 @@ void ThermalChart::clearAllPeakAreaTools()
 
     qDebug() << "ThermalChart::clearAllPeakAreaTools - 清空所有峰面积工具";
 }
-
-// ==================== Phase 3: 注释线管理实现 ====================
-
-void ThermalChart::addAnnotationLine(const QString& id, const QString& curveId,
-                                       const QPointF& start, const QPointF& end,
-                                       const QPen& pen)
-{
-    m_annotations.append({ id, curveId, start, end, pen });
-    qDebug() << "ThermalChart: 添加注释线" << id << "在曲线" << curveId << "数据点:" << start << end;
-    // 注意：注释线需要通过 viewport 绘制，暂时不在 ThermalChart 中实现绘制逻辑
-    // 这部分功能将在 Phase 3 后期改为 QGraphicsItem
-}
-
-void ThermalChart::removeAnnotation(const QString& id)
-{
-    for (int i = 0; i < m_annotations.size(); ++i) {
-        if (m_annotations[i].id == id) {
-            m_annotations.removeAt(i);
-            qDebug() << "ThermalChart: 移除注释线" << id;
-            return;
-        }
-    }
-}
-
-void ThermalChart::clearAllAnnotations()
-{
-    if (!m_annotations.isEmpty()) {
-        m_annotations.clear();
-        qDebug() << "ThermalChart: 清除所有注释线";
-    }
-}
