@@ -127,6 +127,7 @@ public:
                            const QPen& pen = QPen(Qt::red, 2));
     void removeAnnotation(const QString& id);
     void clearAllAnnotations();
+    const QVector<AnnotationLine>& annotations() const { return m_annotations; }
 
     // ==================== 选中点管理（用于算法交互）====================
     void setupSelectedPointsSeries(QValueAxis* targetYAxis);

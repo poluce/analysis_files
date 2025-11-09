@@ -338,6 +338,12 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
     // 切换到选点模式
     setInteractionMode(static_cast<int>(InteractionMode::Pick));
 
+    // 设置选点系列，附着到目标曲线的 Y 轴
+    if (m_chart && !curveId.isEmpty()) {
+        QValueAxis* targetYAxis = m_chart->yAxisForCurve(curveId);
+        m_chart->setupSelectedPointsSeries(targetYAxis);
+    }
+
     qDebug() << "ChartView: 算法" << displayName << "已进入等待用户选点状态";
 }
 
@@ -350,8 +356,10 @@ void ChartView::cancelAlgorithmInteraction()
 
     qDebug() << "ChartView::cancelAlgorithmInteraction - 取消算法交互:" << m_activeAlgorithm.displayName;
 
-    // 清除临时选点标记
-    removeCurveMarkers(TEMP_SELECTION_MARKER_ID);
+    // 清除选点系列
+    if (m_chart) {
+        m_chart->clearSelectedPoints();
+    }
 
     // 清空活动算法信息和交互状态
     m_activeAlgorithm.clear();
@@ -367,7 +375,7 @@ void ChartView::cancelAlgorithmInteraction()
     qDebug() << "ChartView: 算法交互已取消，回到空闲状态";
 }
 
-void ChartView::onValueClicked(const QPointF& value, void* series)
+void ChartView::onValueClicked(const QPointF& value, QAbstractSeries* series)
 {
     Q_UNUSED(series);
 
@@ -451,9 +459,14 @@ void ChartView::handlePointSelection(const QPointF& value)
              << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount;
 
     // ==================== 关键修复：立即显示选点标记 ====================
-    // 每次选点后立即显示标记，让用户看到已选的点的位置
-    // 这样用户可以确认第一个点的位置，避免两个点都点到同一位置
-    updateSelectionMarkers();
+    // 每次选点后立即在选点系列中添加显示点
+    if (m_chart) {
+        // 根据当前横轴模式生成显示点
+        bool useTemperature = (xAxisMode() == 0);  // 0 = Temperature
+        qreal xValue = useTemperature ? selectedDataPoint.temperature : selectedDataPoint.time;
+        QPointF displayPoint(xValue, selectedDataPoint.value);
+        m_chart->addSelectedPoint(displayPoint);
+    }
 
     // 检查是否已收集足够的点
     if (m_selectedPoints.size() >= m_activeAlgorithm.requiredPointCount) {
@@ -483,8 +496,10 @@ void ChartView::completePointSelection()
     QVector<ThermalDataPoint> completedPoints = m_selectedPoints;
     emit algorithmInteractionCompleted(completedAlgorithmName, completedPoints);
 
-    // 清除临时选点标记
-    removeCurveMarkers(TEMP_SELECTION_MARKER_ID);
+    // 清除选点系列
+    if (m_chart) {
+        m_chart->clearSelectedPoints();
+    }
 
     // 清空临时选择点
     m_selectedPoints.clear();

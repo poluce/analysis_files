@@ -4,6 +4,7 @@
 #include <QPointF>
 #include <QVector>
 #include <QWidget>
+#include <QColor>
 #include "domain/model/thermal_data_point.h"
 
 class ThermalChart;
@@ -13,7 +14,7 @@ class CurveManager;
 class FloatingLabel;
 class QGraphicsObject;
 class QPen;
-class QColor;
+class QAbstractSeries;
 
 /**
  * @brief 图表交互状态
@@ -209,7 +210,7 @@ signals:
 
 private slots:
     // ==================== 算法状态机内部信号处理 ====================
-    void onValueClicked(const QPointF& value, void* series);
+    void onValueClicked(const QPointF& value, QAbstractSeries* series);
     void onCurveHit(const QString& curveId);
 
 private:
