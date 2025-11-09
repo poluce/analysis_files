@@ -116,15 +116,7 @@ void ChartView::rescaleAxes()
 
 void ChartView::mousePressEvent(QMouseEvent* event)
 {
-    // 右键拖动图表
-    if (event->button() == Qt::RightButton) {
-        m_isRightDragging = true;
-        m_rightDragStartPos = event->pos();
-        setCursor(Qt::ClosedHandCursor);
-        event->accept();
-        return;
-    }
-
+    // 右键拖动已在 eventFilter 中处理
     if (event->button() != Qt::LeftButton) {
         QWidget::mousePressEvent(event);
         return;
@@ -145,53 +137,13 @@ void ChartView::mousePressEvent(QMouseEvent* event)
 
 void ChartView::mouseMoveEvent(QMouseEvent* event)
 {
-    // 右键拖动图表
-    if (m_isRightDragging && m_chartView && m_chartView->chart()) {
-        QPointF currentPos = event->pos();
-        QChart* chart = m_chartView->chart();
-
-        // 计算起始位置和当前位置在数据坐标系中的差值
-        QPointF startValue = chart->mapToValue(m_chartView->mapFromParent(m_rightDragStartPos.toPoint()));
-        QPointF currentValue = chart->mapToValue(m_chartView->mapFromParent(currentPos.toPoint()));
-        QPointF valueDelta = startValue - currentValue;
-
-        // 移动 X 轴
-        if (m_axisX) {
-            qreal xMin = m_axisX->min();
-            qreal xMax = m_axisX->max();
-            m_axisX->setRange(xMin + valueDelta.x(), xMax + valueDelta.x());
-        }
-
-        // 移动所有 Y 轴
-        for (QAbstractAxis* axis : chart->axes(Qt::Vertical)) {
-            QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
-            if (yAxis) {
-                qreal yMin = yAxis->min();
-                qreal yMax = yAxis->max();
-                yAxis->setRange(yMin + valueDelta.y(), yMax + valueDelta.y());
-            }
-        }
-
-        // 更新起始位置
-        m_rightDragStartPos = currentPos;
-        event->accept();
-        return;
-    }
-
+    // 右键拖动已在 eventFilter 中处理
     QWidget::mouseMoveEvent(event);
 }
 
 void ChartView::mouseReleaseEvent(QMouseEvent* event)
 {
-    // 结束右键拖动
-    if (event->button() == Qt::RightButton && m_isRightDragging) {
-        m_isRightDragging = false;
-        setCursor(Qt::ArrowCursor);
-        event->accept();
-        return;
-    }
-
-    // 测量工具逻辑已移至 eventFilter
+    // 右键拖动和测量工具逻辑已移至 eventFilter
     // 这个方法保留用于未来可能的扩展
     QWidget::mouseReleaseEvent(event);
 }
