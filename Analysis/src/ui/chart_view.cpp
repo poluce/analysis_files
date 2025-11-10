@@ -92,6 +92,53 @@ void ChartView::toggleXAxisMode()
     }
 }
 
+// ==================== 标题配置（转发给 ThermalChart）====================
+void ChartView::setChartTitle(const QString& title)
+{
+    if (m_chart) {
+        m_chart->setCustomChartTitle(title);
+    }
+}
+
+void ChartView::setXAxisTitle(const QString& title)
+{
+    if (m_chart) {
+        m_chart->setCustomXAxisTitle(title);
+    }
+}
+
+void ChartView::setYAxisTitlePrimary(const QString& title)
+{
+    if (m_chart) {
+        m_chart->setCustomYAxisTitlePrimary(title);
+    }
+}
+
+void ChartView::setYAxisTitleSecondary(const QString& title)
+{
+    if (m_chart) {
+        m_chart->setCustomYAxisTitleSecondary(title);
+    }
+}
+
+void ChartView::setAllTitles(const QString& chartTitle,
+                            const QString& xAxisTitle,
+                            const QString& yAxisTitlePrimary,
+                            const QString& yAxisTitleSecondary)
+{
+    if (m_chart) {
+        m_chart->setCustomTitles(chartTitle, xAxisTitle,
+                                yAxisTitlePrimary, yAxisTitleSecondary);
+    }
+}
+
+void ChartView::clearCustomTitles()
+{
+    if (m_chart) {
+        m_chart->clearCustomTitles();
+    }
+}
+
 // ==================== 曲线管理（转发给 ThermalChart）====================
 void ChartView::addCurve(const ThermalCurve& curve)
 {

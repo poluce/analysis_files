@@ -395,7 +395,12 @@ void ThermalChart::resetAxesToDefault()
     }
 
     if (m_axisY_primary) {
-        m_axisY_primary->setTitleText(tr("质量 (mg)"));
+        // 检查自定义标题优先级
+        if (!m_customYAxisTitlePrimary.isEmpty()) {
+            m_axisY_primary->setTitleText(m_customYAxisTitlePrimary);
+        } else {
+            m_axisY_primary->setTitleText(tr("质量 (mg)"));
+        }
         m_axisY_primary->setRange(0.0, 1.0);
     }
 
@@ -417,7 +422,12 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
             m_axisY_secondary->setTitleBrush(QBrush(Qt::red));
             addAxis(m_axisY_secondary, Qt::AlignRight);
         }
-        m_axisY_secondary->setTitleText(curve.getYAxisLabel());
+        // 检查自定义标题优先级
+        if (!m_customYAxisTitleSecondary.isEmpty()) {
+            m_axisY_secondary->setTitleText(m_customYAxisTitleSecondary);
+        } else {
+            m_axisY_secondary->setTitleText(curve.getYAxisLabel());
+        }
         qDebug() << "ThermalChart: 曲线" << curve.name() << "使用次 Y 轴（Derivative 强制规则）";
         return m_axisY_secondary;
     }
@@ -428,7 +438,12 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
             m_axisY_primary = new QValueAxis(this);
             addAxis(m_axisY_primary, Qt::AlignLeft);
         }
-        m_axisY_primary->setTitleText(curve.getYAxisLabel());
+        // 检查自定义标题优先级
+        if (!m_customYAxisTitlePrimary.isEmpty()) {
+            m_axisY_primary->setTitleText(m_customYAxisTitlePrimary);
+        } else {
+            m_axisY_primary->setTitleText(curve.getYAxisLabel());
+        }
         qDebug() << "ThermalChart: 曲线" << curve.name() << "使用主 Y 轴（默认）";
         return m_axisY_primary;
     }
@@ -440,7 +455,12 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
             m_axisY_primary = new QValueAxis(this);
             addAxis(m_axisY_primary, Qt::AlignLeft);
         }
-        m_axisY_primary->setTitleText(curve.getYAxisLabel());
+        // 检查自定义标题优先级
+        if (!m_customYAxisTitlePrimary.isEmpty()) {
+            m_axisY_primary->setTitleText(m_customYAxisTitlePrimary);
+        } else {
+            m_axisY_primary->setTitleText(curve.getYAxisLabel());
+        }
         qDebug() << "ThermalChart: 曲线" << curve.name() << "使用主 Y 轴（默认）";
         return m_axisY_primary;
     }
@@ -450,7 +470,14 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
         QValueAxis* valueAxis = qobject_cast<QValueAxis*>(axis);
         if (valueAxis && valueAxis != m_axisX) {
             qDebug() << "ThermalChart: 辅助曲线" << curve.name() << "继承父曲线的 Y 轴";
-            valueAxis->setTitleText(curve.getYAxisLabel());
+            // 辅助曲线继承父曲线Y轴时，检查自定义标题优先级
+            if (valueAxis == m_axisY_primary && !m_customYAxisTitlePrimary.isEmpty()) {
+                valueAxis->setTitleText(m_customYAxisTitlePrimary);
+            } else if (valueAxis == m_axisY_secondary && !m_customYAxisTitleSecondary.isEmpty()) {
+                valueAxis->setTitleText(m_customYAxisTitleSecondary);
+            } else {
+                valueAxis->setTitleText(curve.getYAxisLabel());
+            }
             return valueAxis;
         }
     }
@@ -460,7 +487,12 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
         m_axisY_primary = new QValueAxis(this);
         addAxis(m_axisY_primary, Qt::AlignLeft);
     }
-    m_axisY_primary->setTitleText(curve.getYAxisLabel());
+    // 检查自定义标题优先级
+    if (!m_customYAxisTitlePrimary.isEmpty()) {
+        m_axisY_primary->setTitleText(m_customYAxisTitlePrimary);
+    } else {
+        m_axisY_primary->setTitleText(curve.getYAxisLabel());
+    }
     qDebug() << "ThermalChart: 曲线" << curve.name() << "使用主 Y 轴（默认）";
     return m_axisY_primary;
 }
@@ -661,12 +693,21 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
 
     // 切换模式
     m_xAxisMode = mode;
-    if (m_xAxisMode == XAxisMode::Temperature) {
-        m_axisX->setTitleText(tr("温度 (°C)"));
-        qDebug() << "ThermalChart::setXAxisMode - 切换到温度横轴";
+
+    // 更新X轴标题（检查自定义标题优先级）
+    if (!m_customXAxisTitle.isEmpty()) {
+        // 使用自定义标题（不随模式切换而改变）
+        m_axisX->setTitleText(m_customXAxisTitle);
+        qDebug() << "ThermalChart::setXAxisMode - 使用自定义X轴标题:" << m_customXAxisTitle;
     } else {
-        m_axisX->setTitleText(tr("时间 (s)"));
-        qDebug() << "ThermalChart::setXAxisMode - 切换到时间横轴";
+        // 使用默认标题（根据横轴模式自动切换）
+        if (m_xAxisMode == XAxisMode::Temperature) {
+            m_axisX->setTitleText(tr("温度 (°C)"));
+            qDebug() << "ThermalChart::setXAxisMode - 切换到温度横轴";
+        } else {
+            m_axisX->setTitleText(tr("时间 (s)"));
+            qDebug() << "ThermalChart::setXAxisMode - 切换到时间横轴";
+        }
     }
 
     // 通知所有测量工具更新横轴模式
@@ -1115,4 +1156,105 @@ void ThermalChart::clearAllPeakAreaTools()
     m_peakAreaTools.clear();
 
     qDebug() << "ThermalChart::clearAllPeakAreaTools - 清空所有峰面积工具";
+}
+
+// ==================== 标题配置（自定义标题）====================
+
+void ThermalChart::setCustomChartTitle(const QString& title)
+{
+    m_customChartTitle = title;
+
+    // 立即应用标题
+    if (m_customChartTitle.isEmpty()) {
+        setTitle(tr("热分析曲线"));  // 恢复默认
+    } else {
+        setTitle(m_customChartTitle);   // 使用自定义
+    }
+
+    qDebug() << "ThermalChart::setCustomChartTitle - 设置图表标题:" << (title.isEmpty() ? tr("热分析曲线") : title);
+}
+
+void ThermalChart::setCustomXAxisTitle(const QString& title)
+{
+    m_customXAxisTitle = title;
+
+    // 立即应用标题（需要根据当前横轴模式判断）
+    if (m_customXAxisTitle.isEmpty()) {
+        // 恢复默认：根据横轴模式自动切换
+        if (m_xAxisMode == XAxisMode::Temperature) {
+            m_axisX->setTitleText(tr("温度 (°C)"));
+        } else {
+            m_axisX->setTitleText(tr("时间 (s)"));
+        }
+    } else {
+        m_axisX->setTitleText(m_customXAxisTitle);  // 使用自定义
+    }
+
+    qDebug() << "ThermalChart::setCustomXAxisTitle - 设置X轴标题:" << (title.isEmpty() ? "自动" : title);
+}
+
+void ThermalChart::setCustomYAxisTitlePrimary(const QString& title)
+{
+    m_customYAxisTitlePrimary = title;
+
+    // 立即应用标题
+    if (m_customYAxisTitlePrimary.isEmpty()) {
+        // 恢复默认：使用当前主轴标题（不改变）
+        // 实际应该在下次添加曲线时由 ensureYAxisForCurve 自动更新
+    } else {
+        m_axisY_primary->setTitleText(m_customYAxisTitlePrimary);
+    }
+
+    qDebug() << "ThermalChart::setCustomYAxisTitlePrimary - 设置主Y轴标题:" << (title.isEmpty() ? "自动" : title);
+}
+
+void ThermalChart::setCustomYAxisTitleSecondary(const QString& title)
+{
+    m_customYAxisTitleSecondary = title;
+
+    // 立即应用标题（仅当次Y轴已存在时）
+    if (m_axisY_secondary) {
+        if (m_customYAxisTitleSecondary.isEmpty()) {
+            // 恢复默认：保持当前标题（不改变）
+            // 实际应该在下次添加微分曲线时由 ensureYAxisForCurve 自动更新
+        } else {
+            m_axisY_secondary->setTitleText(m_customYAxisTitleSecondary);
+        }
+    }
+
+    qDebug() << "ThermalChart::setCustomYAxisTitleSecondary - 设置次Y轴标题:" << (title.isEmpty() ? "自动" : title);
+}
+
+void ThermalChart::setCustomTitles(const QString& chartTitle,
+                                   const QString& xAxisTitle,
+                                   const QString& yAxisTitlePrimary,
+                                   const QString& yAxisTitleSecondary)
+{
+    setCustomChartTitle(chartTitle);
+    setCustomXAxisTitle(xAxisTitle);
+    setCustomYAxisTitlePrimary(yAxisTitlePrimary);
+    setCustomYAxisTitleSecondary(yAxisTitleSecondary);
+
+    qDebug() << "ThermalChart::setCustomTitles - 批量设置所有标题";
+}
+
+void ThermalChart::clearCustomTitles()
+{
+    m_customChartTitle.clear();
+    m_customXAxisTitle.clear();
+    m_customYAxisTitlePrimary.clear();
+    m_customYAxisTitleSecondary.clear();
+
+    // 立即应用默认标题
+    setTitle(tr("热分析曲线"));
+
+    if (m_xAxisMode == XAxisMode::Temperature) {
+        m_axisX->setTitleText(tr("温度 (°C)"));
+    } else {
+        m_axisX->setTitleText(tr("时间 (s)"));
+    }
+
+    // Y轴标题保持当前值（会在下次添加曲线时自动更新）
+
+    qDebug() << "ThermalChart::clearCustomTitles - 清除所有自定义标题";
 }
