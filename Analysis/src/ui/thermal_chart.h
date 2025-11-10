@@ -66,6 +66,44 @@ public:
     void toggleXAxisMode();  // 切换横轴模式（温度 ↔ 时间）
     XAxisMode xAxisMode() const { return m_xAxisMode; }
 
+    // ==================== 标题配置（自定义标题）====================
+    /**
+     * @brief 设置图表主标题
+     * @param title 自定义标题（空字符串恢复默认 "热分析曲线"）
+     */
+    void setCustomChartTitle(const QString& title);
+
+    /**
+     * @brief 设置X轴标题
+     * @param title 自定义标题（空字符串恢复默认温度/时间自动切换）
+     */
+    void setCustomXAxisTitle(const QString& title);
+
+    /**
+     * @brief 设置主Y轴标题
+     * @param title 自定义标题（空字符串恢复默认：根据曲线类型自动生成）
+     */
+    void setCustomYAxisTitlePrimary(const QString& title);
+
+    /**
+     * @brief 设置次Y轴标题
+     * @param title 自定义标题（空字符串恢复默认：根据曲线类型自动生成）
+     */
+    void setCustomYAxisTitleSecondary(const QString& title);
+
+    /**
+     * @brief 批量设置所有标题（便捷方法）
+     */
+    void setCustomTitles(const QString& chartTitle,
+                        const QString& xAxisTitle = QString(),
+                        const QString& yAxisTitlePrimary = QString(),
+                        const QString& yAxisTitleSecondary = QString());
+
+    /**
+     * @brief 清除所有自定义标题，恢复自动生成
+     */
+    void clearCustomTitles();
+
     // 查询接口（供 ThermalChartView 和叠加物使用）
     QValueAxis* axisX() const { return m_axisX; }
     QValueAxis* primaryAxisY() const { return m_axisY_primary; }
@@ -188,6 +226,12 @@ private:
 
     // ==================== 外部依赖 ====================
     CurveManager* m_curveManager = nullptr;
+
+    // ==================== 自定义标题（空表示使用默认）====================
+    QString m_customChartTitle;              // 自定义图表标题
+    QString m_customXAxisTitle;              // 自定义X轴标题
+    QString m_customYAxisTitlePrimary;       // 自定义主Y轴标题
+    QString m_customYAxisTitleSecondary;     // 自定义次Y轴标题
 };
 
 #endif // THERMAL_CHART_H

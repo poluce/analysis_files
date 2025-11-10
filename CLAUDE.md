@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 这是一个基于 Qt 5.14.2 开发的热分析数据处理工具,支持 TGA(热重分析)、DSC(差示扫描量热)、ARC(加速量热仪)等热分析数据的导入、可视化和分析处理。
 
+**项目规模** (截至 2025-11-10):
+- 📦 **64 个源文件** (.cpp + .h)
+- 📝 **约 8,669 行 C++ 代码** (.cpp 文件)
+- 🔬 **5 种算法实现** (微分、积分、移动平均、基线校正、峰面积)
+- 🏗️ **四层架构设计** (表示层、应用层、领域层、基础设施层)
+
 ## 构建和开发命令
 
 ### 编译项目
@@ -377,8 +383,9 @@ private:
 ✅ **IntegrationAlgorithm** - 积分（梯形法则）
 ✅ **MovingAverageFilterAlgorithm** - 移动平均滤波
 ✅ **BaselineCorrectionAlgorithm** - 基线校正（需要点选交互）
+✅ **PeakAreaAlgorithm** - 峰面积计算（梯形积分法，需要点选交互）
 
-所有算法均已完全迁移到纯上下文驱动模式，**无向后兼容层**。
+所有5个算法均已完全迁移到纯上下文驱动模式，**无向后兼容层**。
 
 #### 核心优势
 
@@ -722,7 +729,7 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
   - 彻底移除旧接口和向后兼容层（无 process/setParameter/execute）
   - IThermalAlgorithm 只保留 `executeWithContext(AlgorithmContext*)` 纯虚函数
   - AlgorithmManager 只保留 `executeWithContext(name, context)` 唯一执行接口
-  - 所有4个算法完成迁移：Differentiation, Integration, MovingAverage, BaselineCorrection
+  - 所有5个算法完成迁移：Differentiation, Integration, MovingAverage, BaselineCorrection, PeakArea
   - 算法从上下文拉取数据，零参数传递，单一数据源
 - ✅ **两阶段执行机制** (prepareContext 返回 bool)
   - 阶段1（prepareContext）：验证数据完整性，返回就绪状态
@@ -936,3 +943,72 @@ FloatingLabel* hud = chartView->addFloatingLabelHUD(
 - 修改数据的操作应封装为 Command 以支持撤销
 - 使用信号槽机制实现松耦合
 - 注释应清晰说明类的职责和方法的用途
+
+## 项目技术亮点 🌟
+
+### 架构设计优势
+
+**四层架构 + DDD**:
+- ✅ **严格分层**: 表示层 → 应用层 → 领域层 → 基础设施层，单向依赖
+- ✅ **依赖注入**: ApplicationContext 统一初始化，避免循环依赖
+- ✅ **接口驱动**: IThermalAlgorithm、IFileReader、ICommand 等抽象接口
+- ✅ **职责单一**: 每个类职责清晰，易于维护和测试
+
+**创新设计模式**:
+- 🔥 **双枚举分离设计**: `InstrumentType` + `SignalType` 分离，语义清晰、易扩展
+- 🔥 **纯上下文驱动执行**: 算法拉取数据，零参数传递，类型安全
+- 🔥 **两阶段执行机制**: prepareContext 验证数据完整性，防止过早执行
+- 🔥 **统一输出容器**: AlgorithmResult 封装5种结果类型，结构化输出
+- 🔥 **活动算法状态机**: ChartView 管理交互流程，自动触发执行
+
+### 代码质量
+
+**可维护性**:
+- 📚 **详细文档**: 每个类、方法都有清晰的注释说明
+- 🧪 **模块化设计**: 8,669 行代码分布在 64 个文件中，平均 135 行/文件
+- 🔄 **信号槽解耦**: UI 和业务逻辑完全分离
+
+**可扩展性**:
+- 🔌 **插件化算法**: 新算法只需实现 IThermalAlgorithm 接口并注册
+- 📂 **文件格式扩展**: 实现 IFileReader 接口即可支持新格式
+- 🎨 **UI 组件化**: ThermalChart、FloatingLabel、TrapezoidMeasureTool 等可复用组件
+
+**可测试性**:
+- ✅ **纯函数设计**: 算法核心逻辑无副作用，易于单元测试
+- ✅ **Mock 友好**: 接口驱动设计，易于替换为 Mock 对象
+- ✅ **依赖注入**: ApplicationContext 集中管理，便于替换测试依赖
+
+### 性能优化
+
+- ⚡ **O(1) 历史查询**: HistoryManager 从 O(n) 优化到 O(1)
+- ⚡ **避免重复计算**: 双数据设计（rawData + processedData）支持快速重置
+- ⚡ **事件驱动架构**: 信号槽机制，按需更新，避免全局刷新
+
+### 用户体验
+
+**交互设计**:
+- 🖱️ **右键拖动平移**: 直观的图表操作
+- 🔍 **Ctrl+滚轮缩放**: 精确控制缩放比例
+- 🎯 **自动吸附曲线**: 测量工具端点自动对齐数据点
+- 📍 **浮动标签**: 支持数据锚定和视图锚定两种模式
+
+**数据安全**:
+- 🛡️ **主曲线保护**: 原始数据不可删除，防止误操作
+- 🔄 **50步撤销/重做**: 所有操作可逆，容错能力强
+- 🗑️ **级联删除**: 自动清理子曲线，避免孤儿数据
+
+### 工程实践
+
+**开发规范**:
+- 📝 **UTF-8 编码**: 完整支持中文注释和文档
+- 🎯 **命名规范**: m_前缀、驼峰命名、语义化变量名
+- 📐 **代码风格**: 统一的缩进、空格、花括号位置
+
+**项目管理**:
+- 📖 **详尽文档**: CLAUDE.md、设计文档、API 文档一应俱全
+- 🚀 **迭代开发**: Phase 1-4 清晰的开发路线图
+- ✅ **功能追踪**: 已完成功能清单，开发进度透明
+
+---
+
+**总结**: 这是一个工业级的热分析软件架构，设计理念先进，代码质量高，文档完善，非常适合作为 Qt/C++ 桌面应用开发和 DDD 架构实践的学习案例。
