@@ -22,8 +22,12 @@ SOURCES += \
     src/ui/main.cpp \
     src/ui/main_window.cpp \
     src/ui/chart_view.cpp \
+    src/ui/thermal_chart.cpp \
+    src/ui/thermal_chart_view.cpp \
     src/ui/floating_label.cpp \
     src/ui/trapezoid_measure_tool.cpp \
+    src/ui/peak_area_tool.cpp \
+    src/ui/peak_area_dialog.cpp \
     src/ui/controller/main_controller.cpp \
     src/ui/controller/curve_view_controller.cpp \
     \
@@ -36,7 +40,6 @@ SOURCES += \
     src/application/history/history_manager.cpp \
     src/application/history/add_curve_command.cpp \
     src/application/history/algorithm_command.cpp \
-    src/application/history/baseline_command.cpp \
     src/application/project/project_tree_manager.cpp \
     \
     # Domain Layer
@@ -57,8 +60,12 @@ HEADERS += \
     src/ui/project_explorer_view.h \
     src/ui/main_window.h \
     src/ui/chart_view.h \
+    src/ui/thermal_chart.h \
+    src/ui/thermal_chart_view.h \
     src/ui/floating_label.h \
     src/ui/trapezoid_measure_tool.h \
+    src/ui/peak_area_tool.h \
+    src/ui/peak_area_dialog.h \
     src/ui/controller/main_controller.h \
     src/ui/controller/curve_view_controller.h \
     \
@@ -72,7 +79,6 @@ HEADERS += \
     src/application/history/add_curve_command.h \
     src/application/history/history_manager.h \
     src/application/history/algorithm_command.h \
-    src/application/history/baseline_command.h \
     src/application/project/project_tree_manager.h \
     \
     # Domain Layer

@@ -115,6 +115,11 @@ signals:
      */
     void massLossToolRequested();
 
+    /**
+     * @brief 请求激活峰面积测量工具
+     */
+    void peakAreaToolRequested();
+
 private slots:
     /**
      * @brief 处理"打开文件"按钮点击
@@ -141,6 +146,11 @@ private slots:
      * @brief 处理质量损失测量工具请求
      */
     void onMassLossToolRequested();
+
+    /**
+     * @brief 处理峰面积测量工具请求
+     */
+    void onPeakAreaToolRequested();
 
 private:
     /**

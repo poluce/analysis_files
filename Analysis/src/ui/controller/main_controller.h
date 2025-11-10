@@ -69,6 +69,11 @@ public slots:
     // 响应UI的曲线删除请求
     void onCurveDeleteRequested(const QString& curveId);
 
+    /**
+     * @brief 处理峰面积工具请求
+     */
+    void onPeakAreaToolRequested();
+
 private slots:
     /**
      * @brief 处理来自数据导入窗口的文件预览请求。
