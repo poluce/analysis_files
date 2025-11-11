@@ -11,6 +11,7 @@
 
 // 前置声明
 class AlgorithmContext;
+class IProgressReporter;
 
 /*
  * ───────────────────────────────────────────────
@@ -279,6 +280,54 @@ public:
      * @return AlgorithmResult - 结构化的算法执行结果（成功或失败）。
      */
     virtual AlgorithmResult executeWithContext(AlgorithmContext* context) = 0;
+
+    // ==================== 进度报告接口（用于异步执行）====================
+
+    /**
+     * @brief 设置进度报告器
+     *
+     * 在工作线程中执行算法前，AlgorithmWorker 调用此方法设置进度报告器。
+     * 算法通过 reportProgress() 和 shouldCancel() 与外界通信。
+     *
+     * @param reporter 进度报告器指针（nullptr 表示清理）
+     */
+    virtual void setProgressReporter(IProgressReporter* reporter) {
+        m_progressReporter = reporter;
+    }
+
+protected:
+    /**
+     * @brief 报告当前进度
+     *
+     * 算法在执行过程中定期调用此方法报告进度。
+     * 建议每处理 10% 数据时调用一次，避免过于频繁。
+     *
+     * @param percentage 进度百分比 (0-100)
+     * @param message 可选的状态消息
+     */
+    void reportProgress(int percentage, const QString& message = QString()) {
+        if (m_progressReporter) {
+            m_progressReporter->reportProgress(percentage, message);
+        }
+    }
+
+    /**
+     * @brief 检查是否应该取消执行
+     *
+     * 算法应定期（如每 100 次迭代）调用此方法检查取消标志。
+     * 如果返回 true，应立即清理资源并返回空结果。
+     *
+     * @return true 表示应该尽快停止执行
+     */
+    bool shouldCancel() const {
+        if (m_progressReporter) {
+            return m_progressReporter->shouldCancel();
+        }
+        return false;
+    }
+
+private:
+    IProgressReporter* m_progressReporter = nullptr;  ///< 进度报告器（由 Worker 设置）
 };
 
 #endif // ITHERMALALGORITHM_H

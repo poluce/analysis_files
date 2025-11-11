@@ -1,5 +1,7 @@
 #include "algorithm_manager.h"
 #include "application/algorithm/algorithm_context.h"
+#include "application/algorithm/algorithm_worker.h"
+#include "application/algorithm/algorithm_thread_manager.h"
 #include "application/curve/curve_manager.h"
 #include "application/history/add_curve_command.h"
 #include "application/history/history_manager.h"
@@ -8,6 +10,7 @@
 #include <QColor>
 #include <QDebug>
 #include <QUuid>
+#include <QMetaObject>
 #include <memory>
 
 AlgorithmManager* AlgorithmManager::instance()
@@ -20,6 +23,10 @@ AlgorithmManager::AlgorithmManager(QObject* parent)
     : QObject(parent)
 {
     qDebug() << "构造:    AlgorithmManager";
+
+    // 连接线程管理器的 workerReleased 信号，用于处理队列
+    connect(AlgorithmThreadManager::instance(), &AlgorithmThreadManager::workerReleased,
+            this, &AlgorithmManager::processQueue);
 }
 
 AlgorithmManager::~AlgorithmManager() { qDeleteAll(m_algorithms); }
@@ -270,4 +277,261 @@ void AlgorithmManager::createAndAddOutputCurve(
         m_curveManager->addCurve(newCurve);
         m_curveManager->setActiveCurve(newId);
     }
+}
+
+// ==================== 异步执行实现 ====================
+
+QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* context)
+{
+    // 1. 验证算法
+    IThermalAlgorithm* algorithm = getAlgorithm(name);
+    if (!algorithm) {
+        qWarning() << "[AlgorithmManager] executeAsync: 算法不存在:" << name;
+        return QString();
+    }
+
+    // 2. 验证上下文
+    if (!context) {
+        qWarning() << "[AlgorithmManager] executeAsync: 上下文为空";
+        return QString();
+    }
+
+    // 3. 调用 prepareContext() 验证数据完整性
+    if (!algorithm->prepareContext(context)) {
+        qWarning() << "[AlgorithmManager] executeAsync: prepareContext 失败，数据不完整";
+        return QString();
+    }
+
+    // 4. 创建上下文快照
+    AlgorithmContext* contextSnapshot = context->clone();
+    if (!contextSnapshot) {
+        qWarning() << "[AlgorithmManager] executeAsync: 上下文克隆失败";
+        return QString();
+    }
+
+    // 5. 创建任务（使用 QSharedPointer）
+    AlgorithmTaskPtr task = QSharedPointer<AlgorithmTask>::create(name, contextSnapshot);
+    QString taskId = task->taskId();
+
+    qDebug() << "[AlgorithmManager] executeAsync: 创建任务" << taskId
+             << "算法:" << name;
+
+    // 6. 记录活跃任务
+    m_activeTasks[taskId] = task;
+
+    // 7. 尝试获取工作线程
+    auto [worker, thread] = AlgorithmThreadManager::instance()->acquireWorker();
+
+    if (!worker) {
+        // 所有线程都忙，加入队列
+        QueuedTask queuedTask{task, algorithm, name};
+        m_taskQueue.enqueue(queuedTask);
+
+        qDebug() << "[AlgorithmManager] 所有线程忙，任务" << taskId << "加入队列"
+                 << "队列长度:" << m_taskQueue.size();
+
+        emit algorithmQueued(taskId, name);
+        emit queuedTaskCountChanged(m_taskQueue.size());
+
+        return taskId;
+    }
+
+    // 8. 有空闲线程，立即执行
+    submitTaskToWorker(task, algorithm, worker);
+
+    return taskId;
+}
+
+void AlgorithmManager::submitTaskToWorker(AlgorithmTaskPtr task,
+                                         IThermalAlgorithm* algorithm,
+                                         AlgorithmWorker* worker)
+{
+    QString taskId = task->taskId();
+
+    qDebug() << "[AlgorithmManager] submitTaskToWorker: 任务" << taskId
+             << "提交给 worker" << worker;
+
+    // 1. 确保信号已连接（只连接一次）
+    if (!m_connectedWorkers.contains(worker)) {
+        connect(worker, &AlgorithmWorker::taskStarted,
+                this, &AlgorithmManager::onWorkerStarted);
+        connect(worker, &AlgorithmWorker::taskProgress,
+                this, &AlgorithmManager::onWorkerProgress);
+        connect(worker, &AlgorithmWorker::taskFinished,
+                this, &AlgorithmManager::onWorkerFinished);
+        connect(worker, &AlgorithmWorker::taskFailed,
+                this, &AlgorithmManager::onWorkerFailed);
+
+        m_connectedWorkers.insert(worker);
+
+        qDebug() << "[AlgorithmManager] 已连接 worker" << worker << "的信号";
+    }
+
+    // 2. 记录任务-工作线程映射
+    m_taskWorkers[taskId] = worker;
+
+    // 3. 异步调用 worker->executeTask()
+    QMetaObject::invokeMethod(worker, "executeTask", Qt::QueuedConnection,
+                             Q_ARG(AlgorithmTaskPtr, task),
+                             Q_ARG(IThermalAlgorithm*, algorithm));
+}
+
+void AlgorithmManager::processQueue()
+{
+    if (m_taskQueue.isEmpty()) {
+        return;
+    }
+
+    qDebug() << "[AlgorithmManager] processQueue: 队列长度" << m_taskQueue.size();
+
+    // 尝试获取空闲线程
+    auto [worker, thread] = AlgorithmThreadManager::instance()->acquireWorker();
+
+    if (!worker) {
+        qDebug() << "[AlgorithmManager] processQueue: 没有空闲线程，等待下次";
+        return;
+    }
+
+    // 从队列中取出第一个任务
+    QueuedTask queuedTask = m_taskQueue.dequeue();
+
+    qDebug() << "[AlgorithmManager] processQueue: 从队列取出任务"
+             << queuedTask.task->taskId()
+             << "剩余队列:" << m_taskQueue.size();
+
+    emit queuedTaskCountChanged(m_taskQueue.size());
+
+    // 提交任务到工作线程
+    submitTaskToWorker(queuedTask.task, queuedTask.algorithm, worker);
+}
+
+bool AlgorithmManager::cancelTask(const QString& taskId)
+{
+    // 1. 验证任务存在
+    if (!m_activeTasks.contains(taskId)) {
+        qWarning() << "[AlgorithmManager] cancelTask: 任务不存在" << taskId;
+        return false;
+    }
+
+    AlgorithmTaskPtr task = m_activeTasks[taskId];
+    QString algorithmName = task->algorithmName();
+
+    qDebug() << "[AlgorithmManager] cancelTask: 取消任务" << taskId
+             << "算法:" << algorithmName;
+
+    // 2. 检查任务是否正在执行
+    if (m_taskWorkers.contains(taskId)) {
+        // 正在执行的任务：请求取消
+        AlgorithmWorker* worker = m_taskWorkers[taskId];
+        QMetaObject::invokeMethod(worker, "requestCancellation", Qt::QueuedConnection);
+
+        qDebug() << "[AlgorithmManager] 请求 worker" << worker << "取消任务" << taskId;
+
+        emit algorithmCancelled(taskId, algorithmName);
+        return true;
+    }
+
+    // 3. 检查任务是否在队列中
+    for (int i = 0; i < m_taskQueue.size(); ++i) {
+        if (m_taskQueue[i].task->taskId() == taskId) {
+            // 从队列中移除
+            m_taskQueue.removeAt(i);
+            m_activeTasks.remove(taskId);
+
+            qDebug() << "[AlgorithmManager] 从队列中移除任务" << taskId
+                     << "剩余队列:" << m_taskQueue.size();
+
+            emit queuedTaskCountChanged(m_taskQueue.size());
+            emit algorithmCancelled(taskId, algorithmName);
+            return true;
+        }
+    }
+
+    qWarning() << "[AlgorithmManager] cancelTask: 任务" << taskId << "既不在执行也不在队列中";
+    return false;
+}
+
+// ==================== 工作线程信号处理槽函数 ====================
+
+void AlgorithmManager::onWorkerStarted(const QString& taskId, const QString& algorithmName)
+{
+    qDebug() << "[AlgorithmManager] onWorkerStarted: 任务" << taskId
+             << "算法:" << algorithmName;
+
+    emit algorithmStarted(taskId, algorithmName);
+}
+
+void AlgorithmManager::onWorkerProgress(const QString& taskId, int percentage, const QString& message)
+{
+    // 转发进度信号
+    emit algorithmProgress(taskId, percentage, message);
+}
+
+void AlgorithmManager::onWorkerFinished(const QString& taskId, const QVariant& result, qint64 elapsedMs)
+{
+    qDebug() << "[AlgorithmManager] onWorkerFinished: 任务" << taskId
+             << "耗时:" << elapsedMs << "ms";
+
+    // 1. 获取任务信息
+    if (!m_activeTasks.contains(taskId)) {
+        qWarning() << "[AlgorithmManager] onWorkerFinished: 任务不存在" << taskId;
+        return;
+    }
+
+    AlgorithmTaskPtr task = m_activeTasks[taskId];
+    QString algorithmName = task->algorithmName();
+
+    // 2. 释放工作线程
+    if (m_taskWorkers.contains(taskId)) {
+        AlgorithmWorker* worker = m_taskWorkers[taskId];
+        AlgorithmThreadManager::instance()->releaseWorker(worker);
+        m_taskWorkers.remove(taskId);
+    }
+
+    // 3. 处理结果
+    AlgorithmResult algorithmResult = result.value<AlgorithmResult>();
+
+    if (algorithmResult.isSuccess()) {
+        // 成功：处理结果并发出信号
+        handleAlgorithmResult(algorithmResult);
+        emit algorithmFinished(taskId, algorithmName, algorithmResult, elapsedMs);
+    } else {
+        // 失败：发出失败信号
+        emit algorithmFailed(taskId, algorithmName, algorithmResult.errorMessage());
+    }
+
+    // 4. 清理任务记录
+    m_activeTasks.remove(taskId);
+
+    qDebug() << "[AlgorithmManager] 任务" << taskId << "已清理，剩余活跃任务:" << m_activeTasks.size();
+}
+
+void AlgorithmManager::onWorkerFailed(const QString& taskId, const QString& errorMessage)
+{
+    qWarning() << "[AlgorithmManager] onWorkerFailed: 任务" << taskId
+               << "失败:" << errorMessage;
+
+    // 1. 获取任务信息
+    if (!m_activeTasks.contains(taskId)) {
+        qWarning() << "[AlgorithmManager] onWorkerFailed: 任务不存在" << taskId;
+        return;
+    }
+
+    AlgorithmTaskPtr task = m_activeTasks[taskId];
+    QString algorithmName = task->algorithmName();
+
+    // 2. 释放工作线程
+    if (m_taskWorkers.contains(taskId)) {
+        AlgorithmWorker* worker = m_taskWorkers[taskId];
+        AlgorithmThreadManager::instance()->releaseWorker(worker);
+        m_taskWorkers.remove(taskId);
+    }
+
+    // 3. 发出失败信号
+    emit algorithmFailed(taskId, algorithmName, errorMessage);
+
+    // 4. 清理任务记录
+    m_activeTasks.remove(taskId);
+
+    qDebug() << "[AlgorithmManager] 任务" << taskId << "已清理，剩余活跃任务:" << m_activeTasks.size();
 }

@@ -370,6 +370,35 @@ public:
      */
     QVariantMap values(const QString& prefix = QString()) const;
 
+    /**
+     * @brief 创建上下文的深拷贝（用于异步任务快照）
+     *
+     * **语义说明**：
+     * - 深拷贝键值对结构（QHash 和 Entry）
+     * - 对于值类型（int, double, QString 等），QVariant 自动深拷贝
+     * - 对于指针类型（ThermalCurve* 等），只拷贝指针值（浅拷贝）
+     *
+     * **安全性**：
+     * - 指针指向的对象（如 ThermalCurve）必须在主线程中存在
+     * - 工作线程只能读取这些对象，不得修改
+     * - AlgorithmManager 确保曲线对象在任务执行期间不被删除
+     *
+     * **使用场景**：
+     * - 创建任务快照时调用，避免主线程修改影响任务执行
+     * - 每个任务独占一个上下文快照，互不干扰
+     *
+     * @return 上下文的深拷贝（调用者负责管理生命周期）
+     *
+     * @code
+     * // 在主线程创建快照
+     * AlgorithmContext* snapshot = context->clone();
+     *
+     * // 将快照传递给任务（任务独占所有权）
+     * auto task = AlgorithmTaskPtr::create(algorithmName, snapshot);
+     * @endcode
+     */
+    AlgorithmContext* clone() const;
+
 signals:
     /**
      * @brief 当键值发生改变时发射此信号

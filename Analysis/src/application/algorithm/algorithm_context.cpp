@@ -76,3 +76,25 @@ QVariantMap AlgorithmContext::values(const QString& prefix) const
     }
     return map;
 }
+
+AlgorithmContext* AlgorithmContext::clone() const
+{
+    // 创建新的上下文对象（无父对象，由调用者管理生命周期）
+    AlgorithmContext* copy = new AlgorithmContext(nullptr);
+
+    // 深拷贝所有键值对
+    // QHash 的拷贝是深拷贝（结构）
+    // Entry 结构中的 QVariant 和 QString 也会深拷贝
+    // 对于指针类型（如 ThermalCurve*），只拷贝指针值（合法，用于只读访问）
+    for (auto it = m_entries.constBegin(); it != m_entries.constEnd(); ++it) {
+        const QString& key = it.key();
+        const Entry& entry = it.value();
+
+        // 直接拷贝整个 Entry（包括 storedValue 和 source）
+        copy->m_entries.insert(key, entry);
+    }
+
+    qDebug() << "[AlgorithmContext] Created clone with" << copy->m_entries.size() << "entries";
+
+    return copy;
+}
