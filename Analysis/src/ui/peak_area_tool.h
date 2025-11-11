@@ -236,6 +236,11 @@ private:
      */
     int getHandleAtPosition(const QPointF& pos) const;
 
+    /**
+     * @brief 标记数据已改变，需要重新计算缓存
+     */
+    void markDirty();
+
     // ==================== 成员变量 ====================
     QChart* m_chart;                    ///< 所属图表
     CurveManager* m_curveManager;       ///< 曲线管理器（用于吸附和基线查询）
@@ -252,6 +257,7 @@ private:
     BaselineMode m_baselineMode;        ///< 基线模式
     qreal m_cachedArea;                 ///< 缓存的面积值
     QPolygonF m_cachedPolygon;          ///< 缓存的区域多边形（场景坐标）
+    bool m_isDirty;                     ///< 脏标记：数据已改变，需要重新计算缓存
 
     // 交互状态
     enum DragState {
