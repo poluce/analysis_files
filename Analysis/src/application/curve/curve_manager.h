@@ -9,6 +9,9 @@
 #include <memory>
 #include <vector>
 
+// 前置声明
+struct FilePreviewData;
+
 /**
  * @brief CurveManager 管理应用中的所有热分析曲线
  *
@@ -43,6 +46,27 @@ public:
      * 自动选择合适的文件读取器进行读取
      */
     bool loadCurveFromFile(const QString& filePath);
+
+    /**
+     * @brief 读取文件预览数据
+     * @param filePath 文件路径
+     * @return 预览数据（如果 Reader 支持）
+     *
+     * 自动选择合适的 Reader 并调用其预览方法。
+     * 如果找不到支持预览的 Reader，返回空预览数据。
+     */
+    FilePreviewData readFilePreview(const QString& filePath) const;
+
+    /**
+     * @brief 从文件加载曲线（支持用户配置）
+     * @param filePath 文件路径
+     * @param config 用户导入配置（列映射、单位等）
+     * @return 加载成功的曲线ID，失败返回空字符串
+     *
+     * 自动选择合适的文件读取器进行读取，支持用户自定义配置。
+     * 成功后会发射 curveAdded 信号。
+     */
+    QString loadCurveFromFileWithConfig(const QString& filePath, const QVariantMap& config);
 
     /**
      * @brief 根据ID获取曲线

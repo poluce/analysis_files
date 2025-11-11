@@ -9,7 +9,6 @@
 // 前置声明
 class CurveManager;
 class DataImportWidget;
-class TextFileReader;
 class ThermalCurve;
 class AlgorithmManager;
 class AlgorithmCoordinator;
@@ -100,7 +99,6 @@ private slots:
 private:
     CurveManager* m_curveManager;         // 非拥有指针
     DataImportWidget* m_dataImportWidget; // 拥有指针
-    TextFileReader* m_textFileReader;     // 拥有指针
     AlgorithmManager* m_algorithmManager; // 非拥有指针
     AlgorithmCoordinator* m_algorithmCoordinator = nullptr; // 非拥有指针
     AlgorithmContext* m_algorithmContext = nullptr;         // 非拥有指针

@@ -16,6 +16,7 @@ class ThermalCurve;
 class CurveManager;
 class AlgorithmContext;
 class AlgorithmWorker;
+class AlgorithmThreadManager;
 
 /**
  * @brief 算法服务类 - 管理算法注册和执行
@@ -30,6 +31,15 @@ public:
     void setCurveManager(CurveManager* manager);
     void registerAlgorithm(IThermalAlgorithm* algorithm);
     IThermalAlgorithm* getAlgorithm(const QString& name);
+
+    /**
+     * @brief 设置线程管理器（可选，默认使用单例）
+     * @param threadManager 线程管理器实例
+     *
+     * 用于依赖注入，提升可测试性。
+     * 如果不调用此方法，将使用默认的单例实例。
+     */
+    void setThreadManager(AlgorithmThreadManager* threadManager);
 
     /**
      * @brief 上下文驱动的算法执行（同步，在主线程执行）
@@ -242,6 +252,7 @@ private:
     QMap<QString, IThermalAlgorithm*> m_algorithms;
     CurveManager* m_curveManager = nullptr;
     class HistoryManager* m_historyManager = nullptr;  // 历史管理器（可选）
+    AlgorithmThreadManager* m_threadManager = nullptr; // 线程管理器（非拥有指针）
 
     // ==================== 异步执行成员 ====================
 
