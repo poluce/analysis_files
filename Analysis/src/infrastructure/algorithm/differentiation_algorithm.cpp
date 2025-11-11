@@ -154,7 +154,17 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     int negativeCount = 0;
     int zeroCount = 0;
 
+    // 进度报告：计算总迭代次数
+    const int totalIterations = inputData.size() - 2 * halfWin;
+    int lastReportedProgress = 0;
+
     for (int i = halfWin; i < inputData.size() - halfWin; ++i) {
+        // 检查取消标志（每100次迭代）
+        if ((i - halfWin) % 100 == 0 && shouldCancel()) {
+            qWarning() << "DifferentiationAlgorithm: 用户取消执行";
+            return AlgorithmResult::failure("differentiation", "用户取消执行");
+        }
+
         double sum_before = 0.0;
         double sum_after = 0.0;
 
@@ -180,7 +190,18 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
         point.time = inputData[i].time;
 
         outputData.append(point);
+
+        // 进度报告（每10%）
+        int currentIteration = i - halfWin + 1;
+        int currentProgress = (currentIteration * 100) / totalIterations;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("已处理 %1/%2 点").arg(currentIteration).arg(totalIterations));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "微分计算完成");
 
     if (enableDebug) {
         qDebug() << "\n========== 微分统计 ==========";

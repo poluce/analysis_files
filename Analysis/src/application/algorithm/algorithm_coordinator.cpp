@@ -27,9 +27,22 @@ AlgorithmCoordinator::AlgorithmCoordinator(
     qRegisterMetaType<AlgorithmResult>("AlgorithmResult");
     qRegisterMetaType<ResultType>("ResultType");
 
+    // 连接同步执行信号（向后兼容）
     connect(
         m_algorithmManager, &AlgorithmManager::algorithmResultReady, this,
         &AlgorithmCoordinator::onAlgorithmResultReady);
+
+    // 连接异步执行信号
+    connect(m_algorithmManager, &AlgorithmManager::algorithmStarted,
+            this, &AlgorithmCoordinator::onAsyncAlgorithmStarted);
+    connect(m_algorithmManager, &AlgorithmManager::algorithmProgress,
+            this, &AlgorithmCoordinator::onAsyncAlgorithmProgress);
+    connect(m_algorithmManager, &AlgorithmManager::algorithmFinished,
+            this, &AlgorithmCoordinator::onAsyncAlgorithmFinished);
+    connect(m_algorithmManager, &AlgorithmManager::algorithmFailed,
+            this, &AlgorithmCoordinator::onAsyncAlgorithmFailed);
+
+    qDebug() << "[AlgorithmCoordinator] 已连接异步执行信号";
 }
 
 std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QString& algorithmName)
@@ -228,12 +241,26 @@ void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataP
 
 void AlgorithmCoordinator::cancelPendingRequest()
 {
-    if (!m_pending.has_value()) {
-        return;
+    // 1. 取消待处理的交互请求（参数收集、点选等）
+    if (m_pending.has_value()) {
+        const QString algorithmName = m_pending->descriptor.name;
+        resetPending();
+        emit showMessage(QStringLiteral("已取消算法 %1 的待处理操作").arg(algorithmName));
     }
-    const QString algorithmName = m_pending->descriptor.name;
-    resetPending();
-    emit showMessage(QStringLiteral("已取消算法 %1 的待处理操作").arg(algorithmName));
+
+    // 2. 取消正在执行的异步任务
+    if (!m_currentTaskId.isEmpty()) {
+        qDebug() << "[AlgorithmCoordinator] 尝试取消正在执行的任务:" << m_currentTaskId;
+
+        bool cancelled = m_algorithmManager->cancelTask(m_currentTaskId);
+        if (cancelled) {
+            qDebug() << "[AlgorithmCoordinator] 任务取消成功:" << m_currentTaskId;
+            emit showMessage(QStringLiteral("已取消正在执行的算法任务"));
+            m_currentTaskId.clear();
+        } else {
+            qWarning() << "[AlgorithmCoordinator] 任务取消失败（任务可能已完成）:" << m_currentTaskId;
+        }
+    }
 }
 
 void AlgorithmCoordinator::onAlgorithmResultReady(
@@ -338,13 +365,87 @@ void AlgorithmCoordinator::executeAlgorithm(
         m_context->setValue(QStringLiteral("history/%1/lastPoints").arg(descriptor.name), QVariant::fromValue(points), "AlgorithmCoordinator");
     }
 
-    qDebug() << "AlgorithmCoordinator::executeAlgorithm - 提交算法" << descriptor.name;
+    qDebug() << "[AlgorithmCoordinator] 提交算法" << descriptor.name;
     qDebug() << "  上下文包含:" << m_context->keys().size() << "个键";
     qDebug() << "  参数数量:" << parameters.size();
     qDebug() << "  选点数量:" << points.size();
 
-    // 使用上下文驱动的执行接口
-    m_algorithmManager->executeWithContext(descriptor.name, m_context);
+    // 使用异步执行接口（单线程模式，FIFO队列）
+    QString taskId = m_algorithmManager->executeAsync(descriptor.name, m_context);
+
+    if (taskId.isEmpty()) {
+        qCritical() << "[AlgorithmCoordinator] executeAsync 返回空 taskId，执行失败！";
+        emit algorithmFailed(descriptor.name, QStringLiteral("算法提交失败"));
+        return;
+    }
+
+    // 保存任务ID，用于未来可能的取消操作
+    m_currentTaskId = taskId;
+
+    qDebug() << "[AlgorithmCoordinator] 算法已提交到异步队列，taskId =" << taskId;
 }
 
 void AlgorithmCoordinator::resetPending() { m_pending.reset(); }
+
+// ==================== 异步执行槽函数实现 ====================
+
+void AlgorithmCoordinator::onAsyncAlgorithmStarted(const QString& taskId, const QString& algorithmName)
+{
+    qDebug() << "[AlgorithmCoordinator] 异步任务开始执行:" << algorithmName << "taskId:" << taskId;
+
+    // 转发信号到 UI 层（用于显示进度对话框等）
+    emit algorithmStarted(taskId, algorithmName);
+}
+
+void AlgorithmCoordinator::onAsyncAlgorithmProgress(const QString& taskId, int percentage, const QString& message)
+{
+    // 转发进度信号到 UI 层
+    emit algorithmProgress(taskId, percentage, message);
+
+    // 可选：调试日志（避免过度输出）
+    if (percentage % 20 == 0) {  // 每20%输出一次
+        qDebug() << "[AlgorithmCoordinator] 任务进度:" << taskId << percentage << "%" << message;
+    }
+}
+
+void AlgorithmCoordinator::onAsyncAlgorithmFinished(
+    const QString& taskId, const QString& algorithmName, const AlgorithmResult& result, qint64 elapsedMs)
+{
+    qDebug() << "[AlgorithmCoordinator] 异步任务完成:" << algorithmName
+             << "taskId:" << taskId << "耗时:" << elapsedMs << "ms";
+
+    // 清除任务ID
+    if (m_currentTaskId == taskId) {
+        m_currentTaskId.clear();
+    }
+
+    // 保存结果到上下文（与同步路径保持一致）
+    m_context->setValue(QStringLiteral("result/%1/latest").arg(algorithmName),
+                       QVariant::fromValue(result),
+                       QStringLiteral("AlgorithmCoordinator"));
+
+    m_context->setValue(
+        QStringLiteral("result/%1/resultType").arg(algorithmName),
+        QVariant::fromValue(static_cast<int>(result.type())),
+        QStringLiteral("AlgorithmCoordinator"));
+
+    // 发出成功信号
+    emit algorithmSucceeded(algorithmName);
+
+    qDebug() << "[AlgorithmCoordinator] 结果已保存到上下文，算法成功完成";
+}
+
+void AlgorithmCoordinator::onAsyncAlgorithmFailed(
+    const QString& taskId, const QString& algorithmName, const QString& errorMessage)
+{
+    qWarning() << "[AlgorithmCoordinator] 异步任务失败:" << algorithmName
+               << "taskId:" << taskId << "错误:" << errorMessage;
+
+    // 清除任务ID
+    if (m_currentTaskId == taskId) {
+        m_currentTaskId.clear();
+    }
+
+    // 发出失败信号
+    emit algorithmFailed(algorithmName, errorMessage);
+}

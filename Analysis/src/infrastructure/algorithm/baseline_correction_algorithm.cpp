@@ -150,6 +150,11 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     QVector<ThermalDataPoint> baseline = generateBaseline(curveData, point1, point2);
 
     if (baseline.isEmpty()) {
+        // 检查是否是用户取消导致的
+        if (shouldCancel()) {
+            qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 用户取消执行！";
+            return AlgorithmResult::failure("baseline_correction", "用户取消执行");
+        }
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 生成基线失败！";
         return AlgorithmResult::failure("baseline_correction", "生成基线失败");
     }
@@ -218,7 +223,18 @@ QVector<ThermalDataPoint> BaselineCorrectionAlgorithm::generateBaseline(
     // 为所有数据点生成基线值
     baseline.reserve(curveData.size());
 
+    // 进度报告：计算总迭代次数
+    const int totalPoints = curveData.size();
+    int lastReportedProgress = 0;
+    int processedPoints = 0;
+
     for (const auto& point : curveData) {
+        // 检查取消标志（每100次迭代）
+        if (processedPoints % 100 == 0 && shouldCancel()) {
+            qWarning() << "BaselineCorrectionAlgorithm: 用户取消执行";
+            return QVector<ThermalDataPoint>();  // 返回空向量
+        }
+
         ThermalDataPoint baselinePoint;
         baselinePoint.temperature = point.temperature;
         baselinePoint.time = point.time;
@@ -236,7 +252,18 @@ QVector<ThermalDataPoint> BaselineCorrectionAlgorithm::generateBaseline(
         }
 
         baseline.append(baselinePoint);
+
+        // 进度报告（每10%）
+        processedPoints++;
+        int currentProgress = (processedPoints * 100) / totalPoints;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("生成基线 %1/%2 点").arg(processedPoints).arg(totalPoints));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "基线生成完成");
 
     return baseline;
 }

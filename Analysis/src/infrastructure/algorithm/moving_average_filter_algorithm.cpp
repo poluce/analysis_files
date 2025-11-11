@@ -134,7 +134,17 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
     const int half = w / 2; // 对称窗口
 
     outputData.resize(n);
+
+    // 进度报告：计算总迭代次数
+    int lastReportedProgress = 0;
+
     for (int i = 0; i < n; ++i) {
+        // 检查取消标志（每100次迭代）
+        if (i % 100 == 0 && shouldCancel()) {
+            qWarning() << "MovingAverageFilterAlgorithm: 用户取消执行";
+            return AlgorithmResult::failure("moving_average", "用户取消执行");
+        }
+
         int left = qMax(0, i - half);
         int right = qMin(n - 1, i + half);
         // 当窗口为偶数时，右侧自然比左侧多1个元素，这里不强行平衡
@@ -151,7 +161,17 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
         p.time = inputData[i].time;
         p.value = (count > 0) ? (sum / count) : inputData[i].value;
         outputData[i] = p;
+
+        // 进度报告（每10%）
+        int currentProgress = (i * 100) / n;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("已处理 %1/%2 点").arg(i + 1).arg(n));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "滤波完成");
 
     qDebug() << "MovingAverageFilterAlgorithm::executeWithContext - 完成，窗口大小:" << w << "，输出数据点数:" << outputData.size();
 

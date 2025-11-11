@@ -42,8 +42,49 @@ signals:
     void algorithmFailed(const QString& algorithmName, const QString& reason);
     void algorithmSucceeded(const QString& algorithmName);
 
+    // ==================== 异步执行信号（转发到 UI 层）====================
+
+    /**
+     * @brief 算法开始执行（异步模式）
+     * @param taskId 任务ID
+     * @param algorithmName 算法名称
+     */
+    void algorithmStarted(const QString& taskId, const QString& algorithmName);
+
+    /**
+     * @brief 算法执行进度更新（异步模式）
+     * @param taskId 任务ID
+     * @param percentage 进度百分比 (0-100)
+     * @param message 状态消息
+     */
+    void algorithmProgress(const QString& taskId, int percentage, const QString& message);
+
 private slots:
     void onAlgorithmResultReady(const QString& algorithmName, const AlgorithmResult& result);
+
+    // ==================== 异步执行槽函数 ====================
+
+    /**
+     * @brief 异步任务开始执行
+     */
+    void onAsyncAlgorithmStarted(const QString& taskId, const QString& algorithmName);
+
+    /**
+     * @brief 异步任务进度更新
+     */
+    void onAsyncAlgorithmProgress(const QString& taskId, int percentage, const QString& message);
+
+    /**
+     * @brief 异步任务执行完成
+     */
+    void onAsyncAlgorithmFinished(const QString& taskId, const QString& algorithmName,
+                                  const AlgorithmResult& result, qint64 elapsedMs);
+
+    /**
+     * @brief 异步任务执行失败
+     */
+    void onAsyncAlgorithmFailed(const QString& taskId, const QString& algorithmName,
+                               const QString& errorMessage);
 
 private:
     enum class PendingPhase {
@@ -71,6 +112,9 @@ private:
     CurveManager* m_curveManager = nullptr;
     AlgorithmContext* m_context = nullptr;
     std::optional<PendingRequest> m_pending;
+
+    // ==================== 异步执行状态 ====================
+    QString m_currentTaskId;  ///< 当前正在执行的异步任务ID（用于取消）
 };
 
 #endif // APPLICATION_ALGORITHM_COORDINATOR_H

@@ -132,7 +132,16 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     outputData[0] = inputData[0];
     outputData[0].value = 0.0;
 
+    // 进度报告：计算总迭代次数
+    int lastReportedProgress = 0;
+
     for (int i = 1; i < n; ++i) {
+        // 检查取消标志（每100次迭代）
+        if (i % 100 == 0 && shouldCancel()) {
+            qWarning() << "IntegrationAlgorithm: 用户取消执行";
+            return AlgorithmResult::failure("integration", "用户取消执行");
+        }
+
         const auto& p0 = inputData[i - 1];
         const auto& p1 = inputData[i];
         const double dx = (p1.temperature - p0.temperature);
@@ -142,7 +151,17 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
         }
         outputData[i] = p1;
         outputData[i].value = cum;
+
+        // 进度报告（每10%）
+        int currentProgress = (i * 100) / n;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("已处理 %1/%2 点").arg(i).arg(n));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "积分计算完成");
 
     qDebug() << "IntegrationAlgorithm::executeWithContext - 完成，输出数据点数:" << outputData.size();
 

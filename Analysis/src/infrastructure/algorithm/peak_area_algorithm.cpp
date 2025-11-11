@@ -151,6 +151,12 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     // 6. 执行核心算法逻辑（计算峰面积）
     double area = calculateArea(curveData, temp1, temp2);
 
+    // 检查是否被用户取消
+    if (shouldCancel()) {
+        qWarning() << "PeakAreaAlgorithm::executeWithContext - 用户取消执行！";
+        return AlgorithmResult::failure("peak_area", "用户取消执行");
+    }
+
     qDebug() << "PeakAreaAlgorithm::executeWithContext - 计算得到峰面积:" << area;
 
     // 7. 创建结果对象（混合输出：标注点 + 面积值）
@@ -216,7 +222,17 @@ double PeakAreaAlgorithm::calculateArea(const QVector<ThermalDataPoint>& curveDa
 
     double area = 0.0;
 
+    // 进度报告：计算总迭代次数
+    const int totalIterations = curveData.size() - 1;
+    int lastReportedProgress = 0;
+
     for (int i = 0; i < curveData.size() - 1; ++i) {
+        // 检查取消标志（每100次迭代）
+        if (i % 100 == 0 && shouldCancel()) {
+            qWarning() << "PeakAreaAlgorithm: 用户取消执行";
+            return 0.0;  // 返回0表示取消
+        }
+
         double x1 = curveData[i].temperature;
         double x2 = curveData[i + 1].temperature;
         double y1 = curveData[i].value;
@@ -251,7 +267,17 @@ double PeakAreaAlgorithm::calculateArea(const QVector<ThermalDataPoint>& curveDa
         double dx = effectiveX2 - effectiveX1;
         double avgY = (effectiveY1 + effectiveY2) / 2.0;
         area += avgY * dx;
+
+        // 进度报告（每10%）
+        int currentProgress = (i * 100) / totalIterations;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("计算峰面积 %1/%2").arg(i + 1).arg(totalIterations));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "峰面积计算完成");
 
     return area;
 }
