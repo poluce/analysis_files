@@ -216,11 +216,13 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
 {
     QString text = peakAreaText();
 
-    // 设置字体
-    QFont font("Arial", 10);
+    // 设置字体（稍微加粗以提高可读性）
+    QFont font;
+    font.setPointSize(11);
+    font.setBold(true);
     painter->setFont(font);
 
-    // 计算文本位置（两个端点中间，稍微向上偏移）
+    // 计算文本位置：在上方中心（原始设计）
     QPointF scene1 = dataToScene(m_point1);
     QPointF scene2 = dataToScene(m_point2);
     QPointF sceneTextPos = (scene1 + scene2) / 2.0;
@@ -236,44 +238,63 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
     textRect.adjust(-5, -3, 5, 3);  // 添加边距
 
     // 绘制半透明白色背景
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(255, 255, 255, 200));
+    painter->setBrush(QBrush(QColor(255, 255, 255, 200)));
+    painter->setPen(QPen(QColor(100, 100, 100), 1.0));
     painter->drawRoundedRect(textRect, 3, 3);
 
     // 绘制文本
-    painter->setPen(Qt::black);
+    painter->setPen(QPen(Qt::black));
     painter->drawText(textRect, Qt::AlignCenter, text);
 }
 
 void PeakAreaTool::paintCloseButton(QPainter* painter)
 {
-    // 关闭按钮位于右上角（场景坐标）
-    QRectF plotArea = m_chart->plotArea();
-    qreal btnSize = 20.0;
-    m_closeButtonRect = QRectF(plotArea.right() - btnSize - 10,
-                                plotArea.top() + 10,
-                                btnSize, btnSize);
+    // 计算文本位置和大小（与 paintMeasureText 中的计算一致）
+    QPointF scene1 = dataToScene(m_point1);
+    QPointF scene2 = dataToScene(m_point2);
+    QPointF sceneTextPos = (scene1 + scene2) / 2.0;
+    sceneTextPos.setY(sceneTextPos.y() - 20);  // 文本向上偏移20像素
 
     // 转换为本地坐标
-    QRectF localButtonRect = QRectF(mapFromScene(m_closeButtonRect.topLeft()),
-                                     mapFromScene(m_closeButtonRect.bottomRight()));
+    QPointF localTextPos = mapFromScene(sceneTextPos);
 
-    // 绘制背景
+    // 计算文本矩形（需要与 paintMeasureText 中的字体一致）
+    QFont font;
+    font.setPointSize(11);
+    font.setBold(true);
+    QFontMetrics fm(font);
+    QString text = peakAreaText();
+    QRectF textRect = fm.boundingRect(text);
+    textRect.moveCenter(localTextPos);
+    textRect.adjust(-5, -3, 5, 3);  // 添加边距（与 paintMeasureText 一致）
+
+    // 关闭按钮位置：在文本矩形上方，留8像素间隙
+    qreal btnSize = 20.0;
+    qreal gap = 8.0;  // 间隙
+    qreal buttonCenterX = textRect.center().x();
+    qreal buttonCenterY = textRect.top() - gap - btnSize / 2;
+
+    m_closeButtonRect = QRectF(buttonCenterX - btnSize / 2,
+                                buttonCenterY - btnSize / 2,
+                                btnSize,
+                                btnSize);
+
+    // 绘制关闭按钮背景（圆形）
     if (m_closeButtonHovered) {
         painter->setBrush(QColor(255, 100, 100, 200));  // 红色悬停
     } else {
         painter->setBrush(QColor(200, 200, 200, 150));  // 灰色正常
     }
     painter->setPen(Qt::NoPen);
-    painter->drawRoundedRect(localButtonRect, 3, 3);
+    painter->drawEllipse(m_closeButtonRect);  // 使用圆形
 
     // 绘制 X 符号
     painter->setPen(QPen(Qt::white, 2.0));
     qreal margin = 5.0;
-    painter->drawLine(localButtonRect.topLeft() + QPointF(margin, margin),
-                      localButtonRect.bottomRight() - QPointF(margin, margin));
-    painter->drawLine(localButtonRect.topRight() + QPointF(-margin, margin),
-                      localButtonRect.bottomLeft() + QPointF(margin, -margin));
+    painter->drawLine(m_closeButtonRect.left() + margin, m_closeButtonRect.top() + margin,
+                      m_closeButtonRect.right() - margin, m_closeButtonRect.bottom() - margin);
+    painter->drawLine(m_closeButtonRect.right() - margin, m_closeButtonRect.top() + margin,
+                      m_closeButtonRect.left() + margin, m_closeButtonRect.bottom() - margin);
 }
 
 // ==================== 计算函数实现 ====================
@@ -281,28 +302,43 @@ void PeakAreaTool::paintCloseButton(QPainter* painter)
 qreal PeakAreaTool::calculateArea()
 {
     if (!m_curveManager || m_curveId.isEmpty()) {
+        qWarning() << "PeakAreaTool::calculateArea - CurveManager 或 curveId 为空";
         return 0.0;
     }
 
     ThermalCurve* curve = m_curveManager->getCurve(m_curveId);
     if (!curve) {
+        qWarning() << "PeakAreaTool::calculateArea - 无法获取曲线:" << m_curveId;
         return 0.0;
     }
 
     const auto& data = curve->getProcessedData();
     if (data.isEmpty()) {
+        qWarning() << "PeakAreaTool::calculateArea - 曲线数据为空";
         return 0.0;
     }
 
     // 确定X范围
     double x1 = m_useTimeAxis ? m_point1.time : m_point1.temperature;
     double x2 = m_useTimeAxis ? m_point2.time : m_point2.temperature;
+
+    qDebug() << "PeakAreaTool::calculateArea - 调试信息:";
+    qDebug() << "  曲线ID:" << m_curveId;
+    qDebug() << "  数据点数量:" << data.size();
+    qDebug() << "  使用时间轴:" << m_useTimeAxis;
+    qDebug() << "  点1 - temp:" << m_point1.temperature << ", time:" << m_point1.time << ", value:" << m_point1.value;
+    qDebug() << "  点2 - temp:" << m_point2.temperature << ", time:" << m_point2.time << ", value:" << m_point2.value;
+    qDebug() << "  X范围: [" << x1 << "," << x2 << "]";
+    qDebug() << "  基线模式:" << static_cast<int>(m_baselineMode);
+
     if (x1 > x2) {
         std::swap(x1, x2);
+        qDebug() << "  X范围交换后: [" << x1 << "," << x2 << "]";
     }
 
     // 梯形积分法计算面积
     double area = 0.0;
+    int inRangeCount = 0;
 
     for (int i = 0; i < data.size() - 1; ++i) {
         double xi = m_useTimeAxis ? data[i].time : data[i].temperature;
@@ -313,19 +349,51 @@ qreal PeakAreaTool::calculateArea()
             continue;
         }
 
+        inRangeCount++;
+
         // 裁剪到积分范围
         double effectiveX1 = qMax(xi, x1);
         double effectiveX2 = qMin(xi1, x2);
 
+        // 🐛 BUG修复：使用 effectiveX1 和 effectiveX2 计算基线值（而不是 xi 和 xi1）
+        double baselineY1 = getBaselineValue(effectiveX1);
+        double baselineY2 = getBaselineValue(effectiveX2);
+
+        // 插值计算边界点的曲线值
+        double curveY1, curveY2;
+        if (qAbs(xi1 - xi) > 1e-9) {
+            // 线性插值计算 effectiveX1 处的 Y 值
+            double ratio1 = (effectiveX1 - xi) / (xi1 - xi);
+            curveY1 = data[i].value + ratio1 * (data[i + 1].value - data[i].value);
+
+            // 线性插值计算 effectiveX2 处的 Y 值
+            double ratio2 = (effectiveX2 - xi) / (xi1 - xi);
+            curveY2 = data[i].value + ratio2 * (data[i + 1].value - data[i].value);
+        } else {
+            // 避免除零
+            curveY1 = curveY2 = data[i].value;
+        }
+
         // 计算有效的Y值（计算曲线 - 参考曲线）
-        double yi = data[i].value - getBaselineValue(xi);
-        double yi1 = data[i + 1].value - getBaselineValue(xi1);
+        double yi = curveY1 - baselineY1;
+        double yi1 = curveY2 - baselineY2;
+
+        if (inRangeCount <= 3) {
+            qDebug() << "  第" << inRangeCount << "个有效数据段:";
+            qDebug() << "    X: [" << effectiveX1 << "," << effectiveX2 << "], dx =" << (effectiveX2 - effectiveX1);
+            qDebug() << "    曲线Y: [" << curveY1 << "," << curveY2 << "]";
+            qDebug() << "    基线Y: [" << baselineY1 << "," << baselineY2 << "]";
+            qDebug() << "    净Y: [" << yi << "," << yi1 << "]";
+        }
 
         // 梯形面积（使用绝对值，不关心曲线在基线上方还是下方）
         double dx = effectiveX2 - effectiveX1;
         double trapezoidArea = (yi + yi1) / 2.0 * dx;
         area += qAbs(trapezoidArea);
     }
+
+    qDebug() << "  有效数据段数量:" << inRangeCount;
+    qDebug() << "  计算得到的面积:" << area;
 
     return area;
 }

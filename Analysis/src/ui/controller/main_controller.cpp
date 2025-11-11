@@ -12,6 +12,9 @@
 #include "application/algorithm/algorithm_coordinator.h"
 #include "application/algorithm/algorithm_manager.h"
 #include "application/history/algorithm_command.h"
+#include "application/history/add_curve_command.h"
+#include "application/history/clear_curves_command.h"
+#include "application/history/remove_curve_command.h"
 #include "application/history/history_manager.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "ui/chart_view.h"
@@ -21,13 +24,16 @@
 #include <QProgressDialog>
 #include <memory>
 
-MainController::MainController(CurveManager* curveManager, QObject* parent)
+MainController::MainController(CurveManager* curveManager,
+                               AlgorithmManager* algorithmManager,
+                               HistoryManager* historyManager,
+                               QObject* parent)
     : QObject(parent)
     , m_curveManager(curveManager)
     , m_dataImportWidget(new DataImportWidget())
     , m_textFileReader(new TextFileReader())
-    , m_algorithmManager(AlgorithmManager::instance())
-    , m_historyManager(HistoryManager::instance())
+    , m_algorithmManager(algorithmManager)
+    , m_historyManager(historyManager)
 {
     Q_ASSERT(m_curveManager);
     Q_ASSERT(m_algorithmManager);
@@ -207,19 +213,31 @@ void MainController::onImportTriggered()
         return;
     }
 
-    // 3. 清空已有曲线，确保只保留最新导入
-    m_curveManager->clearCurves();
+    // 3. 使用命令模式清空已有曲线（支持撤销）
+    auto clearCommand = std::make_unique<ClearCurvesCommand>(
+        m_curveManager,
+        QStringLiteral("导入前清空曲线")
+    );
+    if (!m_historyManager->executeCommand(std::move(clearCommand))) {
+        qWarning() << "MainController::onImportTriggered - 清空曲线命令执行失败";
+        return;
+    }
 
-    // 4. 调用 m_curveManager->addCurve() 添加新曲线
-    m_curveManager->addCurve(curve);
+    // 4. 使用命令模式添加新曲线（支持撤销）
+    auto addCommand = std::make_unique<AddCurveCommand>(
+        m_curveManager,
+        curve,
+        QStringLiteral("导入曲线 %1").arg(curve.name())
+    );
+    if (!m_historyManager->executeCommand(std::move(addCommand))) {
+        qWarning() << "MainController::onImportTriggered - 添加曲线命令执行失败";
+        return;
+    }
 
-    // 5. 设置新导入的曲线为活动曲线（默认选中）
-    m_curveManager->setActiveCurve(curve.id());
-
-    // 6. 发射信号，通知UI更新
+    // 5. 发射信号，通知UI更新
     emit curveAvailable(curve);
 
-    // 7. 关闭导入窗口
+    // 6. 关闭导入窗口
     m_dataImportWidget->close();
 }
 
@@ -297,6 +315,7 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
     }
 
     // 3. 检查是否有子曲线（需要级联删除）
+    bool cascadeDelete = false;
     if (m_curveManager->hasChildren(curveId)) {
         // 获取子曲线列表以显示详细信息
         QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
@@ -329,16 +348,28 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
             return;
         }
 
-        // 用户确认，执行级联删除
-        int totalDeleted = m_curveManager->removeCurveRecursively(curveId);
-        qDebug() << "MainController::onCurveDeleteRequested - 级联删除完成，共删除" << totalDeleted
-                 << "条曲线（包括子曲线）";
+        cascadeDelete = true;  // 用户确认级联删除
+    }
+
+    // 4. 使用命令模式删除曲线（支持撤销）
+    QString description = cascadeDelete
+        ? QStringLiteral("删除曲线 \"%1\" 及其子曲线").arg(curve->name())
+        : QStringLiteral("删除曲线 \"%1\"").arg(curve->name());
+
+    auto removeCommand = std::make_unique<RemoveCurveCommand>(
+        m_curveManager,
+        curveId,
+        cascadeDelete,
+        description
+    );
+
+    if (!m_historyManager->executeCommand(std::move(removeCommand))) {
+        qWarning() << "MainController::onCurveDeleteRequested - 删除曲线命令执行失败:" << curveId;
         return;
     }
 
-    // 4. 没有子曲线，直接删除
-    m_curveManager->removeCurve(curveId);
-    qDebug() << "MainController::onCurveDeleteRequested - 成功删除曲线:" << curveId;
+    qDebug() << "MainController::onCurveDeleteRequested - 成功删除曲线:" << curveId
+             << (cascadeDelete ? "（包括子曲线）" : "");
 }
 
 

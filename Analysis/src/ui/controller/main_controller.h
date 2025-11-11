@@ -26,7 +26,10 @@ class MainController : public QObject {
     Q_OBJECT
 
 public:
-    explicit MainController(CurveManager* curveManager, QObject* parent = nullptr);
+    explicit MainController(CurveManager* curveManager,
+                            AlgorithmManager* algorithmManager,
+                            HistoryManager* historyManager,
+                            QObject* parent = nullptr);
     ~MainController();
 
     // 设置 ChartView（用于基线绘制和交互控制）

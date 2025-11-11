@@ -272,10 +272,10 @@ void AlgorithmManager::createAndAddOutputCurve(
     newCurve.setSignalType(algorithm->getOutputSignalType(parentCurve->signalType()));
 
     // 添加到管理器（根据是否使用历史管理）
-    if (useHistoryManager) {
+    if (useHistoryManager && m_historyManager) {
         const QString description = QStringLiteral("执行 %1 算法").arg(algorithm->displayName());
         auto command = std::make_unique<AddCurveCommand>(m_curveManager, newCurve, description);
-        if (!HistoryManager::instance()->executeCommand(std::move(command))) {
+        if (!m_historyManager->executeCommand(std::move(command))) {
             qWarning() << "算法结果入栈失败，放弃添加新曲线";
         }
     } else {
