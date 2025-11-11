@@ -1,6 +1,7 @@
 #include "algorithm_worker.h"
 #include "../../domain/algorithm/i_thermal_algorithm.h"
 #include <QDebug>
+#include <QThread>
 #include <exception>
 
 AlgorithmWorker::AlgorithmWorker(QObject* parent)
@@ -53,7 +54,7 @@ void AlgorithmWorker::executeTask(AlgorithmTaskPtr task, IThermalAlgorithm* algo
         algorithm->setProgressReporter(this);
 
         // 5. 执行算法（注意：不调用 prepareContext，已在主线程调用）
-        QVariant result = algorithm->executeWithContext(task->context());
+        AlgorithmResult result = algorithm->executeWithContext(task->context());
 
         // 6. 清理进度报告器
         algorithm->setProgressReporter(nullptr);
@@ -66,11 +67,11 @@ void AlgorithmWorker::executeTask(AlgorithmTaskPtr task, IThermalAlgorithm* algo
             return;
         }
 
-        // 8. 报告成功
+        // 8. 报告成功（使用 QVariant::fromValue 包装结果）
         qint64 elapsed = timer.elapsed();
         qDebug() << "[AlgorithmWorker] Task" << taskId << "finished successfully in"
                  << elapsed << "ms";
-        emit taskFinished(taskId, result, elapsed);
+        emit taskFinished(taskId, QVariant::fromValue(result), elapsed);
 
     } catch (const std::exception& e) {
         // 异常处理：清理进度报告器并报告失败

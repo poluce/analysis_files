@@ -80,4 +80,7 @@ private:
 /// 智能指针类型别名
 using AlgorithmTaskPtr = QSharedPointer<AlgorithmTask>;
 
+// 声明元类型，用于跨线程传递（QMetaObject::invokeMethod）
+Q_DECLARE_METATYPE(AlgorithmTaskPtr)
+
 #endif // ALGORITHM_TASK_H

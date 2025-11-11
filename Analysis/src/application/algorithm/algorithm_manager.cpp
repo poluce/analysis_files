@@ -24,6 +24,10 @@ AlgorithmManager::AlgorithmManager(QObject* parent)
 {
     qDebug() << "构造:    AlgorithmManager";
 
+    // 注册元类型，用于跨线程信号传递
+    qRegisterMetaType<AlgorithmTaskPtr>("AlgorithmTaskPtr");
+    qRegisterMetaType<AlgorithmResult>("AlgorithmResult");
+
     // 连接线程管理器的 workerReleased 信号，用于处理队列
     connect(AlgorithmThreadManager::instance(), &AlgorithmThreadManager::workerReleased,
             this, &AlgorithmManager::processQueue);
@@ -494,10 +498,18 @@ void AlgorithmManager::onWorkerFinished(const QString& taskId, const QVariant& r
     if (algorithmResult.isSuccess()) {
         // 成功：处理结果并发出信号
         handleAlgorithmResult(algorithmResult);
+
+        // 发出异步执行完成信号
         emit algorithmFinished(taskId, algorithmName, algorithmResult, elapsedMs);
+
+        // 同时发出旧的兼容信号，供 AlgorithmCoordinator 监听
+        emit algorithmResultReady(algorithmName, algorithmResult);
     } else {
         // 失败：发出失败信号
         emit algorithmFailed(taskId, algorithmName, algorithmResult.errorMessage());
+
+        // 同时发出旧的兼容信号
+        emit algorithmExecutionFailed(algorithmName, algorithmResult.errorMessage());
     }
 
     // 4. 清理任务记录
