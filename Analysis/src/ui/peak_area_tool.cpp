@@ -281,28 +281,43 @@ void PeakAreaTool::paintCloseButton(QPainter* painter)
 qreal PeakAreaTool::calculateArea()
 {
     if (!m_curveManager || m_curveId.isEmpty()) {
+        qWarning() << "PeakAreaTool::calculateArea - CurveManager 或 curveId 为空";
         return 0.0;
     }
 
     ThermalCurve* curve = m_curveManager->getCurve(m_curveId);
     if (!curve) {
+        qWarning() << "PeakAreaTool::calculateArea - 无法获取曲线:" << m_curveId;
         return 0.0;
     }
 
     const auto& data = curve->getProcessedData();
     if (data.isEmpty()) {
+        qWarning() << "PeakAreaTool::calculateArea - 曲线数据为空";
         return 0.0;
     }
 
     // 确定X范围
     double x1 = m_useTimeAxis ? m_point1.time : m_point1.temperature;
     double x2 = m_useTimeAxis ? m_point2.time : m_point2.temperature;
+
+    qDebug() << "PeakAreaTool::calculateArea - 调试信息:";
+    qDebug() << "  曲线ID:" << m_curveId;
+    qDebug() << "  数据点数量:" << data.size();
+    qDebug() << "  使用时间轴:" << m_useTimeAxis;
+    qDebug() << "  点1 - temp:" << m_point1.temperature << ", time:" << m_point1.time << ", value:" << m_point1.value;
+    qDebug() << "  点2 - temp:" << m_point2.temperature << ", time:" << m_point2.time << ", value:" << m_point2.value;
+    qDebug() << "  X范围: [" << x1 << "," << x2 << "]";
+    qDebug() << "  基线模式:" << static_cast<int>(m_baselineMode);
+
     if (x1 > x2) {
         std::swap(x1, x2);
+        qDebug() << "  X范围交换后: [" << x1 << "," << x2 << "]";
     }
 
     // 梯形积分法计算面积
     double area = 0.0;
+    int inRangeCount = 0;
 
     for (int i = 0; i < data.size() - 1; ++i) {
         double xi = m_useTimeAxis ? data[i].time : data[i].temperature;
@@ -313,19 +328,51 @@ qreal PeakAreaTool::calculateArea()
             continue;
         }
 
+        inRangeCount++;
+
         // 裁剪到积分范围
         double effectiveX1 = qMax(xi, x1);
         double effectiveX2 = qMin(xi1, x2);
 
+        // 🐛 BUG修复：使用 effectiveX1 和 effectiveX2 计算基线值（而不是 xi 和 xi1）
+        double baselineY1 = getBaselineValue(effectiveX1);
+        double baselineY2 = getBaselineValue(effectiveX2);
+
+        // 插值计算边界点的曲线值
+        double curveY1, curveY2;
+        if (qAbs(xi1 - xi) > 1e-9) {
+            // 线性插值计算 effectiveX1 处的 Y 值
+            double ratio1 = (effectiveX1 - xi) / (xi1 - xi);
+            curveY1 = data[i].value + ratio1 * (data[i + 1].value - data[i].value);
+
+            // 线性插值计算 effectiveX2 处的 Y 值
+            double ratio2 = (effectiveX2 - xi) / (xi1 - xi);
+            curveY2 = data[i].value + ratio2 * (data[i + 1].value - data[i].value);
+        } else {
+            // 避免除零
+            curveY1 = curveY2 = data[i].value;
+        }
+
         // 计算有效的Y值（计算曲线 - 参考曲线）
-        double yi = data[i].value - getBaselineValue(xi);
-        double yi1 = data[i + 1].value - getBaselineValue(xi1);
+        double yi = curveY1 - baselineY1;
+        double yi1 = curveY2 - baselineY2;
+
+        if (inRangeCount <= 3) {
+            qDebug() << "  第" << inRangeCount << "个有效数据段:";
+            qDebug() << "    X: [" << effectiveX1 << "," << effectiveX2 << "], dx =" << (effectiveX2 - effectiveX1);
+            qDebug() << "    曲线Y: [" << curveY1 << "," << curveY2 << "]";
+            qDebug() << "    基线Y: [" << baselineY1 << "," << baselineY2 << "]";
+            qDebug() << "    净Y: [" << yi << "," << yi1 << "]";
+        }
 
         // 梯形面积（使用绝对值，不关心曲线在基线上方还是下方）
         double dx = effectiveX2 - effectiveX1;
         double trapezoidArea = (yi + yi1) / 2.0 * dx;
         area += qAbs(trapezoidArea);
     }
+
+    qDebug() << "  有效数据段数量:" << inRangeCount;
+    qDebug() << "  计算得到的面积:" << area;
 
     return area;
 }
