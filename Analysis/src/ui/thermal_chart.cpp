@@ -595,6 +595,8 @@ void ThermalChart::clearCurves()
     clearCrosshair();
     clearFloatingLabels();
     clearAllMarkers();
+    clearAllMassLossTools();    // 清空所有测量工具（TrapezoidMeasureTool）
+    clearAllPeakAreaTools();     // 清空所有峰面积工具
 }
 
 void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
