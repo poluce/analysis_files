@@ -1,6 +1,7 @@
 #include "curve_manager.h"
 #include "infrastructure/io/text_file_reader.h"
 #include <QDebug>
+#include <typeinfo>
 
 CurveManager::CurveManager(QObject* parent)
     : QObject(parent)
@@ -121,6 +122,60 @@ bool CurveManager::loadCurveFromFile(const QString& filePath)
     } catch (const std::exception& e) {
         qCritical() << "读取文件失败:" << filePath << "错误:" << e.what();
         return false;
+    }
+}
+
+FilePreviewData CurveManager::readFilePreview(const QString& filePath) const
+{
+    // 自动选择合适的 Reader
+    for (const auto& r : m_readers) {
+        if (r->canRead(filePath)) {
+            // 尝试转换为 TextFileReader（支持预览）
+            if (auto* textReader = dynamic_cast<const TextFileReader*>(r.get())) {
+                return textReader->readPreview(filePath);
+            }
+            // 其他类型的 Reader 可能不支持预览
+            qWarning() << "CurveManager::readFilePreview - Reader 类型不支持预览:" << typeid(*r).name();
+            break;
+        }
+    }
+
+    // 未找到支持预览的 Reader，返回空预览
+    qWarning() << "CurveManager::readFilePreview - 未找到适用于文件的读取器:" << filePath;
+    return FilePreviewData();
+}
+
+QString CurveManager::loadCurveFromFileWithConfig(const QString& filePath, const QVariantMap& config)
+{
+    const IFileReader* reader = nullptr;
+    for (const auto& r : m_readers) {
+        if (r->canRead(filePath)) {
+            reader = r.get();
+            break;
+        }
+    }
+
+    if (!reader) {
+        qWarning() << "CurveManager::loadCurveFromFileWithConfig - 未找到适用于文件的读取器:" << filePath;
+        return QString();
+    }
+
+    try {
+        ThermalCurve newCurve = reader->read(filePath, config);
+        const QString curveId = newCurve.id();
+
+        if (m_curves.contains(curveId)) {
+            qWarning() << "ID为" << curveId << "的曲线已存在，将被覆盖。";
+        }
+
+        m_curves.insert(curveId, std::move(newCurve));
+        emit curveAdded(curveId);
+        qDebug() << "CurveManager::loadCurveFromFileWithConfig - 成功加载曲线:" << curveId;
+        return curveId;  // 返回曲线ID
+
+    } catch (const std::exception& e) {
+        qWarning() << "CurveManager::loadCurveFromFileWithConfig - 读取文件失败:" << e.what();
+        return QString();
     }
 }
 

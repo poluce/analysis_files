@@ -1,7 +1,6 @@
 #include "ui/controller/main_controller.h"
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
-#include "infrastructure/io/text_file_reader.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
 #include "ui/peak_area_dialog.h"
@@ -31,7 +30,6 @@ MainController::MainController(CurveManager* curveManager,
     : QObject(parent)
     , m_curveManager(curveManager)
     , m_dataImportWidget(new DataImportWidget())
-    , m_textFileReader(new TextFileReader())
     , m_algorithmManager(algorithmManager)
     , m_historyManager(historyManager)
 {
@@ -52,7 +50,6 @@ MainController::MainController(CurveManager* curveManager,
 MainController::~MainController()
 {
     delete m_dataImportWidget;
-    delete m_textFileReader;
     delete m_progressDialog;
 }
 
@@ -188,7 +185,8 @@ void MainController::onShowDataImport() { m_dataImportWidget->show(); }
 void MainController::onPreviewRequested(const QString& filePath)
 {
     qDebug() << "控制器：收到预览文件请求：" << filePath;
-    FilePreviewData preview = m_textFileReader->readPreview(filePath);
+    // 委托给 CurveManager，使用其注册的 Reader 体系
+    FilePreviewData preview = m_curveManager->readFilePreview(filePath);
     m_dataImportWidget->setPreviewData(preview);
 }
 
@@ -205,15 +203,7 @@ void MainController::onImportTriggered()
         return;
     }
 
-    // 2. 调用 m_textFileReader->read()，并传入配置
-    ThermalCurve curve = m_textFileReader->read(filePath, config);
-
-    if (curve.id().isEmpty()) {
-        qWarning() << "导入失败：读取文件后曲线无效。";
-        return;
-    }
-
-    // 3. 使用命令模式清空已有曲线（支持撤销）
+    // 2. 使用命令模式清空已有曲线（支持撤销）
     auto clearCommand = std::make_unique<ClearCurvesCommand>(
         m_curveManager,
         QStringLiteral("导入前清空曲线")
@@ -223,19 +213,22 @@ void MainController::onImportTriggered()
         return;
     }
 
-    // 4. 使用命令模式添加新曲线（支持撤销）
-    auto addCommand = std::make_unique<AddCurveCommand>(
-        m_curveManager,
-        curve,
-        QStringLiteral("导入曲线 %1").arg(curve.name())
-    );
-    if (!m_historyManager->executeCommand(std::move(addCommand))) {
-        qWarning() << "MainController::onImportTriggered - 添加曲线命令执行失败";
+    // 3. 委托给 CurveManager 读取文件（支持配置）
+    QString curveId = m_curveManager->loadCurveFromFileWithConfig(filePath, config);
+
+    if (curveId.isEmpty()) {
+        qWarning() << "导入失败：读取文件失败或曲线无效。";
         return;
     }
 
+    // 4. 设置为活动曲线
+    m_curveManager->setActiveCurve(curveId);
+
     // 5. 发射信号，通知UI更新
-    emit curveAvailable(curve);
+    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    if (curve) {
+        emit curveAvailable(*curve);
+    }
 
     // 6. 关闭导入窗口
     m_dataImportWidget->close();

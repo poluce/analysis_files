@@ -8,9 +8,15 @@
 #include <QVariant>
 #include <QtMath>
 
+// ==================== 调试开关 ====================
+// 设置为 1 启用调试日志，设置为 0 禁用（生产环境）
+#define DEBUG_PEAK_AREA_ALGORITHM 0
+
 PeakAreaAlgorithm::PeakAreaAlgorithm()
 {
+#if DEBUG_PEAK_AREA_ALGORITHM
     qDebug() << "构造: PeakAreaAlgorithm";
+#endif
 }
 
 QString PeakAreaAlgorithm::name() const
@@ -95,7 +101,9 @@ bool PeakAreaAlgorithm::prepareContext(AlgorithmContext* context)
         return false;  // 数据不完整，等待用户选点
     }
 
+#if DEBUG_PEAK_AREA_ALGORITHM
     qDebug() << "PeakAreaAlgorithm::prepareContext - 数据就绪，选点数:" << points.value().size();
+#endif
     return true;
 }
 
@@ -146,7 +154,9 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
         std::swap(temp1, temp2);
     }
 
+#if DEBUG_PEAK_AREA_ALGORITHM
     qDebug() << "PeakAreaAlgorithm::executeWithContext - 温度范围: [" << temp1 << "," << temp2 << "]";
+#endif
 
     // 6. 执行核心算法逻辑（计算峰面积）
     double area = calculateArea(curveData, temp1, temp2);
@@ -157,7 +167,9 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
         return AlgorithmResult::failure("peak_area", "用户取消执行");
     }
 
+#if DEBUG_PEAK_AREA_ALGORITHM
     qDebug() << "PeakAreaAlgorithm::executeWithContext - 计算得到峰面积:" << area;
+#endif
 
     // 7. 创建结果对象（混合输出：标注点 + 面积值）
     AlgorithmResult result = AlgorithmResult::success(

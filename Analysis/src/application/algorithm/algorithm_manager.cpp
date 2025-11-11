@@ -21,6 +21,7 @@ AlgorithmManager* AlgorithmManager::instance()
 
 AlgorithmManager::AlgorithmManager(QObject* parent)
     : QObject(parent)
+    , m_threadManager(AlgorithmThreadManager::instance())  // 默认使用单例
 {
     qDebug() << "构造:    AlgorithmManager";
 
@@ -30,13 +31,30 @@ AlgorithmManager::AlgorithmManager(QObject* parent)
     qRegisterMetaType<IThermalAlgorithm*>("IThermalAlgorithm*");  // 注册算法指针类型（用于 QMetaObject::invokeMethod）
 
     // 连接线程管理器的 workerReleased 信号，用于处理队列
-    connect(AlgorithmThreadManager::instance(), &AlgorithmThreadManager::workerReleased,
+    connect(m_threadManager, &AlgorithmThreadManager::workerReleased,
             this, &AlgorithmManager::processQueue);
 }
 
 AlgorithmManager::~AlgorithmManager() { qDeleteAll(m_algorithms); }
 
 void AlgorithmManager::setCurveManager(CurveManager* manager) { m_curveManager = manager; }
+
+void AlgorithmManager::setThreadManager(AlgorithmThreadManager* threadManager)
+{
+    if (m_threadManager) {
+        // 断开旧连接
+        disconnect(m_threadManager, &AlgorithmThreadManager::workerReleased,
+                   this, &AlgorithmManager::processQueue);
+    }
+
+    m_threadManager = threadManager;
+
+    if (m_threadManager) {
+        // 连接新管理器的信号
+        connect(m_threadManager, &AlgorithmThreadManager::workerReleased,
+                this, &AlgorithmManager::processQueue);
+    }
+}
 
 void AlgorithmManager::registerAlgorithm(IThermalAlgorithm* algorithm)
 {
@@ -325,7 +343,7 @@ QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* co
     m_activeTasks[taskId] = task;
 
     // 7. 尝试获取工作线程
-    auto [worker, thread] = AlgorithmThreadManager::instance()->acquireWorker();
+    auto [worker, thread] = m_threadManager->acquireWorker();
     Q_UNUSED(thread);  // 标记未使用的变量（避免编译警告）
 
     if (!worker) {
@@ -391,7 +409,7 @@ void AlgorithmManager::processQueue()
     qDebug() << "[AlgorithmManager] processQueue: 队列长度" << m_taskQueue.size();
 
     // 尝试获取空闲线程
-    auto [worker, thread] = AlgorithmThreadManager::instance()->acquireWorker();
+    auto [worker, thread] = m_threadManager->acquireWorker();
     Q_UNUSED(thread);  // 标记未使用的变量（避免编译警告）
 
     if (!worker) {
@@ -491,7 +509,7 @@ void AlgorithmManager::onWorkerFinished(const QString& taskId, const QVariant& r
     // 2. 释放工作线程
     if (m_taskWorkers.contains(taskId)) {
         AlgorithmWorker* worker = m_taskWorkers[taskId];
-        AlgorithmThreadManager::instance()->releaseWorker(worker);
+        m_threadManager->releaseWorker(worker);
         m_taskWorkers.remove(taskId);
     }
 
@@ -538,7 +556,7 @@ void AlgorithmManager::onWorkerFailed(const QString& taskId, const QString& erro
     // 2. 释放工作线程
     if (m_taskWorkers.contains(taskId)) {
         AlgorithmWorker* worker = m_taskWorkers[taskId];
-        AlgorithmThreadManager::instance()->releaseWorker(worker);
+        m_threadManager->releaseWorker(worker);
         m_taskWorkers.remove(taskId);
     }
 

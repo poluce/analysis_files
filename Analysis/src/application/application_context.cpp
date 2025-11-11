@@ -3,6 +3,7 @@
 #include "application/algorithm/algorithm_context.h"
 #include "application/algorithm/algorithm_coordinator.h"
 #include "application/algorithm/algorithm_manager.h"
+#include "application/algorithm/algorithm_thread_manager.h"
 #include "application/curve/curve_manager.h"
 #include "application/history/history_manager.h"
 #include "application/project/project_tree_manager.h"
@@ -24,6 +25,10 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 在此处获取所有单例，避免在多处重复调用 instance()
     auto* algorithmManager = AlgorithmManager::instance();
     auto* historyManager = HistoryManager::instance();
+    auto* threadManager = AlgorithmThreadManager::instance();
+
+    // 配置线程数（可选，默认为 1）
+    // threadManager->setMaxThreads(2);  // 例如：双线程模式
 
     registerAlgorithms();
 
@@ -40,8 +45,9 @@ ApplicationContext::ApplicationContext(QObject* parent)
         this
     );
 
-    // 设置 AlgorithmManager 的历史管理器（用于撤销/重做）
+    // 设置 AlgorithmManager 的依赖（历史管理器、线程管理器）
     algorithmManager->setHistoryManager(historyManager);
+    algorithmManager->setThreadManager(threadManager);
 
     // 2. View
     m_chartView = new ChartView();
