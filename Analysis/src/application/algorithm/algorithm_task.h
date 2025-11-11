@@ -5,8 +5,10 @@
 #include <QUuid>
 #include <QDateTime>
 #include <QSharedPointer>
+#include <QScopedPointer>
 
 class AlgorithmContext;
+class ThermalCurve;
 
 /**
  * @brief 算法执行任务封装
@@ -75,6 +77,10 @@ private:
     AlgorithmContext* m_contextSnapshot; ///< 上下文快照（独占所有权）
     QDateTime m_createdAt;               ///< 创建时间戳
     bool m_isCancelled;                  ///< 取消标志
+
+    /// 曲线深拷贝（线程安全）- 从原始指针创建的副本，任务独占所有权
+    /// 创建后，上下文中的指针会被更新为指向这个拷贝
+    QScopedPointer<ThermalCurve> m_curveCopy;
 };
 
 /// 智能指针类型别名
