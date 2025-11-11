@@ -84,8 +84,8 @@ bool DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "DifferentiationAlgorithm::prepareContext - 缺少活动曲线";
         return false;  // 数据不完整，无法执行
     }
@@ -112,14 +112,14 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
         return AlgorithmResult::failure("differentiation", "上下文为空");
     }
 
-    // 从上下文拉取活动曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 从上下文拉取活动曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "DifferentiationAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("differentiation", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 从上下文拉取参数（使用默认值作为fallback）
     int halfWin = context->get<int>(ContextKeys::ParamHalfWin).value_or(m_halfWin);
@@ -127,7 +127,7 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     bool enableDebug = context->get<bool>(ContextKeys::ParamEnableDebug).value_or(m_enableDebug);
 
     // 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve.getProcessedData();
 
     // 执行微分算法（核心逻辑）
     QVector<ThermalDataPoint> outputData;
@@ -154,7 +154,17 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     int negativeCount = 0;
     int zeroCount = 0;
 
+    // 进度报告：计算总迭代次数
+    const int totalIterations = inputData.size() - 2 * halfWin;
+    int lastReportedProgress = 0;
+
     for (int i = halfWin; i < inputData.size() - halfWin; ++i) {
+        // 检查取消标志（每100次迭代）
+        if ((i - halfWin) % 100 == 0 && shouldCancel()) {
+            qWarning() << "DifferentiationAlgorithm: 用户取消执行";
+            return AlgorithmResult::failure("differentiation", "用户取消执行");
+        }
+
         double sum_before = 0.0;
         double sum_after = 0.0;
 
@@ -180,7 +190,18 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
         point.time = inputData[i].time;
 
         outputData.append(point);
+
+        // 进度报告（每10%）
+        int currentIteration = i - halfWin + 1;
+        int currentProgress = (currentIteration * 100) / totalIterations;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("已处理 %1/%2 点").arg(currentIteration).arg(totalIterations));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "微分计算完成");
 
     if (enableDebug) {
         qDebug() << "\n========== 微分统计 ==========";
@@ -194,18 +215,18 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     // 创建结果对象
     AlgorithmResult result = AlgorithmResult::success(
         "differentiation",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Curve
     );
 
     // 创建输出曲线
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
-    outputCurve.setInstrumentType(inputCurve->instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve->signalType()));
-    outputCurve.setParentId(inputCurve->id());
-    outputCurve.setProjectName(inputCurve->projectName());
-    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setInstrumentType(inputCurve.instrumentType());
+    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    outputCurve.setParentId(inputCurve.id());
+    outputCurve.setProjectName(inputCurve.projectName());
+    outputCurve.setMetadata(inputCurve.getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
     outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 

@@ -80,8 +80,8 @@ bool PeakAreaAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "PeakAreaAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -107,14 +107,14 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
         return AlgorithmResult::failure("peak_area", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "PeakAreaAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("peak_area", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 拉取选择的点（ThermalDataPoint 类型）
     auto pointsOpt = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
@@ -131,7 +131,7 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     }
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& curveData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& curveData = inputCurve.getProcessedData();
     if (curveData.isEmpty()) {
         qWarning() << "PeakAreaAlgorithm::executeWithContext - 曲线数据为空！";
         return AlgorithmResult::failure("peak_area", "曲线数据为空");
@@ -151,12 +151,18 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     // 6. 执行核心算法逻辑（计算峰面积）
     double area = calculateArea(curveData, temp1, temp2);
 
+    // 检查是否被用户取消
+    if (shouldCancel()) {
+        qWarning() << "PeakAreaAlgorithm::executeWithContext - 用户取消执行！";
+        return AlgorithmResult::failure("peak_area", "用户取消执行");
+    }
+
     qDebug() << "PeakAreaAlgorithm::executeWithContext - 计算得到峰面积:" << area;
 
     // 7. 创建结果对象（混合输出：标注点 + 面积值）
     AlgorithmResult result = AlgorithmResult::success(
         "peak_area",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Composite  // 混合输出
     );
 
@@ -169,7 +175,7 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
 
     // 设置峰面积数值
     QString unit;
-    switch (inputCurve->instrumentType()) {
+    switch (inputCurve.instrumentType()) {
         case InstrumentType::TGA:
             unit = "mg·°C";
             break;
@@ -187,12 +193,12 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     result.setArea(area, unit);
 
     // 格式化显示文本
-    QString areaText = formatAreaText(area, inputCurve->instrumentType());
+    QString areaText = formatAreaText(area, inputCurve.instrumentType());
 
     // 添加元数据
     result.setMeta("peakArea", area);
     result.setMeta("temperatureRange", QString("%1 - %2").arg(temp1).arg(temp2));
-    result.setMeta("instrumentType", static_cast<int>(inputCurve->instrumentType()));
+    result.setMeta("instrumentType", static_cast<int>(inputCurve.instrumentType()));
     result.setMeta("label", areaText);  // 用于 UI 显示的文本
     result.setMeta("markerColor", QColor(Qt::blue));
 
@@ -216,7 +222,17 @@ double PeakAreaAlgorithm::calculateArea(const QVector<ThermalDataPoint>& curveDa
 
     double area = 0.0;
 
+    // 进度报告：计算总迭代次数
+    const int totalIterations = curveData.size() - 1;
+    int lastReportedProgress = 0;
+
     for (int i = 0; i < curveData.size() - 1; ++i) {
+        // 检查取消标志（每100次迭代）
+        if (i % 100 == 0 && shouldCancel()) {
+            qWarning() << "PeakAreaAlgorithm: 用户取消执行";
+            return 0.0;  // 返回0表示取消
+        }
+
         double x1 = curveData[i].temperature;
         double x2 = curveData[i + 1].temperature;
         double y1 = curveData[i].value;
@@ -251,7 +267,17 @@ double PeakAreaAlgorithm::calculateArea(const QVector<ThermalDataPoint>& curveDa
         double dx = effectiveX2 - effectiveX1;
         double avgY = (effectiveY1 + effectiveY2) / 2.0;
         area += avgY * dx;
+
+        // 进度报告（每10%）
+        int currentProgress = (i * 100) / totalIterations;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("计算峰面积 %1/%2").arg(i + 1).arg(totalIterations));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "峰面积计算完成");
 
     return area;
 }

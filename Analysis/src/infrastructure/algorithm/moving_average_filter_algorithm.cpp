@@ -83,8 +83,8 @@ bool MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "MovingAverageFilterAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -106,20 +106,20 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
         return AlgorithmResult::failure("moving_average", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("moving_average", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 拉取参数（使用 value_or() 提供默认值）
     int window = context->get<int>(ContextKeys::ParamWindow).value_or(m_window);
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve.getProcessedData();
 
     // 5. 执行核心算法逻辑（移动平均滤波）
     QVector<ThermalDataPoint> outputData;
@@ -134,7 +134,17 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
     const int half = w / 2; // 对称窗口
 
     outputData.resize(n);
+
+    // 进度报告：计算总迭代次数
+    int lastReportedProgress = 0;
+
     for (int i = 0; i < n; ++i) {
+        // 检查取消标志（每100次迭代）
+        if (i % 100 == 0 && shouldCancel()) {
+            qWarning() << "MovingAverageFilterAlgorithm: 用户取消执行";
+            return AlgorithmResult::failure("moving_average", "用户取消执行");
+        }
+
         int left = qMax(0, i - half);
         int right = qMin(n - 1, i + half);
         // 当窗口为偶数时，右侧自然比左侧多1个元素，这里不强行平衡
@@ -151,25 +161,35 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
         p.time = inputData[i].time;
         p.value = (count > 0) ? (sum / count) : inputData[i].value;
         outputData[i] = p;
+
+        // 进度报告（每10%）
+        int currentProgress = (i * 100) / n;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("已处理 %1/%2 点").arg(i + 1).arg(n));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "滤波完成");
 
     qDebug() << "MovingAverageFilterAlgorithm::executeWithContext - 完成，窗口大小:" << w << "，输出数据点数:" << outputData.size();
 
     // 6. 创建结果对象
     AlgorithmResult result = AlgorithmResult::success(
         "moving_average",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Curve
     );
 
     // 创建输出曲线
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
-    outputCurve.setInstrumentType(inputCurve->instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve->signalType()));
-    outputCurve.setParentId(inputCurve->id());
-    outputCurve.setProjectName(inputCurve->projectName());
-    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setInstrumentType(inputCurve.instrumentType());
+    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    outputCurve.setParentId(inputCurve.id());
+    outputCurve.setProjectName(inputCurve.projectName());
+    outputCurve.setMetadata(inputCurve.getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
     outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 

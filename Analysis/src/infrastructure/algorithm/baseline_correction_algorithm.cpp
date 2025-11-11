@@ -82,8 +82,8 @@ bool BaselineCorrectionAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "BaselineCorrectionAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -109,14 +109,14 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
         return AlgorithmResult::failure("baseline_correction", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("baseline_correction", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 拉取选择的点（ThermalDataPoint 类型）
     auto pointsOpt = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
@@ -133,7 +133,7 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     }
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& curveData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& curveData = inputCurve.getProcessedData();
     if (curveData.isEmpty()) {
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 曲线数据为空！";
         return AlgorithmResult::failure("baseline_correction", "曲线数据为空");
@@ -150,6 +150,11 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     QVector<ThermalDataPoint> baseline = generateBaseline(curveData, point1, point2);
 
     if (baseline.isEmpty()) {
+        // 检查是否是用户取消导致的
+        if (shouldCancel()) {
+            qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 用户取消执行！";
+            return AlgorithmResult::failure("baseline_correction", "用户取消执行");
+        }
         qWarning() << "BaselineCorrectionAlgorithm::executeWithContext - 生成基线失败！";
         return AlgorithmResult::failure("baseline_correction", "生成基线失败");
     }
@@ -159,18 +164,18 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     // 7. 创建混合结果对象（曲线 + 标注点）
     AlgorithmResult result = AlgorithmResult::success(
         "baseline_correction",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Composite  // 混合输出：曲线 + 标注点
     );
 
     // 创建输出曲线
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(baseline);
-    outputCurve.setInstrumentType(inputCurve->instrumentType());
+    outputCurve.setInstrumentType(inputCurve.instrumentType());
     outputCurve.setSignalType(SignalType::Baseline);
-    outputCurve.setParentId(inputCurve->id());
-    outputCurve.setProjectName(inputCurve->projectName());
-    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setParentId(inputCurve.id());
+    outputCurve.setProjectName(inputCurve.projectName());
+    outputCurve.setMetadata(inputCurve.getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
     outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 
@@ -218,7 +223,18 @@ QVector<ThermalDataPoint> BaselineCorrectionAlgorithm::generateBaseline(
     // 为所有数据点生成基线值
     baseline.reserve(curveData.size());
 
+    // 进度报告：计算总迭代次数
+    const int totalPoints = curveData.size();
+    int lastReportedProgress = 0;
+    int processedPoints = 0;
+
     for (const auto& point : curveData) {
+        // 检查取消标志（每100次迭代）
+        if (processedPoints % 100 == 0 && shouldCancel()) {
+            qWarning() << "BaselineCorrectionAlgorithm: 用户取消执行";
+            return QVector<ThermalDataPoint>();  // 返回空向量
+        }
+
         ThermalDataPoint baselinePoint;
         baselinePoint.temperature = point.temperature;
         baselinePoint.time = point.time;
@@ -236,7 +252,18 @@ QVector<ThermalDataPoint> BaselineCorrectionAlgorithm::generateBaseline(
         }
 
         baseline.append(baselinePoint);
+
+        // 进度报告（每10%）
+        processedPoints++;
+        int currentProgress = (processedPoints * 100) / totalPoints;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("生成基线 %1/%2 点").arg(processedPoints).arg(totalPoints));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "基线生成完成");
 
     return baseline;
 }

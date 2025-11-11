@@ -37,6 +37,9 @@ SOURCES += \
     src/application/algorithm/algorithm_manager.cpp \
     src/application/algorithm/algorithm_context.cpp \
     src/application/algorithm/algorithm_coordinator.cpp \
+    src/application/algorithm/algorithm_task.cpp \
+    src/application/algorithm/algorithm_worker.cpp \
+    src/application/algorithm/algorithm_thread_manager.cpp \
     src/application/history/history_manager.cpp \
     src/application/history/add_curve_command.cpp \
     src/application/history/algorithm_command.cpp \
@@ -76,6 +79,9 @@ HEADERS += \
     src/application/algorithm/algorithm_context.h \
     src/application/algorithm/algorithm_coordinator.h \
     src/application/algorithm/algorithm_descriptor.h \
+    src/application/algorithm/algorithm_task.h \
+    src/application/algorithm/algorithm_worker.h \
+    src/application/algorithm/algorithm_thread_manager.h \
     src/application/history/add_curve_command.h \
     src/application/history/history_manager.h \
     src/application/history/algorithm_command.h \
@@ -87,6 +93,8 @@ HEADERS += \
     src/domain/algorithm/algorithm_descriptor.h \
     src/domain/algorithm/i_thermal_algorithm.h \
     src/domain/algorithm/i_command.h \
+    src/domain/algorithm/i_progress_reporter.h \
+    src/domain/algorithm/algorithm_result.h \
     \
     # Infrastructure Layer
     src/infrastructure/io/i_file_reader.h \

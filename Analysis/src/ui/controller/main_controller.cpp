@@ -17,6 +17,8 @@
 #include "ui/chart_view.h"
 #include "ui/main_window.h"
 #include <QMessageBox>
+#include <QSignalBlocker>
+#include <QProgressDialog>
 #include <memory>
 
 MainController::MainController(CurveManager* curveManager, QObject* parent)
@@ -45,6 +47,7 @@ MainController::~MainController()
 {
     delete m_dataImportWidget;
     delete m_textFileReader;
+    delete m_progressDialog;
 }
 
 void MainController::setPlotWidget(ChartView* plotWidget)
@@ -164,6 +167,14 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::algorithmSucceeded, this,
         &MainController::onCoordinatorAlgorithmSucceeded, Qt::UniqueConnection);
+
+    // ==================== 连接异步执行进度信号 ====================
+    connect(m_algorithmCoordinator, &AlgorithmCoordinator::algorithmStarted,
+            this, &MainController::onAlgorithmStarted, Qt::UniqueConnection);
+    connect(m_algorithmCoordinator, &AlgorithmCoordinator::algorithmProgress,
+            this, &MainController::onAlgorithmProgress, Qt::UniqueConnection);
+
+    qDebug() << "[MainController] 已连接 AlgorithmCoordinator 的异步执行信号";
 }
 
 void MainController::onShowDataImport() { m_dataImportWidget->show(); }
@@ -378,6 +389,12 @@ void MainController::onCoordinatorShowMessage(const QString& text)
 void MainController::onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason)
 {
     qWarning() << "算法执行失败:" << algorithmName << reason;
+
+    cleanupProgressDialog();
+    m_currentTaskId.clear();
+    m_currentAlgorithmName.clear();
+
+    // 显示错误提示
     if (m_mainWindow) {
         QMessageBox::warning(
             m_mainWindow, tr("算法失败"), tr("算法 %1 执行失败：%2").arg(algorithmName, reason));
@@ -387,7 +404,16 @@ void MainController::onCoordinatorAlgorithmFailed(const QString& algorithmName, 
 void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmName)
 {
     qInfo() << "算法执行完成:" << algorithmName;
-    // 预留：可在此刷新状态栏或提示用户
+
+    cleanupProgressDialog();
+    m_currentTaskId.clear();
+    m_currentAlgorithmName.clear();
+
+    // 显示成功提示（可选，避免过于频繁的弹窗）
+    // if (m_mainWindow) {
+    //     QMessageBox::information(m_mainWindow, QStringLiteral("算法执行完成"),
+    //                             QStringLiteral("算法 %1 执行成功！").arg(algorithmName));
+    // }
 }
 
 void MainController::onPeakAreaToolRequested()
@@ -431,4 +457,113 @@ void MainController::onPeakAreaToolRequested()
     // 启动峰面积工具（进入选点模式）
     bool useLinearBaseline = (baselineType == PeakAreaDialog::BaselineType::Linear);
     m_plotWidget->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
+}
+
+// ==================== 异步执行进度反馈槽函数实现 ====================
+
+void MainController::onAlgorithmStarted(const QString& taskId, const QString& algorithmName)
+{
+    qDebug() << "[MainController] 算法开始执行:" << algorithmName << "taskId:" << taskId;
+
+    // 保存任务ID
+    m_currentTaskId = taskId;
+    m_currentAlgorithmName = algorithmName;
+
+    cleanupProgressDialog();
+
+    QProgressDialog* dialog = ensureProgressDialog();
+    {
+        QSignalBlocker blocker(dialog);
+        dialog->setWindowTitle(QStringLiteral("算法执行中"));
+        dialog->setLabelText(QStringLiteral("正在执行算法: %1\n请稍候...").arg(algorithmName));
+        dialog->setRange(0, 100);
+        dialog->setValue(0);
+        dialog->setMinimumDuration(0);  // 立即显示
+    }
+
+    dialog->show();
+}
+
+void MainController::onAlgorithmProgress(const QString& taskId, int percentage, const QString& message)
+{
+    // 验证任务ID
+    if (taskId != m_currentTaskId) {
+        return;  // 不是当前任务的进度信号，忽略
+    }
+
+    if (!m_progressDialog) {
+        qWarning() << "[MainController] 收到进度更新，但进度对话框不存在";
+        return;
+    }
+
+    // 更新进度条
+    m_progressDialog->setValue(percentage);
+
+    // 更新状态文本
+    if (!message.isEmpty()) {
+        QString text = m_progressDialog->labelText().split('\n').first();  // 保留第一行（算法名称）
+        m_progressDialog->setLabelText(text + "\n" + message);
+    }
+
+    // 调试日志（避免过度输出）
+    if (percentage % 20 == 0) {
+        qDebug() << "[MainController] 进度更新:" << percentage << "%" << message;
+    }
+}
+
+void MainController::cleanupProgressDialog()
+{
+    if (!m_progressDialog) {
+        return;
+    }
+
+    QSignalBlocker blocker(m_progressDialog);
+    m_progressDialog->hide();
+    m_progressDialog->reset();
+}
+
+QProgressDialog* MainController::ensureProgressDialog()
+{
+    if (!m_progressDialog) {
+        m_progressDialog = new QProgressDialog(m_mainWindow);
+        m_progressDialog->setWindowModality(Qt::WindowModal);
+        m_progressDialog->setCancelButtonText(QStringLiteral("取消"));
+        m_progressDialog->setAutoClose(false);
+        m_progressDialog->setAutoReset(false);
+        connect(m_progressDialog, &QProgressDialog::canceled,
+                this, &MainController::handleProgressDialogCancelled, Qt::UniqueConnection);
+    }
+    return m_progressDialog;
+}
+
+void MainController::handleProgressDialogCancelled()
+{
+    qDebug() << "[MainController] 用户点击取消按钮，尝试取消算法:" << m_currentAlgorithmName
+             << "taskId:" << m_currentTaskId;
+
+    const QString taskId = m_currentTaskId;
+    const QString algorithmName = m_currentAlgorithmName;
+
+    bool cancelled = false;
+    if (m_algorithmManager && !taskId.isEmpty()) {
+        cancelled = m_algorithmManager->cancelTask(taskId);
+    }
+
+    if (cancelled) {
+        qDebug() << "[MainController] 任务取消成功:" << taskId;
+        cleanupProgressDialog();
+        m_currentTaskId.clear();
+        m_currentAlgorithmName.clear();
+
+        if (m_mainWindow && !algorithmName.isEmpty()) {
+            QMessageBox::information(m_mainWindow, QStringLiteral("任务已取消"),
+                                     QStringLiteral("算法 %1 已取消").arg(algorithmName));
+        }
+    } else {
+        qWarning() << "[MainController] 任务取消失败（任务可能已完成）:" << taskId;
+    }
+
+    if (m_algorithmCoordinator) {
+        m_algorithmCoordinator->cancelPendingRequest();
+    }
 }

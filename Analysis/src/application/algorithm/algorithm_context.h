@@ -28,13 +28,14 @@
  */
 namespace ContextKeys {
     // ========== 基础曲线数据 (Basic Curve Data) ==========
-    /** 当前活动曲线 (ThermalCurve*) - 算法将在此曲线上执行 */
+    /** 当前活动曲线 (ThermalCurve) - 算法将在此曲线上执行
+     *  注意：为确保线程安全，上下文存储的是曲线副本，而非指针 */
     inline constexpr const char* ActiveCurve = "activeCurve";
 
-    /** 输入曲线 (ThermalCurve*) - 算法的数据来源曲线 */
+    /** 输入曲线 (ThermalCurve) - 算法的数据来源曲线 */
     inline constexpr const char* InputCurve = "inputCurve";
 
-    /** 输出曲线 (ThermalCurve*) - 算法生成的新曲线 */
+    /** 输出曲线 (ThermalCurve) - 算法生成的新曲线 */
     inline constexpr const char* OutputCurve = "outputCurve";
 
     /** 活动曲线的基线曲线列表 (QVector<ThermalCurve*>) - 由 AlgorithmCoordinator 自动注入
@@ -209,11 +210,12 @@ namespace ContextKeys {
  * @code
  * QVariant MyAlgorithm::executeWithContext(AlgorithmContext* context) {
  *     // 1. 获取活动曲线（必需）
- *     auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
- *     if (!curve.has_value() || !curve.value()) {
+ *     auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+ *     if (!curveOpt.has_value()) {
  *         qWarning() << "MyAlgorithm: activeCurve 未设置";
  *         return QVariant();
  *     }
+ *     const ThermalCurve& curve = curveOpt.value();
  *
  *     // 2. 获取算法参数（使用 value_or 提供默认值）
  *     int windowSize = context->get<int>(ContextKeys::ParamWindowSize).value_or(50);
@@ -226,7 +228,7 @@ namespace ContextKeys {
  *     }
  *
  *     // 4. 获取曲线数据并执行算法
- *     const auto& inputData = curve.value()->getProcessedData();
+ *     const auto& inputData = curve.getProcessedData();
  *     QVector<ThermalDataPoint> result = performCalculation(inputData, windowSize);
  *
  *     return QVariant::fromValue(result);
@@ -250,7 +252,7 @@ namespace ContextKeys {
  *
  * | 键名常量                          | 数据类型                  | 说明                    |
  * |-----------------------------------|---------------------------|-------------------------|
- * | `ContextKeys::ActiveCurve`        | `ThermalCurve*`           | 当前活动曲线            |
+ * | `ContextKeys::ActiveCurve`        | `ThermalCurve`            | 当前活动曲线（副本）    |
  * | `ContextKeys::BaselineCurves`     | `QVector<ThermalCurve*>`  | 活动曲线的所有基线      |
  * | `ContextKeys::SelectedPoints`     | `QVector<ThermalDataPoint>`        | 用户选择的点集合        |
  * | `ContextKeys::ParamWindow`        | `int`                     | 窗口大小（移动平均）    |
@@ -369,6 +371,35 @@ public:
      * @return 键值对映射表
      */
     QVariantMap values(const QString& prefix = QString()) const;
+
+    /**
+     * @brief 创建上下文的深拷贝（用于异步任务快照）
+     *
+     * **语义说明**：
+     * - 深拷贝键值对结构（QHash 和 Entry）
+     * - 对于值类型（int, double, QString, ThermalCurve 等），QVariant 自动深拷贝
+     * - ThermalCurve 存储为值类型，克隆时会完整复制所有数据
+     *
+     * **线程安全**：
+     * - 每个工作线程获得独立的曲线数据副本
+     * - 工作线程可以安全地读取曲线数据，不会受主线程修改影响
+     * - 避免了指针失效和数据竞争问题
+     *
+     * **使用场景**：
+     * - 创建任务快照时调用，避免主线程修改影响任务执行
+     * - 每个任务独占一个上下文快照，互不干扰
+     *
+     * @return 上下文的深拷贝（调用者负责管理生命周期）
+     *
+     * @code
+     * // 在主线程创建快照
+     * AlgorithmContext* snapshot = context->clone();
+     *
+     * // 将快照传递给任务（任务独占所有权）
+     * auto task = AlgorithmTaskPtr::create(algorithmName, snapshot);
+     * @endcode
+     */
+    AlgorithmContext* clone() const;
 
 signals:
     /**

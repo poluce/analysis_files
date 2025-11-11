@@ -84,8 +84,8 @@ bool IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "IntegrationAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -105,17 +105,17 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
         return AlgorithmResult::failure("integration", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "IntegrationAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("integration", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve.getProcessedData();
 
     // 4. 执行核心算法逻辑（梯形法则积分）
     QVector<ThermalDataPoint> outputData;
@@ -132,7 +132,16 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     outputData[0] = inputData[0];
     outputData[0].value = 0.0;
 
+    // 进度报告：计算总迭代次数
+    int lastReportedProgress = 0;
+
     for (int i = 1; i < n; ++i) {
+        // 检查取消标志（每100次迭代）
+        if (i % 100 == 0 && shouldCancel()) {
+            qWarning() << "IntegrationAlgorithm: 用户取消执行";
+            return AlgorithmResult::failure("integration", "用户取消执行");
+        }
+
         const auto& p0 = inputData[i - 1];
         const auto& p1 = inputData[i];
         const double dx = (p1.temperature - p0.temperature);
@@ -142,25 +151,35 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
         }
         outputData[i] = p1;
         outputData[i].value = cum;
+
+        // 进度报告（每10%）
+        int currentProgress = (i * 100) / n;
+        if (currentProgress >= lastReportedProgress + 10) {
+            lastReportedProgress = currentProgress;
+            reportProgress(currentProgress, QString("已处理 %1/%2 点").arg(i).arg(n));
+        }
     }
+
+    // 最终进度报告
+    reportProgress(100, "积分计算完成");
 
     qDebug() << "IntegrationAlgorithm::executeWithContext - 完成，输出数据点数:" << outputData.size();
 
     // 5. 创建结果对象
     AlgorithmResult result = AlgorithmResult::success(
         "integration",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Curve
     );
 
     // 创建输出曲线
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
-    outputCurve.setInstrumentType(inputCurve->instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve->signalType()));
-    outputCurve.setParentId(inputCurve->id());
-    outputCurve.setProjectName(inputCurve->projectName());
-    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setInstrumentType(inputCurve.instrumentType());
+    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    outputCurve.setParentId(inputCurve.id());
+    outputCurve.setProjectName(inputCurve.projectName());
+    outputCurve.setMetadata(inputCurve.getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
     outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 
