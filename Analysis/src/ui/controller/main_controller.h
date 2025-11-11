@@ -90,6 +90,10 @@ private slots:
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
     void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);
 
+    // ==================== 异步执行进度反馈槽函数 ====================
+    void onAlgorithmStarted(const QString& taskId, const QString& algorithmName);
+    void onAlgorithmProgress(const QString& taskId, int percentage, const QString& message);
+
 private:
     CurveManager* m_curveManager;         // 非拥有指针
     DataImportWidget* m_dataImportWidget; // 拥有指针
@@ -101,6 +105,10 @@ private:
     ChartView* m_plotWidget = nullptr;    // 非拥有指针
     MainWindow* m_mainWindow = nullptr;   // 非拥有指针
     CurveViewController* m_curveViewController = nullptr;
+
+    // ==================== 异步执行进度反馈 ====================
+    class QProgressDialog* m_progressDialog = nullptr;  // 拥有指针
+    QString m_currentTaskId;  // 当前任务ID（用于验证进度信号）
 };
 
 #endif // MAINCONTROLLER_H
