@@ -249,14 +249,35 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
 
 void PeakAreaTool::paintCloseButton(QPainter* painter)
 {
-    // 关闭按钮位置：在上方中心（跟随工具移动）
+    // 计算文本位置和大小（与 paintMeasureText 中的计算一致）
     QPointF scene1 = dataToScene(m_point1);
     QPointF scene2 = dataToScene(m_point2);
-    qreal centerX = (scene1.x() + scene2.x()) / 2.0;
-    qreal topY = qMin(scene1.y(), scene2.y()) - 35;  // 在两端点上方35像素
+    QPointF sceneTextPos = (scene1 + scene2) / 2.0;
+    sceneTextPos.setY(sceneTextPos.y() - 20);  // 文本向上偏移20像素
 
+    // 转换为本地坐标
+    QPointF localTextPos = mapFromScene(sceneTextPos);
+
+    // 计算文本矩形（需要与 paintMeasureText 中的字体一致）
+    QFont font;
+    font.setPointSize(11);
+    font.setBold(true);
+    QFontMetrics fm(font);
+    QString text = peakAreaText();
+    QRectF textRect = fm.boundingRect(text);
+    textRect.moveCenter(localTextPos);
+    textRect.adjust(-5, -3, 5, 3);  // 添加边距（与 paintMeasureText 一致）
+
+    // 关闭按钮位置：在文本矩形上方，留8像素间隙
     qreal btnSize = 20.0;
-    m_closeButtonRect = QRectF(centerX - btnSize / 2, topY, btnSize, btnSize);
+    qreal gap = 8.0;  // 间隙
+    qreal buttonCenterX = textRect.center().x();
+    qreal buttonCenterY = textRect.top() - gap - btnSize / 2;
+
+    m_closeButtonRect = QRectF(buttonCenterX - btnSize / 2,
+                                buttonCenterY - btnSize / 2,
+                                btnSize,
+                                btnSize);
 
     // 绘制关闭按钮背景（圆形）
     if (m_closeButtonHovered) {
@@ -265,7 +286,7 @@ void PeakAreaTool::paintCloseButton(QPainter* painter)
         painter->setBrush(QColor(200, 200, 200, 150));  // 灰色正常
     }
     painter->setPen(Qt::NoPen);
-    painter->drawEllipse(m_closeButtonRect);  // 使用圆形，与质量损失工具一致
+    painter->drawEllipse(m_closeButtonRect);  // 使用圆形
 
     // 绘制 X 符号
     painter->setPen(QPen(Qt::white, 2.0));
