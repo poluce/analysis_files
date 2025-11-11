@@ -3,6 +3,7 @@
 
 #include "domain/algorithm/algorithm_descriptor.h"
 #include "domain/algorithm/algorithm_result.h"
+#include "domain/algorithm/i_progress_reporter.h"  // 完整定义（替换前向声明）
 #include "domain/model/thermal_curve.h"
 #include <QString>
 #include <QVariant>
@@ -11,7 +12,6 @@
 
 // 前置声明
 class AlgorithmContext;
-class IProgressReporter;
 
 /*
  * ───────────────────────────────────────────────
@@ -305,7 +305,7 @@ protected:
      * @param percentage 进度百分比 (0-100)
      * @param message 可选的状态消息
      */
-    void reportProgress(int percentage, const QString& message = QString()) {
+    void reportProgress(int percentage, const QString& message = QString()) const {
         if (m_progressReporter) {
             m_progressReporter->reportProgress(percentage, message);
         }
@@ -327,7 +327,7 @@ protected:
     }
 
 private:
-    IProgressReporter* m_progressReporter = nullptr;  ///< 进度报告器（由 Worker 设置）
+    mutable IProgressReporter* m_progressReporter = nullptr;  ///< 进度报告器（由 Worker 设置，mutable 允许在 const 方法中调用）
 };
 
 #endif // ITHERMALALGORITHM_H

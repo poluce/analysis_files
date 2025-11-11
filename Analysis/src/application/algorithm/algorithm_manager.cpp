@@ -325,7 +325,7 @@ QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* co
     m_activeTasks[taskId] = task;
 
     // 7. 尝试获取工作线程
-    auto [worker, thread] = AlgorithmThreadManager::instance()->acquireWorker();
+    auto [worker, [[maybe_unused]] thread] = AlgorithmThreadManager::instance()->acquireWorker();
 
     if (!worker) {
         // 所有线程都忙，加入队列
@@ -390,7 +390,7 @@ void AlgorithmManager::processQueue()
     qDebug() << "[AlgorithmManager] processQueue: 队列长度" << m_taskQueue.size();
 
     // 尝试获取空闲线程
-    auto [worker, thread] = AlgorithmThreadManager::instance()->acquireWorker();
+    auto [worker, [[maybe_unused]] thread] = AlgorithmThreadManager::instance()->acquireWorker();
 
     if (!worker) {
         qDebug() << "[AlgorithmManager] processQueue: 没有空闲线程，等待下次";
