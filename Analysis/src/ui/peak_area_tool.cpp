@@ -216,11 +216,13 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
 {
     QString text = peakAreaText();
 
-    // 设置字体
-    QFont font("Arial", 10);
+    // 设置字体（稍微加粗以提高可读性）
+    QFont font;
+    font.setPointSize(11);
+    font.setBold(true);
     painter->setFont(font);
 
-    // 计算文本位置（两个端点中间，稍微向上偏移）
+    // 计算文本位置：在上方中心（原始设计）
     QPointF scene1 = dataToScene(m_point1);
     QPointF scene2 = dataToScene(m_point2);
     QPointF sceneTextPos = (scene1 + scene2) / 2.0;
@@ -236,44 +238,42 @@ void PeakAreaTool::paintMeasureText(QPainter* painter)
     textRect.adjust(-5, -3, 5, 3);  // 添加边距
 
     // 绘制半透明白色背景
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(255, 255, 255, 200));
+    painter->setBrush(QBrush(QColor(255, 255, 255, 200)));
+    painter->setPen(QPen(QColor(100, 100, 100), 1.0));
     painter->drawRoundedRect(textRect, 3, 3);
 
     // 绘制文本
-    painter->setPen(Qt::black);
+    painter->setPen(QPen(Qt::black));
     painter->drawText(textRect, Qt::AlignCenter, text);
 }
 
 void PeakAreaTool::paintCloseButton(QPainter* painter)
 {
-    // 关闭按钮位于右上角（场景坐标）
-    QRectF plotArea = m_chart->plotArea();
+    // 关闭按钮位置：在上方中心（跟随工具移动）
+    QPointF scene1 = dataToScene(m_point1);
+    QPointF scene2 = dataToScene(m_point2);
+    qreal centerX = (scene1.x() + scene2.x()) / 2.0;
+    qreal topY = qMin(scene1.y(), scene2.y()) - 35;  // 在两端点上方35像素
+
     qreal btnSize = 20.0;
-    m_closeButtonRect = QRectF(plotArea.right() - btnSize - 10,
-                                plotArea.top() + 10,
-                                btnSize, btnSize);
+    m_closeButtonRect = QRectF(centerX - btnSize / 2, topY, btnSize, btnSize);
 
-    // 转换为本地坐标
-    QRectF localButtonRect = QRectF(mapFromScene(m_closeButtonRect.topLeft()),
-                                     mapFromScene(m_closeButtonRect.bottomRight()));
-
-    // 绘制背景
+    // 绘制关闭按钮背景（圆形）
     if (m_closeButtonHovered) {
         painter->setBrush(QColor(255, 100, 100, 200));  // 红色悬停
     } else {
         painter->setBrush(QColor(200, 200, 200, 150));  // 灰色正常
     }
     painter->setPen(Qt::NoPen);
-    painter->drawRoundedRect(localButtonRect, 3, 3);
+    painter->drawEllipse(m_closeButtonRect);  // 使用圆形，与质量损失工具一致
 
     // 绘制 X 符号
     painter->setPen(QPen(Qt::white, 2.0));
     qreal margin = 5.0;
-    painter->drawLine(localButtonRect.topLeft() + QPointF(margin, margin),
-                      localButtonRect.bottomRight() - QPointF(margin, margin));
-    painter->drawLine(localButtonRect.topRight() + QPointF(-margin, margin),
-                      localButtonRect.bottomLeft() + QPointF(margin, -margin));
+    painter->drawLine(m_closeButtonRect.left() + margin, m_closeButtonRect.top() + margin,
+                      m_closeButtonRect.right() - margin, m_closeButtonRect.bottom() - margin);
+    painter->drawLine(m_closeButtonRect.right() - margin, m_closeButtonRect.top() + margin,
+                      m_closeButtonRect.left() + margin, m_closeButtonRect.bottom() - margin);
 }
 
 // ==================== 计算函数实现 ====================
