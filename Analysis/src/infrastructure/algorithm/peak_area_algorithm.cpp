@@ -80,8 +80,8 @@ bool PeakAreaAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "PeakAreaAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -107,14 +107,14 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
         return AlgorithmResult::failure("peak_area", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "PeakAreaAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("peak_area", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 拉取选择的点（ThermalDataPoint 类型）
     auto pointsOpt = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
@@ -131,7 +131,7 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     }
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& curveData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& curveData = inputCurve.getProcessedData();
     if (curveData.isEmpty()) {
         qWarning() << "PeakAreaAlgorithm::executeWithContext - 曲线数据为空！";
         return AlgorithmResult::failure("peak_area", "曲线数据为空");

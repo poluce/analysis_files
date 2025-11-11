@@ -84,8 +84,8 @@ bool IntegrationAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "IntegrationAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -105,17 +105,17 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
         return AlgorithmResult::failure("integration", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "IntegrationAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("integration", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve.getProcessedData();
 
     // 4. 执行核心算法逻辑（梯形法则积分）
     QVector<ThermalDataPoint> outputData;

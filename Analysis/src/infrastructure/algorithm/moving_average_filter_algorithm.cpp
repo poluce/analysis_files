@@ -83,8 +83,8 @@ bool MovingAverageFilterAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "MovingAverageFilterAlgorithm::prepareContext - 缺少活动曲线";
         return false;
     }
@@ -106,20 +106,20 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
         return AlgorithmResult::failure("moving_average", "上下文为空");
     }
 
-    // 2. 拉取曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 2. 拉取曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "MovingAverageFilterAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("moving_average", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 3. 拉取参数（使用 value_or() 提供默认值）
     int window = context->get<int>(ContextKeys::ParamWindow).value_or(m_window);
 
     // 4. 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve.getProcessedData();
 
     // 5. 执行核心算法逻辑（移动平均滤波）
     QVector<ThermalDataPoint> outputData;

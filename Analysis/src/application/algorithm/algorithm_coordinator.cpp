@@ -332,8 +332,9 @@ void AlgorithmCoordinator::executeAlgorithm(
         m_context->remove(key);
     }
 
-    // 将主曲线设置到上下文
-    m_context->setValue(ContextKeys::ActiveCurve, QVariant::fromValue(curve), "AlgorithmCoordinator");
+    // 将主曲线设置到上下文（存储副本以确保线程安全）
+    // 当上下文被克隆时，ThermalCurve 会被深拷贝，确保工作线程拥有独立的数据副本
+    m_context->setValue(ContextKeys::ActiveCurve, QVariant::fromValue(*curve), "AlgorithmCoordinator");
 
     // 自动查找并注入活动曲线的基线（如果存在）
     QVector<ThermalCurve*> baselines = m_curveManager->getBaselines(curve->id());

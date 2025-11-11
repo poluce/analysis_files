@@ -84,8 +84,8 @@ bool DifferentiationAlgorithm::prepareContext(AlgorithmContext* context)
     }
 
     // 阶段1：验证必需数据是否存在
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    auto curve = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curve.has_value()) {
         qWarning() << "DifferentiationAlgorithm::prepareContext - 缺少活动曲线";
         return false;  // 数据不完整，无法执行
     }
@@ -112,14 +112,14 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
         return AlgorithmResult::failure("differentiation", "上下文为空");
     }
 
-    // 从上下文拉取活动曲线
-    auto curve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!curve.has_value() || !curve.value()) {
+    // 从上下文拉取活动曲线（上下文存储的是副本，线程安全）
+    auto curveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
+    if (!curveOpt.has_value()) {
         qWarning() << "DifferentiationAlgorithm::executeWithContext - 无法获取活动曲线！";
         return AlgorithmResult::failure("differentiation", "无法获取活动曲线");
     }
 
-    ThermalCurve* inputCurve = curve.value();
+    const ThermalCurve& inputCurve = curveOpt.value();
 
     // 从上下文拉取参数（使用默认值作为fallback）
     int halfWin = context->get<int>(ContextKeys::ParamHalfWin).value_or(m_halfWin);
@@ -127,7 +127,7 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     bool enableDebug = context->get<bool>(ContextKeys::ParamEnableDebug).value_or(m_enableDebug);
 
     // 获取输入数据
-    const QVector<ThermalDataPoint>& inputData = inputCurve->getProcessedData();
+    const QVector<ThermalDataPoint>& inputData = inputCurve.getProcessedData();
 
     // 执行微分算法（核心逻辑）
     QVector<ThermalDataPoint> outputData;
