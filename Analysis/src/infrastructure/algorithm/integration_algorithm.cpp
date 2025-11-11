@@ -168,18 +168,18 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     // 5. 创建结果对象
     AlgorithmResult result = AlgorithmResult::success(
         "integration",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Curve
     );
 
     // 创建输出曲线
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
-    outputCurve.setInstrumentType(inputCurve->instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve->signalType()));
-    outputCurve.setParentId(inputCurve->id());
-    outputCurve.setProjectName(inputCurve->projectName());
-    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setInstrumentType(inputCurve.instrumentType());
+    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    outputCurve.setParentId(inputCurve.id());
+    outputCurve.setProjectName(inputCurve.projectName());
+    outputCurve.setMetadata(inputCurve.getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
     outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 

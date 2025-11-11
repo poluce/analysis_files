@@ -1,6 +1,16 @@
 #include "thermal_curve.h"
 #include <QDebug>
 
+ThermalCurve::ThermalCurve()
+    : m_id()
+    , m_name()
+    , m_instrumentType(InstrumentType::TGA)
+    , m_signalType(SignalType::Raw)
+    , m_isAuxiliaryCurve(false)
+    , m_isStronglyBound(false)
+{
+}
+
 ThermalCurve::ThermalCurve(QString id, QString name)
     : m_id(std::move(id))
     , m_name(std::move(name))

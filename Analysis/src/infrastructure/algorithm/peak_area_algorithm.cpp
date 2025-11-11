@@ -162,7 +162,7 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     // 7. 创建结果对象（混合输出：标注点 + 面积值）
     AlgorithmResult result = AlgorithmResult::success(
         "peak_area",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Composite  // 混合输出
     );
 
@@ -175,7 +175,7 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
 
     // 设置峰面积数值
     QString unit;
-    switch (inputCurve->instrumentType()) {
+    switch (inputCurve.instrumentType()) {
         case InstrumentType::TGA:
             unit = "mg·°C";
             break;
@@ -193,12 +193,12 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     result.setArea(area, unit);
 
     // 格式化显示文本
-    QString areaText = formatAreaText(area, inputCurve->instrumentType());
+    QString areaText = formatAreaText(area, inputCurve.instrumentType());
 
     // 添加元数据
     result.setMeta("peakArea", area);
     result.setMeta("temperatureRange", QString("%1 - %2").arg(temp1).arg(temp2));
-    result.setMeta("instrumentType", static_cast<int>(inputCurve->instrumentType()));
+    result.setMeta("instrumentType", static_cast<int>(inputCurve.instrumentType()));
     result.setMeta("label", areaText);  // 用于 UI 显示的文本
     result.setMeta("markerColor", QColor(Qt::blue));
 

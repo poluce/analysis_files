@@ -68,6 +68,7 @@ enum class PlotStyle {
  */
 class ThermalCurve {
 public:
+    ThermalCurve();
     explicit ThermalCurve(QString id, QString name);
 
     // --- 获取器 ---
@@ -136,6 +137,7 @@ private:
 };
 
 // 注册类型到 Qt 元对象系统，用于 QVariant
+Q_DECLARE_METATYPE(ThermalCurve)
 Q_DECLARE_METATYPE(ThermalCurve*)
 Q_DECLARE_METATYPE(SignalType)
 

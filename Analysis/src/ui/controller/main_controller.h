@@ -108,7 +108,12 @@ private:
 
     // ==================== 异步执行进度反馈 ====================
     class QProgressDialog* m_progressDialog = nullptr;  // 拥有指针
-    QString m_currentTaskId;  // 当前任务ID（用于验证进度信号）
+    QString m_currentTaskId;         // 当前任务ID（用于验证进度信号）
+    QString m_currentAlgorithmName;  // 当前算法名称（用于提示）
+
+    void cleanupProgressDialog();
+    QProgressDialog* ensureProgressDialog();
+    void handleProgressDialogCancelled();
 };
 
 #endif // MAINCONTROLLER_H

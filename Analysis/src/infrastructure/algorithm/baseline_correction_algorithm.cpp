@@ -164,18 +164,18 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     // 7. 创建混合结果对象（曲线 + 标注点）
     AlgorithmResult result = AlgorithmResult::success(
         "baseline_correction",
-        inputCurve->id(),
+        inputCurve.id(),
         ResultType::Composite  // 混合输出：曲线 + 标注点
     );
 
     // 创建输出曲线
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(baseline);
-    outputCurve.setInstrumentType(inputCurve->instrumentType());
+    outputCurve.setInstrumentType(inputCurve.instrumentType());
     outputCurve.setSignalType(SignalType::Baseline);
-    outputCurve.setParentId(inputCurve->id());
-    outputCurve.setProjectName(inputCurve->projectName());
-    outputCurve.setMetadata(inputCurve->getMetadata());
+    outputCurve.setParentId(inputCurve.id());
+    outputCurve.setProjectName(inputCurve.projectName());
+    outputCurve.setMetadata(inputCurve.getMetadata());
     outputCurve.setIsAuxiliaryCurve(this->isAuxiliaryCurve());  // 设置辅助曲线标志
     outputCurve.setIsStronglyBound(this->isStronglyBound());    // 设置强绑定标志
 
