@@ -490,8 +490,34 @@ void MainController::onAlgorithmStarted(const QString& taskId, const QString& al
     m_progressDialog->setCancelButtonText(QStringLiteral("取消"));
 
     // 连接取消按钮
-    connect(m_progressDialog, &QProgressDialog::canceled, this, [this, algorithmName]() {
-        qDebug() << "[MainController] 用户点击取消按钮，尝试取消算法:" << algorithmName;
+    connect(m_progressDialog, &QProgressDialog::canceled, this, [this, taskId, algorithmName]() {
+        qDebug() << "[MainController] 用户点击取消按钮，尝试取消算法:" << algorithmName << "taskId:" << taskId;
+
+        // 直接取消后台任务
+        if (m_algorithmManager && !taskId.isEmpty()) {
+            bool cancelled = m_algorithmManager->cancelTask(taskId);
+            if (cancelled) {
+                qDebug() << "[MainController] 任务取消成功:" << taskId;
+
+                // 关闭进度对话框
+                if (m_progressDialog) {
+                    m_progressDialog->close();
+                    delete m_progressDialog;
+                    m_progressDialog = nullptr;
+                }
+                m_currentTaskId.clear();
+
+                // 通知用户
+                if (m_mainWindow) {
+                    QMessageBox::information(m_mainWindow, QStringLiteral("任务已取消"),
+                                           QStringLiteral("算法 %1 已取消").arg(algorithmName));
+                }
+            } else {
+                qWarning() << "[MainController] 任务取消失败（任务可能已完成）:" << taskId;
+            }
+        }
+
+        // 同时取消待处理的交互请求（参数对话框、点选等）
         if (m_algorithmCoordinator) {
             m_algorithmCoordinator->cancelPendingRequest();
         }

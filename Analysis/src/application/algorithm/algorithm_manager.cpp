@@ -27,6 +27,7 @@ AlgorithmManager::AlgorithmManager(QObject* parent)
     // 注册元类型，用于跨线程信号传递
     qRegisterMetaType<AlgorithmTaskPtr>("AlgorithmTaskPtr");
     qRegisterMetaType<AlgorithmResult>("AlgorithmResult");
+    qRegisterMetaType<IThermalAlgorithm*>("IThermalAlgorithm*");  // 注册算法指针类型（用于 QMetaObject::invokeMethod）
 
     // 连接线程管理器的 workerReleased 信号，用于处理队列
     connect(AlgorithmThreadManager::instance(), &AlgorithmThreadManager::workerReleased,
