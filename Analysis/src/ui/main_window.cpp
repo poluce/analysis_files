@@ -30,9 +30,9 @@ MainWindow::MainWindow(ChartView* chartView, ProjectExplorerView* projectExplore
     resize(1600, 900);
     setWindowTitle(tr("热分析软件"));
 
-    initRibbon();
     initCentral();
-    initDockWidgets();
+    initDockWidgets(); // 必须在 initRibbon() 之前，因为 Ribbon 中的视图工具栏需要引用停靠面板
+    initRibbon();
     initStatusBar();
     setupViewConnections();
     setUnifiedTitleAndToolBarOnMac(true);
@@ -190,6 +190,25 @@ QToolBar* MainWindow::createViewToolBar()
     connect(fitViewAction, &QAction::triggered, this, &MainWindow::fitViewRequested);
 
     toolbar->addSeparator();
+
+    // 项目浏览器切换按钮
+    m_toggleProjectExplorerAction = m_projectExplorerDock->toggleViewAction();
+    m_toggleProjectExplorerAction->setText(tr("项目浏览器"));
+    m_toggleProjectExplorerAction->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
+    toolbar->addAction(m_toggleProjectExplorerAction);
+
+    // 属性窗口切换按钮
+    m_togglePropertiesAction = m_propertiesDock->toggleViewAction();
+    m_togglePropertiesAction->setText(tr("属性窗口"));
+    m_togglePropertiesAction->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));
+    toolbar->addAction(m_togglePropertiesAction);
+
+    toolbar->addSeparator();
+
+    // 恢复默认布局按钮
+    QAction* resetLayoutAction = toolbar->addAction(style()->standardIcon(QStyle::SP_BrowserReload), tr("恢复布局"));
+    connect(resetLayoutAction, &QAction::triggered, this, &MainWindow::onResetLayoutRequested);
+
     toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     return toolbar;
 }
@@ -304,4 +323,23 @@ void MainWindow::updateHistoryButtons()
     m_redoAction->setEnabled(canRedo);
 
     qDebug() << "历史状态更新: 可撤销=" << canUndo << ", 可重做=" << canRedo;
+}
+
+void MainWindow::onResetLayoutRequested()
+{
+    qDebug() << "MainWindow::onResetLayoutRequested - 恢复默认布局";
+
+    // 显示所有停靠面板
+    m_projectExplorerDock->show();
+    m_propertiesDock->show();
+
+    // 恢复默认停靠位置
+    addDockWidget(Qt::LeftDockWidgetArea, m_projectExplorerDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+
+    // 取消浮动状态（如果面板被拖出主窗口）
+    m_projectExplorerDock->setFloating(false);
+    m_propertiesDock->setFloating(false);
+
+    statusBar()->showMessage(tr("布局已恢复"), 2000);
 }
