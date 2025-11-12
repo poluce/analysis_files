@@ -3,17 +3,6 @@
 #include <QDebug>
 #include <QThread>
 
-// 单例实例
-static AlgorithmThreadManager* s_instance = nullptr;
-
-AlgorithmThreadManager* AlgorithmThreadManager::instance()
-{
-    if (!s_instance) {
-        s_instance = new AlgorithmThreadManager();
-    }
-    return s_instance;
-}
-
 AlgorithmThreadManager::AlgorithmThreadManager(QObject* parent)
     : QObject(parent)
     , m_maxThreads(1)  // 默认单线程模式（v1.2 设计）

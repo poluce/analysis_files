@@ -468,37 +468,80 @@ AlgorithmManager::executeWithContext(name, context)
   → emit algorithmResultReady(...)
 ```
 
-### 10. 统一初始化模式 🆕
-使用 ApplicationContext 统一管理所有 MVC 实例的构造顺序:
+### 10. 统一初始化模式 🆕✨ （v2.0 - 完全依赖注入）
+
+**重大更新**：已移除所有单例模式，改为完全的依赖注入！
+
+使用 ApplicationContext 统一管理所有实例的生命周期和初始化顺序：
+
 ```cpp
 class ApplicationContext {
-    // 按正确的依赖顺序创建实例
-    void initialize() {
-        // 1. 核心数据管理
-        m_curveManager = new CurveManager();
+    ApplicationContext(QObject* parent) : QObject(parent) {
+        // ==================== 正确的依赖注入初始化顺序 ====================
 
-        // 2. 算法服务
-        m_algorithmManager = new AlgorithmManager(m_curveManager);
-        m_algorithmContext = new AlgorithmContext();
+        // 1. 基础设施层（无依赖）
+        m_threadManager = new AlgorithmThreadManager(this);
+        m_threadManager->setMaxThreads(1);  // 配置
+
+        m_historyManager = new HistoryManager(this);
+
+        // 2. 领域模型层
+        m_curveManager = new CurveManager(this);
+
+        // 3. 应用服务层（依赖注入）
+        m_algorithmManager = new AlgorithmManager(
+            m_threadManager,  // ✅ 显式注入 ThreadManager
+            this
+        );
+        m_algorithmManager->setCurveManager(m_curveManager);
+        m_algorithmManager->setHistoryManager(m_historyManager);
+
+        m_algorithmContext = new AlgorithmContext(this);
         m_algorithmCoordinator = new AlgorithmCoordinator(...);
+        m_projectTreeManager = new ProjectTreeManager(m_curveManager, this);
 
-        // 3. 项目管理
-        m_projectTreeManager = new ProjectTreeManager(m_curveManager);
+        // 4. 表示层（UI）
+        m_chartView = new ChartView();
+        m_chartView->setCurveManager(m_curveManager);
+        m_projectExplorerView = new ProjectExplorerView();
+        m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
+        m_mainWindow->bindHistoryManager(*m_historyManager);  // ✅ 传递实例
 
-        // 4. UI 组件
-        m_mainWindow = new MainWindow(...);
-        m_chartView = new ChartView(...);
-        m_projectExplorerView = new ProjectExplorerView(...);
-
-        // 5. 控制器
-        m_mainController = new MainController(...);
+        // 5. 控制器层
+        m_mainController = new MainController(
+            m_curveManager,
+            m_algorithmManager,  // ✅ 直接传递实例
+            m_historyManager,    // ✅ 直接传递实例
+            this
+        );
         m_curveViewController = new CurveViewController(...);
+
+        // 6. 注册算法（最后）
+        registerAlgorithms();
     }
 };
 ```
 
+**v2.0 重大改进**：
+- ❌ **移除单例模式**：AlgorithmManager、HistoryManager、AlgorithmThreadManager 不再是单例
+- ✅ **构造函数注入**：所有依赖通过构造函数显式传递（如 `new AlgorithmManager(threadManager, parent)`）
+- ✅ **生命周期管理**：ApplicationContext 统一管理所有实例的创建和销毁
+- ✅ **依赖关系显式化**：初始化顺序完全可控，无隐藏依赖
+- ✅ **可测试性提升**：易于注入 Mock 对象进行单元测试
+
+**v1.0 vs v2.0 对比**：
+
+| 特性 | v1.0（旧） | v2.0（新） |
+|------|-----------|-----------|
+| **AlgorithmManager** | `AlgorithmManager::instance()` ❌ | `new AlgorithmManager(threadManager, parent)` ✅ |
+| **ThreadManager** | 构造函数内部调用 `instance()` ❌ | 构造函数参数注入 ✅ |
+| **HistoryManager** | `HistoryManager::instance()` ❌ | `new HistoryManager(parent)` ✅ |
+| **初始化位置** | 分散在多处 ❌ | ApplicationContext 唯一入口 ✅ |
+| **依赖可见性** | 隐藏依赖 ❌ | 完全显式 ✅ |
+| **测试友好** | 难以 Mock ❌ | 易于注入 Mock ✅ |
+
 **优势**:
-- 依赖注入: 清晰的依赖关系,避免循环依赖
+- **依赖注入**: 清晰的依赖关系，避免循环依赖
 - 可测试性: 易于替换为 Mock 对象进行单元测试
 - 生命周期管理: 统一管理对象的创建和销毁
 - 配置集中: 所有初始化逻辑集中在一处
@@ -715,7 +758,17 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
 ## 已知限制和后续计划
 
 ### 最近完成 ✅
-- ✅ 统一初始化机制 (ApplicationContext)
+- ✅ **完全依赖注入架构重构** (2025-11-12) 🎉
+  - **移除所有单例模式**：AlgorithmManager、HistoryManager、AlgorithmThreadManager 不再是单例
+  - **构造函数注入**：所有依赖通过构造函数显式传递
+    - `AlgorithmManager(AlgorithmThreadManager*, QObject*)` - 强制注入线程管理器
+    - `AlgorithmThreadManager(QObject*)` - 公开构造函数
+    - `HistoryManager(QObject*)` - 公开构造函数
+  - **ApplicationContext v2.0**：统一管理所有实例的生命周期和初始化顺序
+  - **依赖关系完全显式化**：无隐藏依赖，初始化顺序完全可控
+  - **可测试性大幅提升**：易于注入 Mock 对象进行单元测试
+  - **符合 SOLID 原则**：依赖倒置、单一职责、开闭原则
+- ✅ 统一初始化机制 (ApplicationContext v1.0)
 - ✅ 算法上下文容器 (AlgorithmContext)
 - ✅ 算法流程协调器 (AlgorithmCoordinator)
 - ✅ 项目树管理器 (ProjectTreeManager 替换 CurveTreeModel)

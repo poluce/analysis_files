@@ -10,18 +10,26 @@
  * @brief HistoryManager 管理命令的历史记录，支持撤销和重做。
  *
  * 这个类实现了命令历史管理，维护撤销栈和重做栈。
- * 采用单例模式，确保全局只有一个历史管理器实例。
+ *
+ * 设计要点：
+ * - 通过 ApplicationContext 管理生命周期（依赖注入）
+ * - 使用 std::deque 实现 O(1) 的栈操作
+ * - 支持历史深度限制（默认50步）
  */
 class HistoryManager : public QObject {
     Q_OBJECT
 
 public:
     /**
-     * @brief 获取 HistoryManager 的单例实例。
-     * @param parent 父对象（仅在首次调用时有效）。
-     * @return HistoryManager 单例实例的指针。
+     * @brief 构造函数
+     * @param parent 父对象
      */
-    static HistoryManager* instance(QObject* parent = nullptr);
+    explicit HistoryManager(QObject* parent = nullptr);
+
+    /**
+     * @brief 析构函数
+     */
+    ~HistoryManager();
 
     /**
      * @brief 执行命令并将其添加到历史记录。
@@ -91,10 +99,6 @@ signals:
     void historyChanged();
 
 private:
-    // 单例模式：私有构造函数和析构函数
-    explicit HistoryManager(QObject* parent = nullptr);
-    ~HistoryManager();
-
     // 禁止拷贝构造和赋值
     HistoryManager(const HistoryManager&) = delete;
     HistoryManager& operator=(const HistoryManager&) = delete;

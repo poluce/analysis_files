@@ -8,12 +8,12 @@
 class AlgorithmWorker;
 
 /**
- * @brief 算法线程池管理器（单例）
+ * @brief 算法线程池管理器
  *
  * 管理工作线程池，负责创建、分配和回收工作线程。
  *
  * 设计要点：
- * - 单例模式，全局唯一实例
+ * - 通过 ApplicationContext 管理生命周期（依赖注入）
  * - 默认单线程模式（maxThreads = 1），适用于用户交互驱动的低并发场景
  * - 支持配置最大线程数（通过 setMaxThreads）
  * - 工作线程按需创建，达到上限后等待空闲线程
@@ -30,9 +30,10 @@ class AlgorithmThreadManager : public QObject {
 
 public:
     /**
-     * @brief 获取单例实例
+     * @brief 构造函数
+     * @param parent 父对象
      */
-    static AlgorithmThreadManager* instance();
+    explicit AlgorithmThreadManager(QObject* parent = nullptr);
 
     /**
      * @brief 设置最大线程数
@@ -80,9 +81,14 @@ signals:
      */
     void workerReleased();
 
-private:
-    explicit AlgorithmThreadManager(QObject* parent = nullptr);
+    /**
+     * @brief 析构函数
+     *
+     * 自动清理所有工作线程（quit + wait）
+     */
     ~AlgorithmThreadManager() override;
+
+private:
 
     // 禁用拷贝
     AlgorithmThreadManager(const AlgorithmThreadManager&) = delete;

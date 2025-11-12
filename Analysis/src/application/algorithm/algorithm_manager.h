@@ -22,24 +22,28 @@ class AlgorithmThreadManager;
  * @brief 算法服务类 - 管理算法注册和执行
  *
  * 纯上下文驱动设计：所有算法通过 executeWithContext() 执行。
+ *
+ * 设计要点：
+ * - 通过 ApplicationContext 管理生命周期（依赖注入）
+ * - 所有依赖（ThreadManager、HistoryManager）通过构造函数或 setter 注入
+ * - 支持同步执行（executeWithContext）和异步执行（executeAsync）
  */
 class AlgorithmManager : public QObject {
     Q_OBJECT
 public:
-    static AlgorithmManager* instance();
+    /**
+     * @brief 构造函数（依赖注入）
+     * @param threadManager 线程管理器实例（必需）
+     * @param parent 父对象
+     */
+    explicit AlgorithmManager(AlgorithmThreadManager* threadManager,
+                             QObject* parent = nullptr);
+
+    ~AlgorithmManager();
 
     void setCurveManager(CurveManager* manager);
     void registerAlgorithm(IThermalAlgorithm* algorithm);
     IThermalAlgorithm* getAlgorithm(const QString& name);
-
-    /**
-     * @brief 设置线程管理器（可选，默认使用单例）
-     * @param threadManager 线程管理器实例
-     *
-     * 用于依赖注入，提升可测试性。
-     * 如果不调用此方法，将使用默认的单例实例。
-     */
-    void setThreadManager(AlgorithmThreadManager* threadManager);
 
     /**
      * @brief 上下文驱动的算法执行（同步，在主线程执行）
@@ -186,8 +190,7 @@ signals:
     void queuedTaskCountChanged(int count);
 
 private:
-    explicit AlgorithmManager(QObject* parent = nullptr);
-    ~AlgorithmManager();
+    // 禁用拷贝
     AlgorithmManager(const AlgorithmManager&) = delete;
     AlgorithmManager& operator=(const AlgorithmManager&) = delete;
 

@@ -12,6 +12,9 @@ class ChartView;
 class ProjectExplorerView;
 class AlgorithmContext;
 class AlgorithmCoordinator;
+class AlgorithmThreadManager;
+class AlgorithmManager;
+class HistoryManager;
 
 /**
  * @brief ApplicationContext 统一管理应用启动时的 MVC 各实例创建顺序。
@@ -46,20 +49,25 @@ private:
      */
     void registerAlgorithms();
 
-    // Model
+    // Infrastructure（基础设施层）
+    AlgorithmThreadManager* m_threadManager { nullptr };
+    HistoryManager* m_historyManager { nullptr };
+
+    // Application Layer（应用层）
+    AlgorithmManager* m_algorithmManager { nullptr };
     CurveManager* m_curveManager { nullptr };
     ProjectTreeManager* m_projectTreeManager { nullptr };
+    AlgorithmContext* m_algorithmContext { nullptr };
+    AlgorithmCoordinator* m_algorithmCoordinator { nullptr };
 
-    // View
+    // Presentation Layer（表示层）
     ChartView* m_chartView { nullptr };
     ProjectExplorerView* m_projectExplorerView { nullptr };
     MainWindow* m_mainWindow { nullptr };
 
-    // Controller
+    // Controller Layer（控制层）
     MainController* m_mainController { nullptr };
     CurveViewController* m_curveViewController { nullptr };
-    AlgorithmContext* m_algorithmContext { nullptr };
-    AlgorithmCoordinator* m_algorithmCoordinator { nullptr };
 };
 
 #endif // APPLICATION_CONTEXT_H

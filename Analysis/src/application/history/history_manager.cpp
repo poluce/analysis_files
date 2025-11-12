@@ -10,12 +10,6 @@ HistoryManager::HistoryManager(QObject* parent)
 
 HistoryManager::~HistoryManager() { clear(); }
 
-HistoryManager* HistoryManager::instance(QObject* parent)
-{
-    static HistoryManager instance(parent);
-    return &instance;
-}
-
 bool HistoryManager::executeCommand(std::unique_ptr<ICommand> command)
 {
     qDebug() << "检查命令";
