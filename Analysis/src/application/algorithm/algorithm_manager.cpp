@@ -106,6 +106,9 @@ void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext*
     qDebug() << "输入类型:" << static_cast<int>(algorithm->inputType());
     qDebug() << "输出类型:" << static_cast<int>(algorithm->outputType());
 
+    // 设置 CurveManager 到上下文中（供算法访问其他曲线，如基线曲线）
+    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
+
     // ==================== 两阶段执行机制 ====================
     // 阶段1：准备上下文并验证数据完整性
     bool isReady = algorithm->prepareContext(context);
