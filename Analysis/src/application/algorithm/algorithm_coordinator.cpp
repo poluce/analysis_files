@@ -47,10 +47,7 @@ AlgorithmCoordinator::AlgorithmCoordinator(
 
 std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QString& algorithmName)
 {
-    if (!m_algorithmManager) {
-        return std::nullopt;
-    }
-
+    // m_algorithmManager 由依赖注入保证非空（构造函数中已 Q_ASSERT）
     IThermalAlgorithm* algorithm = m_algorithmManager->getAlgorithm(algorithmName);
     if (!algorithm) {
         qWarning() << "AlgorithmCoordinator::descriptorFor - 找不到算法" << algorithmName;

@@ -18,11 +18,8 @@ AlgorithmManager::AlgorithmManager(AlgorithmThreadManager* threadManager,
     : QObject(parent)
     , m_threadManager(threadManager)
 {
+    Q_ASSERT(m_threadManager != nullptr);  // 依赖注入保证非空
     qDebug() << "构造:    AlgorithmManager";
-
-    if (!m_threadManager) {
-        qFatal("AlgorithmManager: threadManager 不能为 null");
-    }
 
     // 注册元类型，用于跨线程信号传递
     qRegisterMetaType<AlgorithmTaskPtr>("AlgorithmTaskPtr");

@@ -444,8 +444,10 @@ void MainController::onPeakAreaToolRequested()
 {
     qDebug() << "MainController::onPeakAreaToolRequested - 峰面积工具请求";
 
-    if (!m_curveManager || !m_plotWidget || !m_mainWindow) {
-        qWarning() << "MainController::onPeakAreaToolRequested - 缺少必要组件";
+    // m_curveManager 由依赖注入保证非空（构造函数中已 Q_ASSERT）
+    // 只检查 setter 注入的可选组件
+    if (!m_plotWidget || !m_mainWindow) {
+        qWarning() << "MainController::onPeakAreaToolRequested - 缺少必要的 UI 组件";
         return;
     }
 
