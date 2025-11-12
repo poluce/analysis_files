@@ -483,31 +483,85 @@ qreal PeakAreaTool::getBaselineValue(qreal xValue)
     }
 
     case BaselineMode::ReferenceCurve: {
-        // 参考曲线基线：从基线曲线获取
-        if (!m_curveManager || m_baselineCurveId.isEmpty()) {
-            return 0.0;
+        // ==================== 性能优化：缓存 + 二分查找 ====================
+
+        // 1. 检查缓存是否有效
+        if (m_cachedBaselineCurveId != m_baselineCurveId || m_cachedBaselineData.isEmpty()) {
+            // 缓存失效，重新加载基线数据
+            if (!m_curveManager || m_baselineCurveId.isEmpty()) {
+                m_cachedBaselineData.clear();
+                m_cachedBaselineCurveId.clear();
+                return 0.0;
+            }
+
+            ThermalCurve* baseline = m_curveManager->getCurve(m_baselineCurveId);
+            if (!baseline) {
+                m_cachedBaselineData.clear();
+                m_cachedBaselineCurveId.clear();
+                return 0.0;
+            }
+
+            // 缓存基线数据
+            m_cachedBaselineData = baseline->getProcessedData();
+            m_cachedBaselineCurveId = m_baselineCurveId;
+
+            if (m_cachedBaselineData.isEmpty()) {
+                return 0.0;
+            }
         }
 
-        ThermalCurve* baseline = m_curveManager->getCurve(m_baselineCurveId);
-        if (!baseline) {
-            return 0.0;
-        }
+        const auto& data = m_cachedBaselineData;
 
-        const auto& data = baseline->getProcessedData();
-        if (data.isEmpty()) {
-            return 0.0;
-        }
-
-        // 查找最接近xValue的点（线性查找）
+        // 2. 使用二分查找（O(log n)）替代线性查找（O(n)）
+        // 假设数据已按 X 值（温度或时间）排序
+        int left = 0;
+        int right = data.size() - 1;
         int closestIndex = 0;
         double minDist = qAbs((m_useTimeAxis ? data[0].time : data[0].temperature) - xValue);
 
-        for (int i = 1; i < data.size(); ++i) {
-            double x = m_useTimeAxis ? data[i].time : data[i].temperature;
-            double dist = qAbs(x - xValue);
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            double midX = m_useTimeAxis ? data[mid].time : data[mid].temperature;
+            double dist = qAbs(midX - xValue);
+
             if (dist < minDist) {
                 minDist = dist;
-                closestIndex = i;
+                closestIndex = mid;
+            }
+
+            if (midX < xValue) {
+                left = mid + 1;
+            } else if (midX > xValue) {
+                right = mid - 1;
+            } else {
+                // 精确匹配
+                return data[mid].value;
+            }
+        }
+
+        // 3. 线性插值以提高精度（可选）
+        if (closestIndex > 0 && closestIndex < data.size() - 1) {
+            double x_mid = m_useTimeAxis ? data[closestIndex].time : data[closestIndex].temperature;
+
+            // 判断 xValue 在哪个区间
+            int i0, i1;
+            if (xValue < x_mid) {
+                i1 = closestIndex;
+                i0 = closestIndex - 1;
+            } else {
+                i0 = closestIndex;
+                i1 = closestIndex + 1;
+            }
+
+            double x0 = m_useTimeAxis ? data[i0].time : data[i0].temperature;
+            double x1 = m_useTimeAxis ? data[i1].time : data[i1].temperature;
+            double y0 = data[i0].value;
+            double y1 = data[i1].value;
+
+            if (qAbs(x1 - x0) > 1e-9) {
+                // 线性插值
+                double ratio = (xValue - x0) / (x1 - x0);
+                return y0 + ratio * (y1 - y0);
             }
         }
 
@@ -821,4 +875,8 @@ void PeakAreaTool::updateCache()
 void PeakAreaTool::markDirty()
 {
     m_isDirty = true;
+
+    // 清除基线缓存（当基线模式或曲线改变时）
+    m_cachedBaselineData.clear();
+    m_cachedBaselineCurveId.clear();
 }
