@@ -56,7 +56,8 @@ SOURCES += \
     src/infrastructure/algorithm/moving_average_filter_algorithm.cpp \
     src/infrastructure/algorithm/integration_algorithm.cpp \
     src/infrastructure/algorithm/baseline_correction_algorithm.cpp \
-    src/infrastructure/algorithm/peak_area_algorithm.cpp
+    src/infrastructure/algorithm/peak_area_algorithm.cpp \
+    src/infrastructure/algorithm/temperature_extrapolation_algorithm.cpp
 
 
 HEADERS += \
@@ -107,7 +108,8 @@ HEADERS += \
     src/infrastructure/algorithm/moving_average_filter_algorithm.h \
     src/infrastructure/algorithm/integration_algorithm.h \
     src/infrastructure/algorithm/baseline_correction_algorithm.h \
-    src/infrastructure/algorithm/peak_area_algorithm.h
+    src/infrastructure/algorithm/peak_area_algorithm.h \
+    src/infrastructure/algorithm/temperature_extrapolation_algorithm.h
 
 
 # FORMS section removed as UI is now code-based
