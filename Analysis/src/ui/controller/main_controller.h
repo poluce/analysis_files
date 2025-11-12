@@ -37,6 +37,16 @@ public:
     void setCurveViewController(CurveViewController* ViewController);
     void setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, AlgorithmContext* context);
 
+    /**
+     * @brief 完整性校验与状态标记
+     *
+     * 在所有依赖注入完成后调用，集中断言所有必需依赖非空，
+     * 并将控制器标记为"已初始化状态"。
+     *
+     * 调用顺序：构造函数 → setter 注入 → initialize()
+     */
+    void initialize();
+
 signals:
     /**
      * @brief 当一个曲线被加载并可用于在UI的其他部分显示时发出此信号。
@@ -97,15 +107,24 @@ private slots:
     void onAlgorithmProgress(const QString& taskId, int percentage, const QString& message);
 
 private:
+    // ==================== 初始化状态标记 ====================
+    bool m_initialized = false;  // 防止"半初始化对象"的运行时错误
+
+    // ==================== 依赖注入 ====================
+    // 构造函数注入（核心依赖）
     CurveManager* m_curveManager;         // 非拥有指针
-    DataImportWidget* m_dataImportWidget; // 拥有指针
     AlgorithmManager* m_algorithmManager; // 非拥有指针
+    HistoryManager* m_historyManager;     // 非拥有指针
+
+    // Setter 注入（延迟依赖，但也是必需的）
     AlgorithmCoordinator* m_algorithmCoordinator = nullptr; // 非拥有指针
     AlgorithmContext* m_algorithmContext = nullptr;         // 非拥有指针
-    HistoryManager* m_historyManager;     // 非拥有指针（单例）
     ChartView* m_plotWidget = nullptr;    // 非拥有指针
     MainWindow* m_mainWindow = nullptr;   // 非拥有指针
     CurveViewController* m_curveViewController = nullptr;
+
+    // 拥有的对象
+    DataImportWidget* m_dataImportWidget; // 拥有指针
 
     // ==================== 异步执行进度反馈 ====================
     class QProgressDialog* m_progressDialog = nullptr;  // 拥有指针

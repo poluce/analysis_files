@@ -87,6 +87,10 @@ ApplicationContext::ApplicationContext(QObject* parent)
     );
     m_mainController->setCurveViewController(m_curveViewController);
 
+    // ==================== 完整性校验与状态标记 ====================
+    // 所有依赖注入完成后，调用 initialize() 进行完整性校验
+    m_mainController->initialize();
+
     // 6. 注册算法（最后）
     registerAlgorithms();
 }
