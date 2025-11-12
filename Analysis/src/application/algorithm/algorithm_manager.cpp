@@ -322,6 +322,13 @@ QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* co
         return QString();
     }
 
+    // 2.5. 设置 CurveManager 到上下文中（供算法访问其他曲线，如基线曲线）
+    if (!m_curveManager) {
+        qWarning() << "[AlgorithmManager] executeAsync: CurveManager 未设置";
+        return QString();
+    }
+    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
+
     // 3. 调用 prepareContext() 验证数据完整性
     if (!algorithm->prepareContext(context)) {
         qWarning() << "[AlgorithmManager] executeAsync: prepareContext 失败，数据不完整";
