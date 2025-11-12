@@ -153,6 +153,41 @@ private:
      */
     void handleMouseLeave();
 
+    // ==================== 峰面积工具辅助函数 ====================
+    /**
+     * @brief 验证峰面积工具前置条件并获取目标曲线和系列
+     * @param outCurve 输出参数：目标曲线指针
+     * @param outSeries 输出参数：目标系列指针
+     * @return true=验证通过，false=验证失败
+     */
+    bool validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+
+    /**
+     * @brief 检查点击位置是否在绘图区域内
+     * @param viewportPos 视口坐标
+     * @param outChartPos 输出参数：图表坐标
+     * @return true=在绘图区内，false=不在绘图区内
+     */
+    bool isClickInsidePlotArea(const QPointF& viewportPos, QPointF* outChartPos);
+
+    /**
+     * @brief 计算动态延伸范围（基于当前 X 轴可见范围的百分比）
+     * @param percentage 百分比（默认 5%）
+     * @return 延伸范围值
+     */
+    qreal calculateDynamicRangeExtension(qreal percentage = 0.05);
+
+    /**
+     * @brief 应用峰面积工具的基线模式
+     * @param tool 峰面积工具指针
+     */
+    void applyPeakAreaBaseline(PeakAreaTool* tool);
+
+    /**
+     * @brief 重置峰面积工具状态
+     */
+    void resetPeakAreaToolState();
+
     // ==================== 右键拖动 ====================
     void handleRightDrag(const QPointF& currentPos);
 

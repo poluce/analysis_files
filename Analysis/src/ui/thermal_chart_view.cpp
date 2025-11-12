@@ -390,97 +390,150 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
     return false;
 }
 
-bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
-{
-    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 单次点击创建峰面积测量工具，点击位置:" << viewportPos;
+// ==================== 峰面积工具辅助函数实现 ====================
 
-    // 使用用户选择的计算曲线（不再依赖活动曲线）
+bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
+{
+    // 验证 CurveManager 和目标曲线 ID
     if (!m_curveManager || m_peakAreaCurveId.isEmpty()) {
-        qWarning() << "ThermalChartView::handlePeakAreaToolClick - CurveManager 未设置或未指定目标曲线";
+        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - CurveManager 未设置或未指定目标曲线";
         return false;
     }
 
+    // 获取目标曲线
     ThermalCurve* targetCurve = m_curveManager->getCurve(m_peakAreaCurveId);
     if (!targetCurve || !m_thermalChart) {
-        qWarning() << "ThermalChartView::handlePeakAreaToolClick - 无法获取目标曲线或 ThermalChart 未设置";
+        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线或 ThermalChart 未设置";
         return false;
     }
-
-    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 使用用户选择的曲线:" << targetCurve->name();
 
     // 获取目标曲线的系列（用于正确的坐标转换）
     QLineSeries* targetSeries = m_thermalChart->seriesForCurve(targetCurve->id());
     if (!targetSeries) {
-        qWarning() << "ThermalChartView::handlePeakAreaToolClick - 无法获取目标曲线的系列";
+        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线的系列";
         return false;
     }
 
-    // 检查点击位置是否在绘图区域内
+    qDebug() << "ThermalChartView::validatePeakAreaToolPreconditions - 使用用户选择的曲线:" << targetCurve->name();
+
+    // 输出结果
+    if (outCurve) *outCurve = targetCurve;
+    if (outSeries) *outSeries = targetSeries;
+
+    return true;
+}
+
+bool ThermalChartView::isClickInsidePlotArea(const QPointF& viewportPos, QPointF* outChartPos)
+{
     QPointF scenePos = mapToScene(viewportPos.toPoint());
     QPointF chartPos = chart()->mapFromScene(scenePos);
+
+    if (outChartPos) {
+        *outChartPos = chartPos;
+    }
+
     if (!chart()->plotArea().contains(chartPos)) {
-        qDebug() << "ThermalChartView::handlePeakAreaToolClick - 点击位置不在绘图区内，忽略";
-        // 重置状态
-        m_peakAreaToolActive = false;
-        m_peakAreaCurveId.clear();
-        m_peakAreaReferenceCurveId.clear();
-        setInteractionMode(InteractionMode::View);
+        qDebug() << "ThermalChartView::isClickInsidePlotArea - 点击位置不在绘图区内，忽略";
+        resetPeakAreaToolState();
         return false;
     }
 
-    // 使用目标曲线的坐标系进行转换
-    QPointF dataClick = chart()->mapToValue(chartPos, targetSeries);
+    return true;
+}
 
+qreal ThermalChartView::calculateDynamicRangeExtension(qreal percentage)
+{
+    qreal rangeExtension = 20.0; // 默认值
+
+    if (!m_thermalChart) {
+        return rangeExtension;
+    }
+
+    QAbstractAxis* axisX = m_thermalChart->axisX();
+    if (axisX) {
+        QValueAxis* valueAxisX = qobject_cast<QValueAxis*>(axisX);
+        if (valueAxisX) {
+            qreal axisRange = valueAxisX->max() - valueAxisX->min();
+            rangeExtension = axisRange * percentage;
+        }
+    }
+
+    return rangeExtension;
+}
+
+void ThermalChartView::applyPeakAreaBaseline(PeakAreaTool* tool)
+{
+    if (!tool) {
+        return;
+    }
+
+    if (m_peakAreaUseLinearBaseline) {
+        // 直线基线（默认）
+        tool->setBaselineMode(PeakAreaTool::BaselineMode::Linear);
+        qDebug() << "ThermalChartView::applyPeakAreaBaseline - 应用直线基线模式";
+    } else if (!m_peakAreaReferenceCurveId.isEmpty()) {
+        // 参考曲线基线
+        tool->setBaselineMode(PeakAreaTool::BaselineMode::ReferenceCurve);
+        tool->setReferenceCurve(m_peakAreaReferenceCurveId);
+        qDebug() << "ThermalChartView::applyPeakAreaBaseline - 应用参考曲线基线:" << m_peakAreaReferenceCurveId;
+    }
+}
+
+void ThermalChartView::resetPeakAreaToolState()
+{
+    m_peakAreaToolActive = false;
+    m_peakAreaCurveId.clear();
+    m_peakAreaReferenceCurveId.clear();
+    setInteractionMode(InteractionMode::View);
+}
+
+bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
+{
+    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 单次点击创建峰面积测量工具，点击位置:" << viewportPos;
+
+    // 1. 验证前置条件并获取目标曲线和系列
+    ThermalCurve* targetCurve = nullptr;
+    QLineSeries* targetSeries = nullptr;
+    if (!validatePeakAreaToolPreconditions(&targetCurve, &targetSeries)) {
+        return false;
+    }
+
+    // 2. 检查点击位置是否在绘图区域内
+    QPointF chartPos;
+    if (!isClickInsidePlotArea(viewportPos, &chartPos)) {
+        return false;
+    }
+
+    // 3. 进行坐标转换
+    QPointF dataClick = chart()->mapToValue(chartPos, targetSeries);
     qDebug() << "ThermalChartView::handlePeakAreaToolClick - 点击位置数据坐标:" << dataClick;
 
+    // 4. 获取曲线数据
     const auto& data = targetCurve->getProcessedData();
     if (data.isEmpty()) {
         qWarning() << "ThermalChartView::handlePeakAreaToolClick - 目标曲线数据为空";
         return false;
     }
 
-    // 自动在点击位置左右延伸范围（根据当前可见轴范围的 5% 动态计算）
-    qreal rangeExtension = 20.0; // 默认值
-    QAbstractAxis* axisX = m_thermalChart->axisX();
-    if (axisX) {
-        QValueAxis* valueAxisX = qobject_cast<QValueAxis*>(axisX);
-        if (valueAxisX) {
-            qreal axisRange = valueAxisX->max() - valueAxisX->min();
-            rangeExtension = axisRange * 0.05; // 5% 的轴范围
-        }
-    }
-
+    // 5. 计算动态延伸范围（5% 的轴范围）
+    qreal rangeExtension = calculateDynamicRangeExtension(0.05);
     qreal startX = dataClick.x() - rangeExtension;
     qreal endX = dataClick.x() + rangeExtension;
 
-    // 查找最接近的点
+    // 6. 查找最接近的点
     ThermalDataPoint point1 = findNearestDataPoint(data, startX);
     ThermalDataPoint point2 = findNearestDataPoint(data, endX);
 
     qDebug() << "ThermalChartView::handlePeakAreaToolClick - 自动延伸范围: ±" << rangeExtension;
 
-    // 创建峰面积测量工具（委托给 ThermalChart）
+    // 7. 创建峰面积测量工具
     PeakAreaTool* tool = m_thermalChart->addPeakAreaTool(point1, point2, targetCurve->id());
 
-    // 应用基线模式（直线基线 或 参考曲线基线）
-    if (tool) {
-        if (m_peakAreaUseLinearBaseline) {
-            // 直线基线（默认）
-            tool->setBaselineMode(PeakAreaTool::BaselineMode::Linear);
-            qDebug() << "ThermalChartView::handlePeakAreaToolClick - 应用直线基线模式";
-        } else if (!m_peakAreaReferenceCurveId.isEmpty()) {
-            // 参考曲线基线
-            tool->setBaselineMode(PeakAreaTool::BaselineMode::ReferenceCurve);
-            tool->setReferenceCurve(m_peakAreaReferenceCurveId);
-            qDebug() << "ThermalChartView::handlePeakAreaToolClick - 应用参考曲线基线:" << m_peakAreaReferenceCurveId;
-        }
-    }
+    // 8. 应用基线模式
+    applyPeakAreaBaseline(tool);
 
-    // 重置状态
-    m_peakAreaToolActive = false;
-    m_peakAreaCurveId.clear();
-    m_peakAreaReferenceCurveId.clear();
-    setInteractionMode(InteractionMode::View);
+    // 9. 重置状态
+    resetPeakAreaToolState();
 
     return false;
 }
