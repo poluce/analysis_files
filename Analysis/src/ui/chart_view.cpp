@@ -416,8 +416,7 @@ void ChartView::handlePointSelection(const QPointF& value)
              << "选点进度:" << m_selectedPoints.size() << "/" << m_activeAlgorithm.requiredPointCount;
 
     // ==================== 立即显示选点标记 ====================
-    // 每次选点后立即在选点系列中添加显示点
-    bool useTemperature = (xAxisMode() == 0);  // 0 = Temperature
+    // 每次选点后立即在选点系列中添加显示点（复用上面的 useTemperature 变量）
     qreal xValue = useTemperature ? selectedDataPoint.temperature : selectedDataPoint.time;
     QPointF displayPoint(xValue, selectedDataPoint.value);
     m_chart->addSelectedPoint(displayPoint);

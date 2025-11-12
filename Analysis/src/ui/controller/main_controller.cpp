@@ -29,9 +29,9 @@ MainController::MainController(CurveManager* curveManager,
                                QObject* parent)
     : QObject(parent)
     , m_curveManager(curveManager)
-    , m_dataImportWidget(new DataImportWidget())
     , m_algorithmManager(algorithmManager)
     , m_historyManager(historyManager)
+    , m_dataImportWidget(new DataImportWidget())
 {
     Q_ASSERT(m_curveManager);
     Q_ASSERT(m_algorithmManager);
