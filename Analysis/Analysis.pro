@@ -114,10 +114,11 @@ HEADERS += \
 
 # FORMS section removed as UI is now code-based
 
+# 翻译配置（临时禁用 embed_translations 以避免路径问题）
 TRANSLATIONS += \
     Analysis_zh_CN.ts
 CONFIG += lrelease
-CONFIG += embed_translations
+# CONFIG += embed_translations  # 暂时注释以解决编译错误
 
 # Default rules for deployment.
 qnx: target.path = /tmp/${TARGET}/bin
