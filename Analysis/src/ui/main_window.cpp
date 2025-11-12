@@ -229,6 +229,9 @@ QToolBar* MainWindow::createMathToolBar()
     // 添加基线校正按钮
     QAction* baselineAction = toolbar->addAction(tr("基线校正"));
     baselineAction->setData("baseline_correction");
+    // 添加外推温度按钮
+    QAction* tempExtrapolationAction = toolbar->addAction(tr("外推温度"));
+    tempExtrapolationAction->setData("temperature_extrapolation");
     // 添加峰面积测量工具按钮（可交互式）
     QAction* peakAreaAction = toolbar->addAction(tr("峰面积"));
     connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onPeakAreaToolRequested);
@@ -237,6 +240,7 @@ QToolBar* MainWindow::createMathToolBar()
     connect(massLossAction, &QAction::triggered, this, &MainWindow::onMassLossToolRequested);
     connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
     connect(baselineAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
+    connect(tempExtrapolationAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(diffAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(integAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
 

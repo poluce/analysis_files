@@ -106,6 +106,9 @@ void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext*
     qDebug() << "输入类型:" << static_cast<int>(algorithm->inputType());
     qDebug() << "输出类型:" << static_cast<int>(algorithm->outputType());
 
+    // 设置 CurveManager 到上下文中（供算法访问其他曲线，如基线曲线）
+    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
+
     // ==================== 两阶段执行机制 ====================
     // 阶段1：准备上下文并验证数据完整性
     bool isReady = algorithm->prepareContext(context);
@@ -318,6 +321,13 @@ QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* co
         qWarning() << "[AlgorithmManager] executeAsync: 上下文为空";
         return QString();
     }
+
+    // 2.5. 设置 CurveManager 到上下文中（供算法访问其他曲线，如基线曲线）
+    if (!m_curveManager) {
+        qWarning() << "[AlgorithmManager] executeAsync: CurveManager 未设置";
+        return QString();
+    }
+    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
 
     // 3. 调用 prepareContext() 验证数据完整性
     if (!algorithm->prepareContext(context)) {

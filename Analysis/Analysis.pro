@@ -56,7 +56,8 @@ SOURCES += \
     src/infrastructure/algorithm/moving_average_filter_algorithm.cpp \
     src/infrastructure/algorithm/integration_algorithm.cpp \
     src/infrastructure/algorithm/baseline_correction_algorithm.cpp \
-    src/infrastructure/algorithm/peak_area_algorithm.cpp
+    src/infrastructure/algorithm/peak_area_algorithm.cpp \
+    src/infrastructure/algorithm/temperature_extrapolation_algorithm.cpp
 
 
 HEADERS += \
@@ -107,15 +108,17 @@ HEADERS += \
     src/infrastructure/algorithm/moving_average_filter_algorithm.h \
     src/infrastructure/algorithm/integration_algorithm.h \
     src/infrastructure/algorithm/baseline_correction_algorithm.h \
-    src/infrastructure/algorithm/peak_area_algorithm.h
+    src/infrastructure/algorithm/peak_area_algorithm.h \
+    src/infrastructure/algorithm/temperature_extrapolation_algorithm.h
 
 
 # FORMS section removed as UI is now code-based
 
+# 翻译配置（临时禁用 embed_translations 以避免路径问题）
 TRANSLATIONS += \
     Analysis_zh_CN.ts
 CONFIG += lrelease
-CONFIG += embed_translations
+# CONFIG += embed_translations  # 暂时注释以解决编译错误
 
 # Default rules for deployment.
 qnx: target.path = /tmp/${TARGET}/bin
