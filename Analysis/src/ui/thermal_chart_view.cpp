@@ -331,61 +331,86 @@ void ThermalChartView::handleMouseLeave()
     }
 }
 
-bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
-{
-    qDebug() << "ThermalChartView::handleMassLossToolClick - 单次点击创建质量损失测量工具，点击位置:" << viewportPos;
+// ==================== 质量损失工具辅助函数实现 ====================
 
-    // 使用当前活动曲线进行测量
+bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
+{
+    // 验证 CurveManager
     if (!m_curveManager) {
-        qWarning() << "ThermalChartView::handleMassLossToolClick - CurveManager 未设置";
+        qWarning() << "ThermalChartView::validateMassLossToolPreconditions - CurveManager 未设置";
         return false;
     }
 
+    // 获取活动曲线
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve || !m_thermalChart) {
-        qWarning() << "ThermalChartView::handleMassLossToolClick - 没有活动曲线或 ThermalChart 未设置";
+        qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 没有活动曲线或 ThermalChart 未设置";
         return false;
     }
-
-    qDebug() << "ThermalChartView::handleMassLossToolClick - 使用活动曲线:" << activeCurve->name();
 
     // 获取活动曲线的系列（用于正确的坐标转换）
     QLineSeries* activeSeries = m_thermalChart->seriesForCurve(activeCurve->id());
     if (!activeSeries) {
-        qWarning() << "ThermalChartView::handleMassLossToolClick - 无法获取活动曲线的系列";
+        qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 无法获取活动曲线的系列";
         return false;
     }
 
-    // 使用活动曲线的坐标系进行转换
+    qDebug() << "ThermalChartView::validateMassLossToolPreconditions - 使用活动曲线:" << activeCurve->name();
+
+    // 输出结果
+    if (outCurve) *outCurve = activeCurve;
+    if (outSeries) *outSeries = activeSeries;
+
+    return true;
+}
+
+void ThermalChartView::resetMassLossToolState()
+{
+    m_massLossToolActive = false;
+    setInteractionMode(InteractionMode::View);
+}
+
+bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
+{
+    qDebug() << "ThermalChartView::handleMassLossToolClick - 单次点击创建质量损失测量工具，点击位置:" << viewportPos;
+
+    // 1. 验证前置条件并获取活动曲线和系列
+    ThermalCurve* activeCurve = nullptr;
+    QLineSeries* activeSeries = nullptr;
+    if (!validateMassLossToolPreconditions(&activeCurve, &activeSeries)) {
+        return false;
+    }
+
+    // 2. 进行坐标转换
     QPointF scenePos = mapToScene(viewportPos.toPoint());
     QPointF chartPos = chart()->mapFromScene(scenePos);
     QPointF dataClick = chart()->mapToValue(chartPos, activeSeries);
 
     qDebug() << "ThermalChartView::handleMassLossToolClick - 点击位置数据坐标:" << dataClick;
 
+    // 3. 获取曲线数据
     const auto& data = activeCurve->getProcessedData();
     if (data.isEmpty()) {
         qWarning() << "ThermalChartView::handleMassLossToolClick - 活动曲线数据为空";
         return false;
     }
 
-    // 自动在点击位置左右延伸范围（默认左右各延伸15°C）
+    // 4. 计算延伸范围（固定 15.0°C）
     qreal rangeExtension = 15.0;
     qreal startX = dataClick.x() - rangeExtension;
     qreal endX = dataClick.x() + rangeExtension;
 
-    // 查找最接近的点
+    // 5. 查找最接近的点
     ThermalDataPoint point1 = findNearestDataPoint(data, startX);
     ThermalDataPoint point2 = findNearestDataPoint(data, endX);
 
     qDebug() << "ThermalChartView::handleMassLossToolClick - 自动延伸范围: ±" << rangeExtension;
 
-    // 创建测量工具（委托给 ThermalChart）
+    // 6. 创建测量工具（委托给 ThermalChart）
     m_thermalChart->addMassLossTool(point1, point2, activeCurve->id());
 
-    // 重置状态
-    m_massLossToolActive = false;
-    setInteractionMode(InteractionMode::View);
+    // 7. 重置状态
+    resetMassLossToolState();
 
     return false;
 }

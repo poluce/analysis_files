@@ -153,6 +153,20 @@ private:
      */
     void handleMouseLeave();
 
+    // ==================== 质量损失工具辅助函数 ====================
+    /**
+     * @brief 验证质量损失工具前置条件并获取活动曲线和系列
+     * @param outCurve 输出参数：活动曲线指针
+     * @param outSeries 输出参数：活动系列指针
+     * @return true=验证通过，false=验证失败
+     */
+    bool validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+
+    /**
+     * @brief 重置质量损失工具状态
+     */
+    void resetMassLossToolState();
+
     // ==================== 峰面积工具辅助函数 ====================
     /**
      * @brief 验证峰面积工具前置条件并获取目标曲线和系列
