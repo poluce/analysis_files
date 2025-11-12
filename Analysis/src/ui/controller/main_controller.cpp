@@ -29,9 +29,9 @@ MainController::MainController(CurveManager* curveManager,
                                QObject* parent)
     : QObject(parent)
     , m_curveManager(curveManager)
-    , m_dataImportWidget(new DataImportWidget())
     , m_algorithmManager(algorithmManager)
     , m_historyManager(historyManager)
+    , m_dataImportWidget(new DataImportWidget())
 {
     Q_ASSERT(m_curveManager);
     Q_ASSERT(m_algorithmManager);
@@ -180,6 +180,28 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
     qDebug() << "[MainController] 已连接 AlgorithmCoordinator 的异步执行信号";
 }
 
+// ==================== 完整性校验与状态标记 ====================
+
+void MainController::initialize()
+{
+    // 断言所有必需依赖（构造函数注入 + setter 注入）
+    Q_ASSERT(m_curveManager != nullptr);
+    Q_ASSERT(m_algorithmManager != nullptr);
+    Q_ASSERT(m_historyManager != nullptr);
+    Q_ASSERT(m_plotWidget != nullptr);
+    Q_ASSERT(m_mainWindow != nullptr);
+    Q_ASSERT(m_curveViewController != nullptr);
+    Q_ASSERT(m_algorithmCoordinator != nullptr);
+    Q_ASSERT(m_algorithmContext != nullptr);
+
+    // 标记为已初始化状态
+    m_initialized = true;
+
+    qDebug() << "✅ MainController 初始化完成，所有依赖已就绪";
+}
+
+// ==================== 业务逻辑槽函数 ====================
+
 void MainController::onShowDataImport() { m_dataImportWidget->show(); }
 
 void MainController::onPreviewRequested(const QString& filePath)
@@ -237,14 +259,12 @@ void MainController::onImportTriggered()
 // ========== 处理命令的槽函数（命令路径：UI → Controller → Service） ==========
 void MainController::onAlgorithmRequested(const QString& algorithmName, const QVariantMap& params)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 统一使用 AlgorithmCoordinator 架构
-    if (!m_algorithmCoordinator) {
-        qCritical() << "AlgorithmCoordinator 未初始化！无法执行算法：" << algorithmName;
-        return;
-    }
+    // 统一使用 AlgorithmCoordinator 架构（依赖已保证非空）
 
     m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
 }
@@ -252,6 +272,8 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
 
 void MainController::onUndo()
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "MainController: 执行撤销操作";
 
     if (!m_historyManager->canUndo()) {
@@ -267,6 +289,8 @@ void MainController::onUndo()
 
 void MainController::onRedo()
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "MainController: 执行重做操作";
 
     if (!m_historyManager->canRedo()) {
@@ -283,6 +307,8 @@ void MainController::onRedo()
 // ========== 响应UI的曲线删除请求 ==========
 void MainController::onCurveDeleteRequested(const QString& curveId)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "MainController::onCurveDeleteRequested - 曲线ID:" << curveId;
 
     // 1. 检查曲线是否存在
@@ -369,14 +395,11 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "MainController::onCoordinatorRequestPointSelection - 算法:" << algorithmName
              << ", 曲线ID:" << curveId
              << ", 需要点数:" << requiredPoints;
-
-    if (!m_plotWidget) {
-        qWarning() << "MainController::onCoordinatorRequestPointSelection - 未绑定 ChartView";
-        return;
-    }
 
     // ==================== 使用新的活动算法状态机 ====================
     // 获取算法的显示名称
@@ -399,19 +422,19 @@ void MainController::onCoordinatorRequestPointSelection(
 
 void MainController::onCoordinatorShowMessage(const QString& text)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     if (text.isEmpty()) {
         return;
     }
 
-    if (m_mainWindow) {
-        QMessageBox::information(m_mainWindow, tr("提示"), text);
-    } else {
-        qInfo() << text;
-    }
+    QMessageBox::information(m_mainWindow, tr("提示"), text);
 }
 
 void MainController::onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qWarning() << "算法执行失败:" << algorithmName << reason;
 
     cleanupProgressDialog();
@@ -419,14 +442,14 @@ void MainController::onCoordinatorAlgorithmFailed(const QString& algorithmName, 
     m_currentAlgorithmName.clear();
 
     // 显示错误提示
-    if (m_mainWindow) {
-        QMessageBox::warning(
-            m_mainWindow, tr("算法失败"), tr("算法 %1 执行失败：%2").arg(algorithmName, reason));
-    }
+    QMessageBox::warning(
+        m_mainWindow, tr("算法失败"), tr("算法 %1 执行失败：%2").arg(algorithmName, reason));
 }
 
 void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmName)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qInfo() << "算法执行完成:" << algorithmName;
 
     cleanupProgressDialog();
@@ -442,12 +465,9 @@ void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmNam
 
 void MainController::onPeakAreaToolRequested()
 {
-    qDebug() << "MainController::onPeakAreaToolRequested - 峰面积工具请求";
+    Q_ASSERT(m_initialized);  // 确保依赖完整
 
-    if (!m_curveManager || !m_plotWidget || !m_mainWindow) {
-        qWarning() << "MainController::onPeakAreaToolRequested - 缺少必要组件";
-        return;
-    }
+    qDebug() << "MainController::onPeakAreaToolRequested - 峰面积工具请求";
 
     // 检查是否有可用曲线
     if (m_curveManager->getAllCurves().isEmpty()) {
@@ -487,6 +507,8 @@ void MainController::onPeakAreaToolRequested()
 
 void MainController::onAlgorithmStarted(const QString& taskId, const QString& algorithmName)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "[MainController] 算法开始执行:" << algorithmName << "taskId:" << taskId;
 
     // 保存任务ID
@@ -510,6 +532,8 @@ void MainController::onAlgorithmStarted(const QString& taskId, const QString& al
 
 void MainController::onAlgorithmProgress(const QString& taskId, int percentage, const QString& message)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 验证任务ID
     if (taskId != m_currentTaskId) {
         return;  // 不是当前任务的进度信号，忽略

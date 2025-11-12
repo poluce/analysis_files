@@ -255,10 +255,28 @@ private:
 
 private:
     // ==================== 组合的核心组件 ====================
-    ThermalChart* m_chart = nullptr;            // 数据管理（拥有所有权）
-    ThermalChartView* m_chartView = nullptr;    // 交互处理（拥有所有权）
+    /**
+     * @brief ThermalChart - 数据管理层（拥有所有权）
+     *
+     * 生命周期：在构造函数中创建，与 ChartView 绑定，不可能为 nullptr
+     * 无需在使用前进行空指针检查
+     */
+    ThermalChart* m_chart = nullptr;
 
-    CurveManager* m_curveManager = nullptr;     // 曲线管理器（外部依赖）
+    /**
+     * @brief ThermalChartView - 交互处理层（拥有所有权）
+     *
+     * 生命周期：在构造函数中创建，与 ChartView 绑定，不可能为 nullptr
+     * 无需在使用前进行空指针检查
+     */
+    ThermalChartView* m_chartView = nullptr;
+
+    /**
+     * @brief CurveManager - 曲线管理器（外部依赖，通过 setter 注入）
+     *
+     * 可能为 nullptr，使用前需要检查
+     */
+    CurveManager* m_curveManager = nullptr;
 
     // ==================== 算法交互状态机（ChartView 核心职责）====================
     InteractionState m_interactionState = InteractionState::Idle;  // 当前交互状态
