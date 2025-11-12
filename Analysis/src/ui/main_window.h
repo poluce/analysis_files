@@ -120,6 +120,11 @@ signals:
      */
     void peakAreaToolRequested();
 
+    /**
+     * @brief 请求恢复默认窗口布局
+     */
+    void resetLayoutRequested();
+
 private slots:
     /**
      * @brief 处理"打开文件"按钮点击
@@ -151,6 +156,11 @@ private slots:
      * @brief 处理峰面积测量工具请求
      */
     void onPeakAreaToolRequested();
+
+    /**
+     * @brief 处理恢复默认布局请求
+     */
+    void onResetLayoutRequested();
 
 private:
     /**
@@ -230,6 +240,10 @@ private:
     // --- 操作 ---
     QAction* m_undoAction { nullptr };
     QAction* m_redoAction { nullptr };
+
+    // --- 视图操作 ---
+    QAction* m_toggleProjectExplorerAction { nullptr };
+    QAction* m_togglePropertiesAction { nullptr };
 
     // --- 服务与控制器 ---
     HistoryManager* m_historyManager { nullptr };
