@@ -314,21 +314,24 @@ bool TemperatureExtrapolationAlgorithm::findBaselineCurve(AlgorithmContext* cont
     const ThermalCurve& activeCurve = activeCurveOpt.value();
     QString parentId = activeCurve.id();
 
-    // 获取所有曲线
-    QList<ThermalCurve*> allCurves = curveManager->getCurves();
+    // 使用 CurveManager 的 getBaselines() 方法获取所有基线曲线
+    QVector<ThermalCurve*> baselines = curveManager->getBaselines(parentId);
 
-    // 在子曲线中查找 SignalType::Baseline 的曲线
-    for (ThermalCurve* curve : allCurves) {
-        if (curve->parentId() == parentId && curve->signalType() == SignalType::Baseline) {
-            baselineCurve = *curve;  // 复制曲线数据
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-            qDebug() << "TemperatureExtrapolationAlgorithm::findBaselineCurve - 找到基线曲线:" << curve->name();
-#endif
-            return true;
-        }
+    if (baselines.isEmpty()) {
+        return false;
     }
 
-    return false;
+    // 使用第一条基线曲线（如果有多条，可以让用户选择或使用最新的）
+    baselineCurve = *baselines.first();  // 复制曲线数据
+
+#if DEBUG_TEMPERATURE_EXTRAPOLATION
+    qDebug() << "TemperatureExtrapolationAlgorithm::findBaselineCurve - 找到基线曲线:" << baselineCurve.name();
+    if (baselines.size() > 1) {
+        qDebug() << "  提示：找到" << baselines.size() << "条基线曲线，使用第一条";
+    }
+#endif
+
+    return true;
 }
 
 double TemperatureExtrapolationAlgorithm::getBaselineYAtTemperature(
