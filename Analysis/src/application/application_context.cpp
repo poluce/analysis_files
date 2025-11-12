@@ -22,62 +22,73 @@
 ApplicationContext::ApplicationContext(QObject* parent)
     : QObject(parent)
 {
-    // ==================== 统一单例管理（唯一触达点） ====================
-    // 在此处获取所有单例，避免在多处重复调用 instance()
-    auto* algorithmManager = AlgorithmManager::instance();
-    auto* historyManager = HistoryManager::instance();
-    auto* threadManager = AlgorithmThreadManager::instance();
+    // ==================== 正确的依赖注入初始化顺序 ====================
 
-    // 配置线程数（可选，默认为 1）
-    // threadManager->setMaxThreads(2);  // 例如：双线程模式
+    // 1. 基础设施层（无依赖）
+    m_threadManager = new AlgorithmThreadManager(this);
+    m_threadManager->setMaxThreads(1);  // 配置：默认单线程模式
 
-    registerAlgorithms();
+    m_historyManager = new HistoryManager(this);
 
-    // 1. Model
+    // 2. 领域模型层
     m_curveManager = new CurveManager(this);
-    m_projectTreeManager = new ProjectTreeManager(m_curveManager, this);
 
-    // Algorithm coordination
+    // 3. 应用服务层（依赖注入）
+    m_algorithmManager = new AlgorithmManager(
+        m_threadManager,  // ✅ 显式注入 ThreadManager
+        this
+    );
+    m_algorithmManager->setCurveManager(m_curveManager);
+    m_algorithmManager->setHistoryManager(m_historyManager);
+
     m_algorithmContext = new AlgorithmContext(this);
+
     m_algorithmCoordinator = new AlgorithmCoordinator(
-        algorithmManager,
+        m_algorithmManager,
         m_curveManager,
         m_algorithmContext,
         this
     );
 
-    // 设置 AlgorithmManager 的依赖（历史管理器、线程管理器）
-    algorithmManager->setHistoryManager(historyManager);
-    algorithmManager->setThreadManager(threadManager);
+    m_projectTreeManager = new ProjectTreeManager(m_curveManager, this);
 
-    // 2. View
+    // 4. 表示层（UI）
     m_chartView = new ChartView();
     m_chartView->setCurveManager(m_curveManager);  // 设置曲线管理器，用于获取曲线数据
-    m_projectExplorerView = new ProjectExplorerView();
-    m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
-    m_mainWindow->bindHistoryManager(*historyManager);
 
-    // 连接 AlgorithmManager 的标注点信号到 ChartView（使用 lambda 处理默认参数）
-    connect(algorithmManager, &AlgorithmManager::markersGenerated,
+    m_projectExplorerView = new ProjectExplorerView();
+
+    m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
+    m_mainWindow->bindHistoryManager(*m_historyManager);  // ✅ 传递实例而非单例
+
+    // 连接 AlgorithmManager 的标注点信号到 ChartView
+    connect(m_algorithmManager, &AlgorithmManager::markersGenerated,
             m_chartView, [this](const QString& curveId, const QList<QPointF>& markers, const QColor& color) {
-                m_chartView->addCurveMarkers(curveId, markers, color, 12.0);  // size 使用默认值 12.0
+                m_chartView->addCurveMarkers(curveId, markers, color, 12.0);
             });
 
-    // 3. Controller
+    // 5. 控制器层
     m_mainController = new MainController(
         m_curveManager,
-        algorithmManager,
-        historyManager,
+        m_algorithmManager,  // ✅ 直接传递实例
+        m_historyManager,    // ✅ 直接传递实例
         this
     );
     m_mainController->setPlotWidget(m_chartView);
     m_mainController->setAlgorithmCoordinator(m_algorithmCoordinator, m_algorithmContext);
     m_mainController->attachMainWindow(m_mainWindow);
 
-    m_curveViewController
-        = new CurveViewController(m_curveManager, m_chartView, m_projectTreeManager, m_projectExplorerView, this);
+    m_curveViewController = new CurveViewController(
+        m_curveManager,
+        m_chartView,
+        m_projectTreeManager,
+        m_projectExplorerView,
+        this
+    );
     m_mainController->setCurveViewController(m_curveViewController);
 
+    // 6. 注册算法（最后）
+    registerAlgorithms();
 }
 
 ApplicationContext::~ApplicationContext()
@@ -90,14 +101,11 @@ void ApplicationContext::start() { m_mainWindow->show(); }
 
 void ApplicationContext::registerAlgorithms()
 {
-    // 注意：此方法在构造函数中调用，早于 algorithmManager 局部变量的创建
-    // 因此这里仍需要调用 instance()，但这是整个应用启动时的一次性操作
-    auto* manager = AlgorithmManager::instance();
-    manager->registerAlgorithm(new DifferentiationAlgorithm());
-    manager->registerAlgorithm(new MovingAverageFilterAlgorithm());
-    manager->registerAlgorithm(new IntegrationAlgorithm());
-
-    manager->registerAlgorithm(new BaselineCorrectionAlgorithm());
-    manager->registerAlgorithm(new PeakAreaAlgorithm());
-    manager->registerAlgorithm(new TemperatureExtrapolationAlgorithm());
+    // ✅ 使用成员变量，不再调用单例
+    m_algorithmManager->registerAlgorithm(new DifferentiationAlgorithm());
+    m_algorithmManager->registerAlgorithm(new MovingAverageFilterAlgorithm());
+    m_algorithmManager->registerAlgorithm(new IntegrationAlgorithm());
+    m_algorithmManager->registerAlgorithm(new BaselineCorrectionAlgorithm());
+    m_algorithmManager->registerAlgorithm(new PeakAreaAlgorithm());
+    m_algorithmManager->registerAlgorithm(new TemperatureExtrapolationAlgorithm());
 }

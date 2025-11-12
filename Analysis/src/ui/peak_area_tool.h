@@ -259,6 +259,10 @@ private:
     QPolygonF m_cachedPolygon;          ///< 缓存的区域多边形（场景坐标）
     bool m_isDirty;                     ///< 脏标记：数据已改变，需要重新计算缓存
 
+    // 性能优化：基线数据缓存
+    QVector<ThermalDataPoint> m_cachedBaselineData;  ///< 缓存的基线曲线数据（避免重复查询）
+    QString m_cachedBaselineCurveId;                 ///< 缓存数据对应的曲线ID
+
     // 交互状态
     enum DragState {
         None,            ///< 无拖动

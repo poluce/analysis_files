@@ -13,17 +13,16 @@
 #include <QMetaObject>
 #include <memory>
 
-AlgorithmManager* AlgorithmManager::instance()
-{
-    static AlgorithmManager service;
-    return &service;
-}
-
-AlgorithmManager::AlgorithmManager(QObject* parent)
+AlgorithmManager::AlgorithmManager(AlgorithmThreadManager* threadManager,
+                                   QObject* parent)
     : QObject(parent)
-    , m_threadManager(AlgorithmThreadManager::instance())  // 默认使用单例
+    , m_threadManager(threadManager)
 {
     qDebug() << "构造:    AlgorithmManager";
+
+    if (!m_threadManager) {
+        qFatal("AlgorithmManager: threadManager 不能为 null");
+    }
 
     // 注册元类型，用于跨线程信号传递
     qRegisterMetaType<AlgorithmTaskPtr>("AlgorithmTaskPtr");
@@ -38,23 +37,6 @@ AlgorithmManager::AlgorithmManager(QObject* parent)
 AlgorithmManager::~AlgorithmManager() { qDeleteAll(m_algorithms); }
 
 void AlgorithmManager::setCurveManager(CurveManager* manager) { m_curveManager = manager; }
-
-void AlgorithmManager::setThreadManager(AlgorithmThreadManager* threadManager)
-{
-    if (m_threadManager) {
-        // 断开旧连接
-        disconnect(m_threadManager, &AlgorithmThreadManager::workerReleased,
-                   this, &AlgorithmManager::processQueue);
-    }
-
-    m_threadManager = threadManager;
-
-    if (m_threadManager) {
-        // 连接新管理器的信号
-        connect(m_threadManager, &AlgorithmThreadManager::workerReleased,
-                this, &AlgorithmManager::processQueue);
-    }
-}
 
 void AlgorithmManager::registerAlgorithm(IThermalAlgorithm* algorithm)
 {
