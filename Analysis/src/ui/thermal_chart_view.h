@@ -112,6 +112,47 @@ private:
     QLineSeries* findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const;
     qreal hitThreshold() const;
 
+    // ==================== EventFilter 事件处理辅助函数 ====================
+    /**
+     * @brief 处理右键按下事件
+     * @param mouseEvent 鼠标事件
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleRightButtonPress(QMouseEvent* mouseEvent);
+
+    /**
+     * @brief 处理右键释放事件
+     * @param mouseEvent 鼠标事件
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleRightButtonRelease(QMouseEvent* mouseEvent);
+
+    /**
+     * @brief 处理右键拖动事件
+     * @param mouseEvent 鼠标事件
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleRightButtonDrag(QMouseEvent* mouseEvent);
+
+    /**
+     * @brief 处理质量损失测量工具的单次点击创建
+     * @param viewportPos 点击位置（视口坐标）
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleMassLossToolClick(const QPointF& viewportPos);
+
+    /**
+     * @brief 处理峰面积测量工具的单次点击创建
+     * @param viewportPos 点击位置（视口坐标）
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handlePeakAreaToolClick(const QPointF& viewportPos);
+
+    /**
+     * @brief 处理鼠标离开事件
+     */
+    void handleMouseLeave();
+
     // ==================== 右键拖动 ====================
     void handleRightDrag(const QPointF& currentPos);
 

@@ -231,188 +231,250 @@ void ThermalChartView::contextMenuEvent(QContextMenuEvent* event)
     menu.exec(event->globalPos());
 }
 
-bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
+// ==================== EventFilter 事件处理辅助函数实现 ====================
+
+bool ThermalChartView::handleRightButtonPress(QMouseEvent* mouseEvent)
 {
-    if (watched == viewport()) {
-        switch (event->type()) {
-        case QEvent::MouseButtonPress: {
-            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+    if (mouseEvent->button() != Qt::RightButton) {
+        return false;
+    }
 
-            // 处理右键拖动
-            if (mouseEvent->button() == Qt::RightButton) {
-                m_isRightDragging = true;
-                m_rightDragStartPos = mouseEvent->pos();
-                setCursor(Qt::ClosedHandCursor);
-                return false;  // 让事件继续传递
-            }
-            break;
-        }
-        case QEvent::MouseButtonRelease: {
-            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+    m_isRightDragging = true;
+    m_rightDragStartPos = mouseEvent->pos();
+    setCursor(Qt::ClosedHandCursor);
+    return false;  // 让事件继续传递
+}
 
-            // 处理右键释放
-            if (mouseEvent->button() == Qt::RightButton && m_isRightDragging) {
-                m_isRightDragging = false;
-                unsetCursor();
-                return false;  // 让事件继续传递
-            }
+bool ThermalChartView::handleRightButtonRelease(QMouseEvent* mouseEvent)
+{
+    if (mouseEvent->button() != Qt::RightButton || !m_isRightDragging) {
+        return false;
+    }
 
-            // 处理质量损失测量工具单次点击创建
-            if (mouseEvent->button() == Qt::LeftButton && m_massLossToolActive && m_mode == InteractionMode::Pick) {
-                const QPointF viewportPos = mouseEvent->pos();
+    m_isRightDragging = false;
+    unsetCursor();
+    return false;  // 让事件继续传递
+}
 
-                qDebug() << "ThermalChartView::eventFilter - 单次点击创建质量损失测量工具，点击位置:" << viewportPos;
+bool ThermalChartView::handleRightButtonDrag(QMouseEvent* mouseEvent)
+{
+    if (!m_isRightDragging || !m_thermalChart) {
+        return false;
+    }
 
-                // 使用当前活动曲线进行测量
-                if (m_curveManager) {
-                    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-                    if (activeCurve && m_thermalChart) {
-                        qDebug() << "ThermalChartView::eventFilter - 使用活动曲线:" << activeCurve->name();
+    handleRightDrag(mouseEvent->pos());
+    return false;  // 让事件继续传递
+}
 
-                        // 获取活动曲线的系列（用于正确的坐标转换）
-                        QLineSeries* activeSeries = m_thermalChart->seriesForCurve(activeCurve->id());
-                        if (activeSeries) {
-                            // 使用活动曲线的坐标系进行转换
-                            QPointF scenePos = mapToScene(viewportPos.toPoint());
-                            QPointF chartPos = chart()->mapFromScene(scenePos);
-                            QPointF dataClick = chart()->mapToValue(chartPos, activeSeries);
+void ThermalChartView::handleMouseLeave()
+{
+    if (m_thermalChart) {
+        m_thermalChart->clearCrosshair();
+    }
+}
 
-                            qDebug() << "ThermalChartView::eventFilter - 点击位置数据坐标:" << dataClick;
+bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
+{
+    qDebug() << "ThermalChartView::handleMassLossToolClick - 单次点击创建质量损失测量工具，点击位置:" << viewportPos;
 
-                            const auto& data = activeCurve->getProcessedData();
-                            if (!data.isEmpty()) {
-                                // 自动在点击位置左右延伸范围（默认左右各延伸15°C）
-                                qreal rangeExtension = 15.0;
-                                qreal startX = dataClick.x() - rangeExtension;
-                                qreal endX = dataClick.x() + rangeExtension;
+    // 使用当前活动曲线进行测量
+    if (!m_curveManager) {
+        qWarning() << "ThermalChartView::handleMassLossToolClick - CurveManager 未设置";
+        return false;
+    }
 
-                                // 查找最接近的点
-                                ThermalDataPoint point1 = findNearestDataPoint(data, startX);
-                                ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (!activeCurve || !m_thermalChart) {
+        qWarning() << "ThermalChartView::handleMassLossToolClick - 没有活动曲线或 ThermalChart 未设置";
+        return false;
+    }
 
-                                qDebug() << "ThermalChartView::eventFilter - 自动延伸范围: ±" << rangeExtension;
+    qDebug() << "ThermalChartView::handleMassLossToolClick - 使用活动曲线:" << activeCurve->name();
 
-                                // 创建测量工具（委托给 ThermalChart）
-                                m_thermalChart->addMassLossTool(point1, point2, activeCurve->id());
-                            }
-                        }
-                    }
-                }
+    // 获取活动曲线的系列（用于正确的坐标转换）
+    QLineSeries* activeSeries = m_thermalChart->seriesForCurve(activeCurve->id());
+    if (!activeSeries) {
+        qWarning() << "ThermalChartView::handleMassLossToolClick - 无法获取活动曲线的系列";
+        return false;
+    }
 
-                // 重置状态
-                m_massLossToolActive = false;
-                setInteractionMode(InteractionMode::View);
+    // 使用活动曲线的坐标系进行转换
+    QPointF scenePos = mapToScene(viewportPos.toPoint());
+    QPointF chartPos = chart()->mapFromScene(scenePos);
+    QPointF dataClick = chart()->mapToValue(chartPos, activeSeries);
 
-                return false;
-            }
+    qDebug() << "ThermalChartView::handleMassLossToolClick - 点击位置数据坐标:" << dataClick;
 
-            // 处理峰面积测量工具单次点击创建
-            if (mouseEvent->button() == Qt::LeftButton && m_peakAreaToolActive && m_mode == InteractionMode::Pick) {
-                const QPointF viewportPos = mouseEvent->pos();
+    const auto& data = activeCurve->getProcessedData();
+    if (data.isEmpty()) {
+        qWarning() << "ThermalChartView::handleMassLossToolClick - 活动曲线数据为空";
+        return false;
+    }
 
-                qDebug() << "ThermalChartView::eventFilter - 单次点击创建峰面积测量工具，点击位置:" << viewportPos;
+    // 自动在点击位置左右延伸范围（默认左右各延伸15°C）
+    qreal rangeExtension = 15.0;
+    qreal startX = dataClick.x() - rangeExtension;
+    qreal endX = dataClick.x() + rangeExtension;
 
-                // 使用用户选择的计算曲线（不再依赖活动曲线）
-                if (m_curveManager && !m_peakAreaCurveId.isEmpty()) {
-                    ThermalCurve* targetCurve = m_curveManager->getCurve(m_peakAreaCurveId);
-                    if (targetCurve && m_thermalChart) {
-                        qDebug() << "ThermalChartView::eventFilter - 使用用户选择的曲线:" << targetCurve->name();
+    // 查找最接近的点
+    ThermalDataPoint point1 = findNearestDataPoint(data, startX);
+    ThermalDataPoint point2 = findNearestDataPoint(data, endX);
 
-                        // 获取目标曲线的系列（用于正确的坐标转换）
-                        QLineSeries* targetSeries = m_thermalChart->seriesForCurve(targetCurve->id());
-                        if (targetSeries) {
-                            // 检查点击位置是否在绘图区域内
-                            QPointF scenePos = mapToScene(viewportPos.toPoint());
-                            QPointF chartPos = chart()->mapFromScene(scenePos);
-                            if (!chart()->plotArea().contains(chartPos)) {
-                                qDebug() << "ThermalChartView::eventFilter - 点击位置不在绘图区内，忽略";
-                                // 重置状态
-                                m_peakAreaToolActive = false;
-                                m_peakAreaCurveId.clear();
-                                m_peakAreaReferenceCurveId.clear();
-                                setInteractionMode(InteractionMode::View);
-                                return false;
-                            }
+    qDebug() << "ThermalChartView::handleMassLossToolClick - 自动延伸范围: ±" << rangeExtension;
 
-                            // 使用目标曲线的坐标系进行转换
-                            QPointF dataClick = chart()->mapToValue(chartPos, targetSeries);
+    // 创建测量工具（委托给 ThermalChart）
+    m_thermalChart->addMassLossTool(point1, point2, activeCurve->id());
 
-                            qDebug() << "ThermalChartView::eventFilter - 点击位置数据坐标:" << dataClick;
+    // 重置状态
+    m_massLossToolActive = false;
+    setInteractionMode(InteractionMode::View);
 
-                            const auto& data = targetCurve->getProcessedData();
-                            if (!data.isEmpty()) {
-                                // 自动在点击位置左右延伸范围（根据当前可见轴范围的 5% 动态计算）
-                                qreal rangeExtension = 20.0; // 默认值
-                                if (m_thermalChart) {
-                                    QAbstractAxis* axisX = m_thermalChart->axisX();
-                                    if (axisX) {
-                                        QValueAxis* valueAxisX = qobject_cast<QValueAxis*>(axisX);
-                                        if (valueAxisX) {
-                                            qreal axisRange = valueAxisX->max() - valueAxisX->min();
-                                            rangeExtension = axisRange * 0.05; // 5% 的轴范围
-                                        }
-                                    }
-                                }
-                                qreal startX = dataClick.x() - rangeExtension;
-                                qreal endX = dataClick.x() + rangeExtension;
+    return false;
+}
 
-                                // 查找最接近的点
-                                ThermalDataPoint point1 = findNearestDataPoint(data, startX);
-                                ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
+{
+    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 单次点击创建峰面积测量工具，点击位置:" << viewportPos;
 
-                                qDebug() << "ThermalChartView::eventFilter - 自动延伸范围: ±" << rangeExtension;
+    // 使用用户选择的计算曲线（不再依赖活动曲线）
+    if (!m_curveManager || m_peakAreaCurveId.isEmpty()) {
+        qWarning() << "ThermalChartView::handlePeakAreaToolClick - CurveManager 未设置或未指定目标曲线";
+        return false;
+    }
 
-                                // 创建峰面积测量工具（委托给 ThermalChart）
-                                PeakAreaTool* tool = m_thermalChart->addPeakAreaTool(point1, point2, targetCurve->id());
+    ThermalCurve* targetCurve = m_curveManager->getCurve(m_peakAreaCurveId);
+    if (!targetCurve || !m_thermalChart) {
+        qWarning() << "ThermalChartView::handlePeakAreaToolClick - 无法获取目标曲线或 ThermalChart 未设置";
+        return false;
+    }
 
-                                // 应用基线模式（直线基线 或 参考曲线基线）
-                                if (tool) {
-                                    if (m_peakAreaUseLinearBaseline) {
-                                        // 直线基线（默认）
-                                        tool->setBaselineMode(PeakAreaTool::BaselineMode::Linear);
-                                        qDebug() << "ThermalChartView::eventFilter - 应用直线基线模式";
-                                    } else if (!m_peakAreaReferenceCurveId.isEmpty()) {
-                                        // 参考曲线基线
-                                        tool->setBaselineMode(PeakAreaTool::BaselineMode::ReferenceCurve);
-                                        tool->setReferenceCurve(m_peakAreaReferenceCurveId);
-                                        qDebug() << "ThermalChartView::eventFilter - 应用参考曲线基线:" << m_peakAreaReferenceCurveId;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 使用用户选择的曲线:" << targetCurve->name();
 
-                // 重置状态
-                m_peakAreaToolActive = false;
-                m_peakAreaCurveId.clear();
-                m_peakAreaReferenceCurveId.clear();
-                setInteractionMode(InteractionMode::View);
+    // 获取目标曲线的系列（用于正确的坐标转换）
+    QLineSeries* targetSeries = m_thermalChart->seriesForCurve(targetCurve->id());
+    if (!targetSeries) {
+        qWarning() << "ThermalChartView::handlePeakAreaToolClick - 无法获取目标曲线的系列";
+        return false;
+    }
 
-                return false;
-            }
-            break;
-        }
-        case QEvent::MouseMove: {
-            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+    // 检查点击位置是否在绘图区域内
+    QPointF scenePos = mapToScene(viewportPos.toPoint());
+    QPointF chartPos = chart()->mapFromScene(scenePos);
+    if (!chart()->plotArea().contains(chartPos)) {
+        qDebug() << "ThermalChartView::handlePeakAreaToolClick - 点击位置不在绘图区内，忽略";
+        // 重置状态
+        m_peakAreaToolActive = false;
+        m_peakAreaCurveId.clear();
+        m_peakAreaReferenceCurveId.clear();
+        setInteractionMode(InteractionMode::View);
+        return false;
+    }
 
-            // 处理右键拖动
-            if (m_isRightDragging && m_thermalChart) {
-                handleRightDrag(mouseEvent->pos());
-                return false;  // 让事件继续传递
-            }
-            break;
-        }
-        case QEvent::Leave:
-        case QEvent::HoverLeave:
-            if (m_thermalChart) {
-                m_thermalChart->clearCrosshair();
-            }
-            break;
-        default:
-            break;
+    // 使用目标曲线的坐标系进行转换
+    QPointF dataClick = chart()->mapToValue(chartPos, targetSeries);
+
+    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 点击位置数据坐标:" << dataClick;
+
+    const auto& data = targetCurve->getProcessedData();
+    if (data.isEmpty()) {
+        qWarning() << "ThermalChartView::handlePeakAreaToolClick - 目标曲线数据为空";
+        return false;
+    }
+
+    // 自动在点击位置左右延伸范围（根据当前可见轴范围的 5% 动态计算）
+    qreal rangeExtension = 20.0; // 默认值
+    QAbstractAxis* axisX = m_thermalChart->axisX();
+    if (axisX) {
+        QValueAxis* valueAxisX = qobject_cast<QValueAxis*>(axisX);
+        if (valueAxisX) {
+            qreal axisRange = valueAxisX->max() - valueAxisX->min();
+            rangeExtension = axisRange * 0.05; // 5% 的轴范围
         }
     }
+
+    qreal startX = dataClick.x() - rangeExtension;
+    qreal endX = dataClick.x() + rangeExtension;
+
+    // 查找最接近的点
+    ThermalDataPoint point1 = findNearestDataPoint(data, startX);
+    ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+
+    qDebug() << "ThermalChartView::handlePeakAreaToolClick - 自动延伸范围: ±" << rangeExtension;
+
+    // 创建峰面积测量工具（委托给 ThermalChart）
+    PeakAreaTool* tool = m_thermalChart->addPeakAreaTool(point1, point2, targetCurve->id());
+
+    // 应用基线模式（直线基线 或 参考曲线基线）
+    if (tool) {
+        if (m_peakAreaUseLinearBaseline) {
+            // 直线基线（默认）
+            tool->setBaselineMode(PeakAreaTool::BaselineMode::Linear);
+            qDebug() << "ThermalChartView::handlePeakAreaToolClick - 应用直线基线模式";
+        } else if (!m_peakAreaReferenceCurveId.isEmpty()) {
+            // 参考曲线基线
+            tool->setBaselineMode(PeakAreaTool::BaselineMode::ReferenceCurve);
+            tool->setReferenceCurve(m_peakAreaReferenceCurveId);
+            qDebug() << "ThermalChartView::handlePeakAreaToolClick - 应用参考曲线基线:" << m_peakAreaReferenceCurveId;
+        }
+    }
+
+    // 重置状态
+    m_peakAreaToolActive = false;
+    m_peakAreaCurveId.clear();
+    m_peakAreaReferenceCurveId.clear();
+    setInteractionMode(InteractionMode::View);
+
+    return false;
+}
+
+bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
+{
+    // 只处理 viewport 的事件
+    if (watched != viewport()) {
+        return QChartView::eventFilter(watched, event);
+    }
+
+    // 事件分发：将不同类型的事件委托给专门的处理函数
+    switch (event->type()) {
+    case QEvent::MouseButtonPress: {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        return handleRightButtonPress(mouseEvent);
+    }
+
+    case QEvent::MouseButtonRelease: {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+
+        // 处理右键释放
+        if (handleRightButtonRelease(mouseEvent)) {
+            return true;
+        }
+
+        // 处理质量损失测量工具单次点击创建
+        if (mouseEvent->button() == Qt::LeftButton && m_massLossToolActive && m_mode == InteractionMode::Pick) {
+            return handleMassLossToolClick(mouseEvent->pos());
+        }
+
+        // 处理峰面积测量工具单次点击创建
+        if (mouseEvent->button() == Qt::LeftButton && m_peakAreaToolActive && m_mode == InteractionMode::Pick) {
+            return handlePeakAreaToolClick(mouseEvent->pos());
+        }
+        break;
+    }
+
+    case QEvent::MouseMove: {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        return handleRightButtonDrag(mouseEvent);
+    }
+
+    case QEvent::Leave:
+    case QEvent::HoverLeave:
+        handleMouseLeave();
+        break;
+
+    default:
+        break;
+    }
+
     return QChartView::eventFilter(watched, event);
 }
 
