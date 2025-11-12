@@ -483,7 +483,7 @@ qreal PeakAreaTool::getBaselineValue(qreal xValue)
     }
 
     case BaselineMode::ReferenceCurve: {
-        // ==================== 性能优化：缓存 + 二分查找 ====================
+        // ==================== 性能优化v2：缓存 + 二分查找 + 插值 ====================
 
         // 1. 检查缓存是否有效
         if (m_cachedBaselineCurveId != m_baselineCurveId || m_cachedBaselineData.isEmpty()) {
@@ -511,61 +511,49 @@ qreal PeakAreaTool::getBaselineValue(qreal xValue)
         }
 
         const auto& data = m_cachedBaselineData;
+        if (data.isEmpty()) {
+            return 0.0;
+        }
 
-        // 2. 使用二分查找（O(log n)）替代线性查找（O(n)）
-        // 假设数据已按 X 值（温度或时间）排序
+        // 2. 二分查找最接近的索引（O(log n)）
         int left = 0;
         int right = data.size() - 1;
-        int closestIndex = 0;
-        double minDist = qAbs((m_useTimeAxis ? data[0].time : data[0].temperature) - xValue);
 
-        while (left <= right) {
+        // 边界检查
+        double firstX = m_useTimeAxis ? data[left].time : data[left].temperature;
+        double lastX = m_useTimeAxis ? data[right].time : data[right].temperature;
+
+        if (xValue <= firstX) {
+            return data[left].value;
+        }
+        if (xValue >= lastX) {
+            return data[right].value;
+        }
+
+        // 二分查找找到 xValue 所在的区间 [i, i+1]
+        while (right - left > 1) {
             int mid = left + (right - left) / 2;
             double midX = m_useTimeAxis ? data[mid].time : data[mid].temperature;
-            double dist = qAbs(midX - xValue);
 
-            if (dist < minDist) {
-                minDist = dist;
-                closestIndex = mid;
-            }
-
-            if (midX < xValue) {
-                left = mid + 1;
-            } else if (midX > xValue) {
-                right = mid - 1;
+            if (xValue < midX) {
+                right = mid;
             } else {
-                // 精确匹配
-                return data[mid].value;
+                left = mid;
             }
         }
 
-        // 3. 线性插值以提高精度（可选）
-        if (closestIndex > 0 && closestIndex < data.size() - 1) {
-            double x_mid = m_useTimeAxis ? data[closestIndex].time : data[closestIndex].temperature;
+        // 3. 线性插值（left 和 right 是相邻的两个点）
+        double x0 = m_useTimeAxis ? data[left].time : data[left].temperature;
+        double x1 = m_useTimeAxis ? data[right].time : data[right].temperature;
+        double y0 = data[left].value;
+        double y1 = data[right].value;
 
-            // 判断 xValue 在哪个区间
-            int i0, i1;
-            if (xValue < x_mid) {
-                i1 = closestIndex;
-                i0 = closestIndex - 1;
-            } else {
-                i0 = closestIndex;
-                i1 = closestIndex + 1;
-            }
-
-            double x0 = m_useTimeAxis ? data[i0].time : data[i0].temperature;
-            double x1 = m_useTimeAxis ? data[i1].time : data[i1].temperature;
-            double y0 = data[i0].value;
-            double y1 = data[i1].value;
-
-            if (qAbs(x1 - x0) > 1e-9) {
-                // 线性插值
-                double ratio = (xValue - x0) / (x1 - x0);
-                return y0 + ratio * (y1 - y0);
-            }
+        if (qAbs(x1 - x0) < 1e-9) {
+            return y0;  // 避免除零
         }
 
-        return data[closestIndex].value;
+        double ratio = (xValue - x0) / (x1 - x0);
+        return y0 + ratio * (y1 - y0);
     }
     }
 
@@ -650,15 +638,11 @@ void PeakAreaTool::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 #endif
         }
 
-        // 重新计算面积和多边形
-        qreal newArea = calculateArea();
-        if (qAbs(newArea - m_cachedArea) > 0.001) {
-            m_cachedArea = newArea;
-            emit areaChanged(newArea);
-        }
-
-        m_cachedPolygon = buildAreaPolygon();
-        update();
+        // ✅ 性能优化：使用 markDirty() 延迟计算，避免拖动时重复计算
+        // 不直接调用 calculateArea() 和 buildAreaPolygon()，而是标记为脏
+        // 实际计算延迟到 paint() 时通过 updateCache() 执行（只计算一次）
+        markDirty();
+        update();  // 触发重绘，updateCache() 会在 paint() 中被调用
 
         event->accept();
         return;
@@ -863,6 +847,7 @@ void PeakAreaTool::updateCache()
         return;  // 数据未变，跳过重新计算
     }
 
+    qreal oldArea = m_cachedArea;
     m_cachedArea = calculateArea();
     m_cachedPolygon = buildAreaPolygon();
     m_isDirty = false;  // 清除脏标记
@@ -870,6 +855,11 @@ void PeakAreaTool::updateCache()
 #if DEBUG_PEAK_AREA_TOOL
     qDebug() << "PeakAreaTool::updateCache - 面积:" << m_cachedArea;
 #endif
+
+    // 发出面积变化信号（如果变化显著）
+    if (qAbs(m_cachedArea - oldArea) > 0.001) {
+        emit areaChanged(m_cachedArea);
+    }
 }
 
 void PeakAreaTool::markDirty()
