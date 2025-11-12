@@ -36,6 +36,13 @@ public:
     explicit AlgorithmThreadManager(QObject* parent = nullptr);
 
     /**
+     * @brief 析构函数
+     *
+     * 自动清理所有工作线程（quit + wait）
+     */
+    ~AlgorithmThreadManager() override;
+
+    /**
      * @brief 设置最大线程数
      * @param maxThreads 最大线程数（默认 1）
      *
@@ -80,13 +87,6 @@ signals:
      * @brief 工作线程被释放，可以处理队列中的任务
      */
     void workerReleased();
-
-    /**
-     * @brief 析构函数
-     *
-     * 自动清理所有工作线程（quit + wait）
-     */
-    ~AlgorithmThreadManager() override;
 
 private:
 
