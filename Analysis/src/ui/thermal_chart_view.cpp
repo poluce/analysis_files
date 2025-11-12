@@ -153,6 +153,95 @@ void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
     QChartView::mouseReleaseEvent(event);
 }
 
+// ==================== 缩放辅助函数实现 ====================
+
+void ThermalChartView::zoomXAxisAtPoint(const QPointF& chartPos, qreal factor)
+{
+    QValueAxis* axisX = m_thermalChart->axisX();
+    if (!axisX) {
+        return;
+    }
+
+    // 将鼠标位置转换为 X 轴的数据坐标
+    QPointF valuePos = chart()->mapToValue(chartPos);
+    qreal xCenter = valuePos.x();
+
+    qreal xMin = axisX->min();
+    qreal xMax = axisX->max();
+    qreal xRange = xMax - xMin;
+
+    // 以鼠标位置为中心缩放
+    qreal leftRatio = (xCenter - xMin) / xRange;
+    qreal rightRatio = (xMax - xCenter) / xRange;
+
+    qreal newRange = xRange * factor;
+    qreal newMin = xCenter - newRange * leftRatio;
+    qreal newMax = xCenter + newRange * rightRatio;
+
+    axisX->setRange(newMin, newMax);
+}
+
+void ThermalChartView::zoomYAxisAtPoint(QValueAxis* yAxis, const QPointF& chartPos, qreal factor)
+{
+    if (!yAxis) {
+        return;
+    }
+
+    // 获取鼠标在当前 Y 轴坐标系中的位置
+    QAbstractSeries* firstSeries = findFirstSeriesForYAxis(yAxis);
+
+    qreal yCenter;
+    if (firstSeries) {
+        // 使用系列进行精确的坐标转换
+        QPointF valuePos = chart()->mapToValue(chartPos, firstSeries);
+        yCenter = valuePos.y();
+    } else {
+        // 回退：使用轴的中心点
+        qreal yMin = yAxis->min();
+        qreal yMax = yAxis->max();
+        yCenter = (yMin + yMax) / 2.0;
+    }
+
+    qreal yMin = yAxis->min();
+    qreal yMax = yAxis->max();
+    qreal yRange = yMax - yMin;
+
+    // 以鼠标位置为中心缩放
+    qreal bottomRatio = (yCenter - yMin) / yRange;
+    qreal topRatio = (yMax - yCenter) / yRange;
+
+    qreal newRange = yRange * factor;
+    qreal newMin = yCenter - newRange * bottomRatio;
+    qreal newMax = yCenter + newRange * topRatio;
+
+    yAxis->setRange(newMin, newMax);
+}
+
+void ThermalChartView::zoomAllYAxesAtPoint(const QPointF& chartPos, qreal factor)
+{
+    for (QAbstractAxis* axis : chart()->axes(Qt::Vertical)) {
+        QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
+        if (yAxis) {
+            zoomYAxisAtPoint(yAxis, chartPos, factor);
+        }
+    }
+}
+
+QAbstractSeries* ThermalChartView::findFirstSeriesForYAxis(QValueAxis* yAxis) const
+{
+    if (!yAxis) {
+        return nullptr;
+    }
+
+    for (QAbstractSeries* series : chart()->series()) {
+        if (series->attachedAxes().contains(yAxis)) {
+            return series;
+        }
+    }
+
+    return nullptr;
+}
+
 void ThermalChartView::wheelEvent(QWheelEvent* event)
 {
     // Ctrl+滚轮：缩放图表
@@ -167,72 +256,12 @@ void ThermalChartView::wheelEvent(QWheelEvent* event)
         QPointF scenePos = mapToScene(viewportPos.toPoint());
         QPointF chartPos = chart()->mapFromScene(scenePos);
 
-        // 缩放因子
+        // 缩放因子（向上滚动=放大，向下滚动=缩小）
         qreal factor = event->angleDelta().y() > 0 ? 0.8 : 1.25;
 
-        // 缩放 X 轴（以鼠标 X 坐标为中心）
-        QValueAxis* axisX = m_thermalChart->axisX();
-        if (axisX) {
-            // 将鼠标位置转换为 X 轴的数据坐标
-            QPointF valuePos = chart()->mapToValue(chartPos);
-            qreal xCenter = valuePos.x();
-
-            qreal xMin = axisX->min();
-            qreal xMax = axisX->max();
-            qreal xRange = xMax - xMin;
-
-            // 以鼠标位置为中心缩放
-            qreal leftRatio = (xCenter - xMin) / xRange;
-            qreal rightRatio = (xMax - xCenter) / xRange;
-
-            qreal newRange = xRange * factor;
-            qreal newMin = xCenter - newRange * leftRatio;
-            qreal newMax = xCenter + newRange * rightRatio;
-
-            axisX->setRange(newMin, newMax);
-        }
-
-        // 缩放所有 Y 轴（每个轴以鼠标对应的 Y 坐标为中心）
-        for (QAbstractAxis* axis : chart()->axes(Qt::Vertical)) {
-            QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
-            if (yAxis) {
-                // 获取鼠标在当前 Y 轴坐标系中的位置
-                // 使用第一个关联的系列来进行坐标转换
-                QAbstractSeries* firstSeries = nullptr;
-                for (QAbstractSeries* series : chart()->series()) {
-                    if (series->attachedAxes().contains(yAxis)) {
-                        firstSeries = series;
-                        break;
-                    }
-                }
-
-                qreal yCenter;
-                if (firstSeries) {
-                    // 使用系列进行精确的坐标转换
-                    QPointF valuePos = chart()->mapToValue(chartPos, firstSeries);
-                    yCenter = valuePos.y();
-                } else {
-                    // 回退：使用轴的中心点
-                    qreal yMin = yAxis->min();
-                    qreal yMax = yAxis->max();
-                    yCenter = (yMin + yMax) / 2.0;
-                }
-
-                qreal yMin = yAxis->min();
-                qreal yMax = yAxis->max();
-                qreal yRange = yMax - yMin;
-
-                // 以鼠标位置为中心缩放
-                qreal bottomRatio = (yCenter - yMin) / yRange;
-                qreal topRatio = (yMax - yCenter) / yRange;
-
-                qreal newRange = yRange * factor;
-                qreal newMin = yCenter - newRange * bottomRatio;
-                qreal newMax = yCenter + newRange * topRatio;
-
-                yAxis->setRange(newMin, newMax);
-            }
-        }
+        // 以鼠标位置为中心缩放 X 轴和所有 Y 轴
+        zoomXAxisAtPoint(chartPos, factor);
+        zoomAllYAxesAtPoint(chartPos, factor);
 
         event->accept();
     } else {

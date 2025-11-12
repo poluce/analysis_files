@@ -156,6 +156,36 @@ private:
     // ==================== 右键拖动 ====================
     void handleRightDrag(const QPointF& currentPos);
 
+    // ==================== 缩放辅助函数 ====================
+    /**
+     * @brief 以指定点为中心缩放 X 轴
+     * @param chartPos 图表坐标系中的位置
+     * @param factor 缩放因子（<1 放大，>1 缩小）
+     */
+    void zoomXAxisAtPoint(const QPointF& chartPos, qreal factor);
+
+    /**
+     * @brief 以指定点为中心缩放单个 Y 轴
+     * @param yAxis 要缩放的 Y 轴
+     * @param chartPos 图表坐标系中的位置
+     * @param factor 缩放因子（<1 放大，>1 缩小）
+     */
+    void zoomYAxisAtPoint(QValueAxis* yAxis, const QPointF& chartPos, qreal factor);
+
+    /**
+     * @brief 以指定点为中心缩放所有 Y 轴
+     * @param chartPos 图表坐标系中的位置
+     * @param factor 缩放因子（<1 放大，>1 缩小）
+     */
+    void zoomAllYAxesAtPoint(const QPointF& chartPos, qreal factor);
+
+    /**
+     * @brief 查找与指定 Y 轴关联的第一个系列
+     * @param yAxis Y 轴指针
+     * @return 关联的系列指针，如果没有则返回 nullptr
+     */
+    QAbstractSeries* findFirstSeriesForYAxis(QValueAxis* yAxis) const;
+
     // ==================== 坐标转换 ====================
     QPointF viewportToScene(const QPointF& viewportPos) const;
     QPointF sceneToChart(const QPointF& scenePos) const;
