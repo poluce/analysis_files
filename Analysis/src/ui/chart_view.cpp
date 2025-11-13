@@ -43,6 +43,7 @@ void ChartView::setCurveManager(CurveManager* manager)
 {
     m_curveManager = manager;
     m_chartView->setCurveManager(manager);
+    m_chartView->initialize();  // 统一初始化（断言完整性）
 }
 
 // ==================== 交互配置（转发给 ThermalChartView）====================

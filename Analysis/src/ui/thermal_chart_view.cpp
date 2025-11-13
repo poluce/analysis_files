@@ -35,14 +35,25 @@ void ThermalChartView::setCurveManager(CurveManager* manager)
 {
     m_curveManager = manager;
 
-    // 关键修复：将 CurveManager 传递给 ThermalChart
+    // 将 CurveManager 传递给 ThermalChart
+    // NOTE: m_thermalChart 作为构造参数，由调用方保证有效性
     // ThermalChart 需要 CurveManager 来执行以下功能：
     // 1. 横轴切换时重新加载所有曲线数据 (setXAxisMode)
     // 2. 级联删除子曲线 (removeCurve)
     // 3. 测量工具访问曲线数据 (addMassLossTool)
-    if (m_thermalChart) {
-        m_thermalChart->setCurveManager(manager);
-    }
+    m_thermalChart->setCurveManager(manager);
+}
+
+void ThermalChartView::initialize()
+{
+    // 断言 Setter 注入的必需依赖
+    // NOTE: m_thermalChart 作为构造参数，由调用方保证有效性，不在此断言
+    Q_ASSERT(m_curveManager != nullptr);
+
+    // 标记为已初始化状态
+    m_initialized = true;
+
+    qDebug() << "ThermalChartView 初始化完成，所有依赖已就绪";
 }
 
 // ==================== 交互模式 ====================
@@ -82,6 +93,8 @@ void ThermalChartView::setHitTestIncludePenWidth(bool enabled)
 
 void ThermalChartView::startMassLossTool()
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "ThermalChartView::startMassLossTool - 启动质量损失测量工具";
     setInteractionMode(InteractionMode::Pick);
     m_massLossToolActive = true;
@@ -89,6 +102,8 @@ void ThermalChartView::startMassLossTool()
 
 void ThermalChartView::startPeakAreaTool(const QString& curveId, bool useLinearBaseline, const QString& referenceCurveId)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     qDebug() << "ThermalChartView::startPeakAreaTool - 启动峰面积测量工具";
     qDebug() << "  计算曲线:" << curveId;
     qDebug() << "  基线类型:" << (useLinearBaseline ? "直线基线" : "参考曲线基线");
@@ -109,6 +124,8 @@ void ThermalChartView::startPeakAreaTool(const QString& curveId, bool useLinearB
 
 void ThermalChartView::mousePressEvent(QMouseEvent* event)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 右键拖动已在 eventFilter 中处理
     if (event->button() != Qt::LeftButton) {
         QChartView::mousePressEvent(event);
@@ -135,6 +152,8 @@ void ThermalChartView::mousePressEvent(QMouseEvent* event)
 
 void ThermalChartView::mouseMoveEvent(QMouseEvent* event)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 如果正在框选，更新选框矩形
     if (m_isBoxSelecting) {
         m_boxSelectEnd = event->pos();
@@ -145,23 +164,21 @@ void ThermalChartView::mouseMoveEvent(QMouseEvent* event)
     }
 
     // 更新十字线位置（坐标转换：viewport → scene → chart）
-    if (m_thermalChart) {
-        QPointF scenePos = mapToScene(event->pos());
-        QPointF chartPos = chart()->mapFromScene(scenePos);
-        m_thermalChart->updateCrosshairAtChartPos(chartPos);
-    }
+    QPointF scenePos = mapToScene(event->pos());
+    QPointF chartPos = chart()->mapFromScene(scenePos);
+    m_thermalChart->updateCrosshairAtChartPos(chartPos);
 
     // 发出悬停信号（用于未来的悬停提示）
-    if (m_thermalChart) {
-        QPointF valuePos = chartToValue(sceneToChart(viewportToScene(event->pos())));
-        emit hoverMoved(event->pos(), valuePos);
-    }
+    QPointF valuePos = chartToValue(sceneToChart(viewportToScene(event->pos())));
+    emit hoverMoved(event->pos(), valuePos);
 
     QChartView::mouseMoveEvent(event);
 }
 
 void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 处理框选缩放
     if (m_isBoxSelecting && event->button() == Qt::LeftButton) {
         m_boxSelectEnd = event->pos();
@@ -180,6 +197,8 @@ void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
 
 void ThermalChartView::zoomXAxisAtPoint(const QPointF& chartPos, qreal factor)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     QValueAxis* axisX = m_thermalChart->axisX();
     if (!axisX) {
         return;
@@ -206,6 +225,8 @@ void ThermalChartView::zoomXAxisAtPoint(const QPointF& chartPos, qreal factor)
 
 void ThermalChartView::zoomYAxisAtPoint(QValueAxis* yAxis, const QPointF& chartPos, qreal factor)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     if (!yAxis) {
         return;
     }
@@ -242,6 +263,8 @@ void ThermalChartView::zoomYAxisAtPoint(QValueAxis* yAxis, const QPointF& chartP
 
 void ThermalChartView::zoomAllYAxesAtPoint(const QPointF& chartPos, qreal factor)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     for (QAbstractAxis* axis : chart()->axes(Qt::Vertical)) {
         QValueAxis* yAxis = qobject_cast<QValueAxis*>(axis);
         if (yAxis) {
@@ -252,6 +275,8 @@ void ThermalChartView::zoomAllYAxesAtPoint(const QPointF& chartPos, qreal factor
 
 QAbstractSeries* ThermalChartView::findFirstSeriesForYAxis(QValueAxis* yAxis) const
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     if (!yAxis) {
         return nullptr;
     }
@@ -293,6 +318,8 @@ void ThermalChartView::updateSelectionBoxDisplay()
 
 void ThermalChartView::finalizeBoxSelection()
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 计算框选区域大小（视口坐标系）
     QPointF delta = m_boxSelectEnd - m_boxSelectStart;
     qreal width = qAbs(delta.x());
@@ -327,13 +354,10 @@ void ThermalChartView::finalizeBoxSelection()
 
 void ThermalChartView::wheelEvent(QWheelEvent* event)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // Ctrl+滚轮：缩放图表
     if (event->modifiers() & Qt::ControlModifier) {
-        if (!m_thermalChart) {
-            event->ignore();
-            return;
-        }
-
         // 正确的坐标转换链路：viewport → scene → chart → value
         QPointF viewportPos = event->pos();
         QPointF scenePos = mapToScene(viewportPos.toPoint());
@@ -418,16 +442,12 @@ void ThermalChartView::handleMouseLeave()
 
 bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
 {
-    // 验证 CurveManager
-    if (!m_curveManager) {
-        qWarning() << "ThermalChartView::validateMassLossToolPreconditions - CurveManager 未设置";
-        return false;
-    }
+    Q_ASSERT(m_initialized);  // 确保依赖完整
 
     // 获取活动曲线
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve || !m_thermalChart) {
-        qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 没有活动曲线或 ThermalChart 未设置";
+    if (!activeCurve) {
+        qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 没有活动曲线";
         return false;
     }
 
@@ -502,16 +522,18 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
 
 bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
 {
-    // 验证 CurveManager 和目标曲线 ID
-    if (!m_curveManager || m_peakAreaCurveId.isEmpty()) {
-        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - CurveManager 未设置或未指定目标曲线";
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    // 验证目标曲线 ID
+    if (m_peakAreaCurveId.isEmpty()) {
+        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 未指定目标曲线";
         return false;
     }
 
     // 获取目标曲线
     ThermalCurve* targetCurve = m_curveManager->getCurve(m_peakAreaCurveId);
-    if (!targetCurve || !m_thermalChart) {
-        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线或 ThermalChart 未设置";
+    if (!targetCurve) {
+        qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线";
         return false;
     }
 
@@ -533,6 +555,8 @@ bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve
 
 bool ThermalChartView::isClickInsidePlotArea(const QPointF& viewportPos, QPointF* outChartPos)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     QPointF scenePos = mapToScene(viewportPos.toPoint());
     QPointF chartPos = chart()->mapFromScene(scenePos);
 
@@ -571,6 +595,8 @@ qreal ThermalChartView::calculateDynamicRangeExtension(qreal percentage)
 
 void ThermalChartView::applyPeakAreaBaseline(PeakAreaTool* tool)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     if (!tool) {
         return;
     }
@@ -701,9 +727,7 @@ bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
 
 void ThermalChartView::handleCurveSelectionClick(const QPointF& viewportPos)
 {
-    if (!m_thermalChart) {
-        return;
-    }
+    Q_ASSERT(m_initialized);  // 确保依赖完整
 
     qreal bestDist = std::numeric_limits<qreal>::max();
     QLineSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
@@ -729,9 +753,7 @@ void ThermalChartView::handleCurveSelectionClick(const QPointF& viewportPos)
 
 void ThermalChartView::handleValueClick(const QPointF& viewportPos)
 {
-    if (!m_thermalChart) {
-        return;
-    }
+    Q_ASSERT(m_initialized);  // 确保依赖完整
 
     // 转换鼠标坐标到数据坐标
     QPointF scenePos = mapToScene(viewportPos.toPoint());
@@ -749,6 +771,8 @@ void ThermalChartView::handleValueClick(const QPointF& viewportPos)
 
 QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     if (!chart()) {
         outDistance = std::numeric_limits<qreal>::max();
         return nullptr;
@@ -812,7 +836,9 @@ qreal ThermalChartView::hitThreshold() const
 
 void ThermalChartView::handleRightDrag(const QPointF& currentPos)
 {
-    if (!m_thermalChart || !chart()) {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    if (!chart()) {
         return;
     }
 

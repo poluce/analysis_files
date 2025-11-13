@@ -54,6 +54,18 @@ public:
     // ==================== 外部依赖注入 ====================
     void setCurveManager(CurveManager* manager);
 
+    /**
+     * @brief 完整性校验与状态标记
+     *
+     * 在所有依赖注入完成后调用，集中断言所有必需依赖非空，
+     * 并将视图标记为"已初始化状态"。
+     *
+     * 调用顺序：构造函数(ThermalChart*) → setCurveManager(CurveManager*) → initialize()
+     *
+     * NOTE: m_thermalChart 作为构造参数，由调用方保证有效性，此处不断言
+     */
+    void initialize();
+
     // ==================== 交互模式 ====================
     void setInteractionMode(InteractionMode mode);
     InteractionMode interactionMode() const { return m_mode; }
@@ -267,8 +279,12 @@ private:
                                            double xValue) const;
 
 private:
-    ThermalChart* m_thermalChart = nullptr;
-    CurveManager* m_curveManager = nullptr;
+    // ==================== 初始化状态标记 ====================
+    bool m_initialized = false;  // 防止"半初始化对象"的运行时错误
+
+    // ==================== 依赖注入 ====================
+    ThermalChart* m_thermalChart = nullptr;  // 构造函数注入（调用方保证非空）
+    CurveManager* m_curveManager = nullptr;  // Setter 注入（initialize() 时断言非空）
 
     // ==================== 交互模式 ====================
     InteractionMode m_mode = InteractionMode::View;
