@@ -1049,6 +1049,119 @@ FloatingLabel* hud = chartView->addFloatingLabelHUD(
 - 使用信号槽机制实现松耦合
 - 注释应清晰说明类的职责和方法的用途
 
+## 设计原则
+
+本项目严格遵循现代软件工程的设计原则，确保代码的可维护性、可扩展性和可测试性。
+
+### SOLID 原则
+
+**S - Single Responsibility Principle (单一职责原则)**
+- 每个类、函数只负责一个明确的任务
+- 示例：
+  - `ThermalChart::rescaleYAxisForXRange()` 拆分为3个子函数
+  - `isSeriesAttachedToYAxis()` - 仅负责检查绑定关系
+  - `calculateYRangeInXRange()` - 仅负责计算 Y 值范围
+- 优势：修改某个功能时不影响其他功能，降低耦合
+
+**O - Open/Closed Principle (开闭原则)**
+- 对扩展开放，对修改关闭
+- 示例：
+  - 通过实现 `IThermalAlgorithm` 接口添加新算法，无需修改现有代码
+  - 通过组合辅助函数扩展功能，而非修改主函数
+- 优势：新功能不破坏已有功能，降低回归风险
+
+**L - Liskov Substitution Principle (里氏替换原则)**
+- 子类应该可以替换父类而不改变程序的正确性
+- 示例：
+  - 所有算法实现都可以替换 `IThermalAlgorithm` 接口
+  - 所有文件读取器都可以替换 `IFileReader` 接口
+- 优势：接口抽象清晰，易于扩展和替换实现
+
+**I - Interface Segregation Principle (接口隔离原则)**
+- 客户端不应依赖它不需要的接口
+- 示例：
+  - `IThermalAlgorithm` 只定义算法核心接口
+  - `IFileReader` 只定义文件读取接口
+- 优势：接口小而精，避免臃肿的"胖接口"
+
+**D - Dependency Inversion Principle (依赖倒置原则)**
+- 高层模块不应依赖低层模块，都应依赖抽象
+- 示例：
+  - `ApplicationContext` 通过构造函数注入依赖
+  - `AlgorithmManager` 依赖 `IThermalAlgorithm` 接口，而非具体实现
+- 优势：解耦模块，易于单元测试和替换实现
+
+### DRY 原则 (Don't Repeat Yourself)
+
+**原则**：避免代码重复，提取可复用的逻辑
+
+**实践示例**：
+1. **坐标转换逻辑复用**
+   ```cpp
+   // 错误：在 mouseMoveEvent 和 mouseReleaseEvent 中重复相同逻辑
+   QPointF sceneStart = mapToScene(m_boxSelectStart.toPoint());
+   QPointF sceneEnd = mapToScene(m_boxSelectEnd.toPoint());
+   QPointF chartStart = chart()->mapFromScene(sceneStart);
+   QPointF chartEnd = chart()->mapFromScene(sceneEnd);
+
+   // 正确：提取为可复用函数
+   QRectF convertViewportRectToChartRect(const QPointF& start, const QPointF& end) const;
+   ```
+
+2. **Y 轴绑定检查复用**
+   ```cpp
+   // 错误：在多处重复检查逻辑
+   for (QAbstractAxis* axis : lineSeries->attachedAxes()) {
+       if (axis == yAxis) { ... }
+   }
+
+   // 正确：提取为独立函数
+   bool isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const;
+   ```
+
+**优势**：
+- 减少代码重复，降低维护成本
+- 修改一处，所有调用处自动更新
+- 提高代码一致性
+
+### KISS 原则 (Keep It Simple, Stupid)
+
+**原则**：保持简单，避免过度设计
+
+**实践建议**：
+- 函数长度控制在 50 行以内（超过则考虑拆分）
+- 函数参数不超过 5 个（过多则考虑封装为结构体）
+- 避免深层嵌套（嵌套不超过 3 层）
+- 优先使用清晰的命名，而非复杂的注释
+
+### YAGNI 原则 (You Aren't Gonna Need It)
+
+**原则**：不要实现当前不需要的功能
+
+**实践建议**：
+- 只实现当前需求，不提前设计未来可能需要的功能
+- 避免过度抽象和过度封装
+- 通过迭代开发逐步完善功能
+
+### 组合优于继承
+
+**原则**：优先使用组合（聚合）而非继承
+
+**实践示例**：
+```cpp
+// ChartView 组合 ThermalChart 和 ThermalChartView
+class ChartView : public QWidget {
+private:
+    ThermalChart* m_chart;           // 组合：数据管理
+    ThermalChartView* m_chartView;   // 组合：交互处理
+};
+```
+
+**优势**：
+- 更灵活：可以动态改变组合对象
+- 更松耦合：避免深层继承链
+- 更易测试：可以注入 Mock 对象
+
 ## 项目技术亮点 🌟
 
 ### 架构设计优势
