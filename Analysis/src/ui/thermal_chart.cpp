@@ -1325,6 +1325,55 @@ void ThermalChart::zoomToRect(const QRectF& rect)
     hideSelectionBox();
 }
 
+bool ThermalChart::isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const
+{
+    if (!series || !yAxis) {
+        return false;
+    }
+
+    QList<QAbstractAxis*> yAxes = series->attachedAxes();
+    for (QAbstractAxis* axis : yAxes) {
+        if (axis == yAxis) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ThermalChart::calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax,
+                                            qreal& outYMin, qreal& outYMax) const
+{
+    if (!series) {
+        return false;
+    }
+
+    bool hasData = false;
+    qreal yMin = std::numeric_limits<qreal>::max();
+    qreal yMax = std::numeric_limits<qreal>::lowest();
+
+    // 遍历系列的数据点，找出在 [xMin, xMax] 范围内的 Y 值范围
+    const QVector<QPointF>& points = series->pointsVector();
+    for (const QPointF& point : points) {
+        qreal x = point.x();
+        qreal y = point.y();
+
+        // 只考虑在 X 范围内的点
+        if (x >= xMin && x <= xMax) {
+            yMin = qMin(yMin, y);
+            yMax = qMax(yMax, y);
+            hasData = true;
+        }
+    }
+
+    if (hasData) {
+        outYMin = yMin;
+        outYMax = yMax;
+    }
+
+    return hasData;
+}
+
 void ThermalChart::rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax)
 {
     if (!yAxis) {
@@ -1343,31 +1392,16 @@ void ThermalChart::rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xM
         }
 
         // 检查该系列是否绑定到当前 Y 轴
-        QList<QAbstractAxis*> yAxes = lineSeries->attachedAxes();
-        bool isAttachedToThisYAxis = false;
-        for (QAbstractAxis* axis : yAxes) {
-            if (axis == yAxis) {
-                isAttachedToThisYAxis = true;
-                break;
-            }
-        }
-
-        if (!isAttachedToThisYAxis) {
+        if (!isSeriesAttachedToYAxis(lineSeries, yAxis)) {
             continue;
         }
 
-        // 遍历该系列的数据点，找出在 [xMin, xMax] 范围内的 Y 值范围
-        const QVector<QPointF>& points = lineSeries->pointsVector();
-        for (const QPointF& point : points) {
-            qreal x = point.x();
-            qreal y = point.y();
-
-            // 只考虑在 X 范围内的点
-            if (x >= xMin && x <= xMax) {
-                yMin = qMin(yMin, y);
-                yMax = qMax(yMax, y);
-                hasData = true;
-            }
+        // 计算该系列在 X 范围内的 Y 值范围
+        qreal seriesYMin, seriesYMax;
+        if (calculateYRangeInXRange(lineSeries, xMin, xMax, seriesYMin, seriesYMax)) {
+            yMin = qMin(yMin, seriesYMin);
+            yMax = qMax(yMax, seriesYMax);
+            hasData = true;
         }
     }
 

@@ -220,6 +220,26 @@ private:
      */
     void rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax);
 
+    /**
+     * @brief 检查系列是否绑定到指定 Y 轴
+     * @param series 曲线系列
+     * @param yAxis Y 轴指针
+     * @return true=绑定，false=未绑定
+     */
+    bool isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const;
+
+    /**
+     * @brief 计算系列在指定 X 范围内的 Y 值范围
+     * @param series 曲线系列
+     * @param xMin X 轴最小值
+     * @param xMax X 轴最大值
+     * @param outYMin 输出：Y 最小值
+     * @param outYMax 输出：Y 最大值
+     * @return true=找到数据，false=未找到数据
+     */
+    bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax,
+                                  qreal& outYMin, qreal& outYMax) const;
+
 private:
     // ==================== 坐标轴 ====================
     QValueAxis* m_axisX = nullptr;
