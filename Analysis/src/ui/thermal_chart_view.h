@@ -112,8 +112,128 @@ private:
     QLineSeries* findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const;
     qreal hitThreshold() const;
 
+    // ==================== EventFilter 事件处理辅助函数 ====================
+    /**
+     * @brief 处理右键按下事件
+     * @param mouseEvent 鼠标事件
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleRightButtonPress(QMouseEvent* mouseEvent);
+
+    /**
+     * @brief 处理右键释放事件
+     * @param mouseEvent 鼠标事件
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleRightButtonRelease(QMouseEvent* mouseEvent);
+
+    /**
+     * @brief 处理右键拖动事件
+     * @param mouseEvent 鼠标事件
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleRightButtonDrag(QMouseEvent* mouseEvent);
+
+    /**
+     * @brief 处理质量损失测量工具的单次点击创建
+     * @param viewportPos 点击位置（视口坐标）
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handleMassLossToolClick(const QPointF& viewportPos);
+
+    /**
+     * @brief 处理峰面积测量工具的单次点击创建
+     * @param viewportPos 点击位置（视口坐标）
+     * @return true=事件已处理，false=继续传递
+     */
+    bool handlePeakAreaToolClick(const QPointF& viewportPos);
+
+    /**
+     * @brief 处理鼠标离开事件
+     */
+    void handleMouseLeave();
+
+    // ==================== 质量损失工具辅助函数 ====================
+    /**
+     * @brief 验证质量损失工具前置条件并获取活动曲线和系列
+     * @param outCurve 输出参数：活动曲线指针
+     * @param outSeries 输出参数：活动系列指针
+     * @return true=验证通过，false=验证失败
+     */
+    bool validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+
+    /**
+     * @brief 重置质量损失工具状态
+     */
+    void resetMassLossToolState();
+
+    // ==================== 峰面积工具辅助函数 ====================
+    /**
+     * @brief 验证峰面积工具前置条件并获取目标曲线和系列
+     * @param outCurve 输出参数：目标曲线指针
+     * @param outSeries 输出参数：目标系列指针
+     * @return true=验证通过，false=验证失败
+     */
+    bool validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+
+    /**
+     * @brief 检查点击位置是否在绘图区域内
+     * @param viewportPos 视口坐标
+     * @param outChartPos 输出参数：图表坐标
+     * @return true=在绘图区内，false=不在绘图区内
+     */
+    bool isClickInsidePlotArea(const QPointF& viewportPos, QPointF* outChartPos);
+
+    /**
+     * @brief 计算动态延伸范围（基于当前 X 轴可见范围的百分比）
+     * @param percentage 百分比（默认 5%）
+     * @return 延伸范围值
+     */
+    qreal calculateDynamicRangeExtension(qreal percentage = 0.05);
+
+    /**
+     * @brief 应用峰面积工具的基线模式
+     * @param tool 峰面积工具指针
+     */
+    void applyPeakAreaBaseline(PeakAreaTool* tool);
+
+    /**
+     * @brief 重置峰面积工具状态
+     */
+    void resetPeakAreaToolState();
+
     // ==================== 右键拖动 ====================
     void handleRightDrag(const QPointF& currentPos);
+
+    // ==================== 缩放辅助函数 ====================
+    /**
+     * @brief 以指定点为中心缩放 X 轴
+     * @param chartPos 图表坐标系中的位置
+     * @param factor 缩放因子（<1 放大，>1 缩小）
+     */
+    void zoomXAxisAtPoint(const QPointF& chartPos, qreal factor);
+
+    /**
+     * @brief 以指定点为中心缩放单个 Y 轴
+     * @param yAxis 要缩放的 Y 轴
+     * @param chartPos 图表坐标系中的位置
+     * @param factor 缩放因子（<1 放大，>1 缩小）
+     */
+    void zoomYAxisAtPoint(QValueAxis* yAxis, const QPointF& chartPos, qreal factor);
+
+    /**
+     * @brief 以指定点为中心缩放所有 Y 轴
+     * @param chartPos 图表坐标系中的位置
+     * @param factor 缩放因子（<1 放大，>1 缩小）
+     */
+    void zoomAllYAxesAtPoint(const QPointF& chartPos, qreal factor);
+
+    /**
+     * @brief 查找与指定 Y 轴关联的第一个系列
+     * @param yAxis Y 轴指针
+     * @return 关联的系列指针，如果没有则返回 nullptr
+     */
+    QAbstractSeries* findFirstSeriesForYAxis(QValueAxis* yAxis) const;
 
     // ==================== 坐标转换 ====================
     QPointF viewportToScene(const QPointF& viewportPos) const;
