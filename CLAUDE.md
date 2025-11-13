@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 这是一个基于 Qt 5.14.2 开发的热分析数据处理工具,支持 TGA(热重分析)、DSC(差示扫描量热)、ARC(加速量热仪)等热分析数据的导入、可视化和分析处理。
 
-**项目规模** (截至 2025-11-10):
-- 📦 **64 个源文件** (.cpp + .h)
-- 📝 **约 8,669 行 C++ 代码** (.cpp 文件)
+**项目规模** (截至 2025-11-13):
+- 📦 **77 个源文件** (.cpp + .h)
+- 📝 **约 11,286 行 C++ 代码** (.cpp 文件)
 - 🔬 **5 种算法实现** (微分、积分、移动平均、基线校正、峰面积)
 - 🏗️ **四层架构设计** (表示层、应用层、领域层、基础设施层)
 
@@ -89,7 +89,11 @@ Analysis.exe
     - `algorithmInteractionCompleted(algorithmName, points)`: 当用户完成选点后自动发出,触发算法执行
   - **交互模式**: InteractionMode (View/Pick)
   - **横轴模式**: XAxisMode (Temperature/Time)
-  - **交互功能**: 右键拖动平移、Ctrl+滚轮缩放、多Y轴支持
+  - **交互功能**:
+    - 左键框选缩放（View模式下拖动选择区域）
+    - 右键拖动平移
+    - Ctrl+滚轮缩放
+    - 多Y轴支持
 - **FloatingLabel**: 🆕 浮动标签组件,可拖动、可缩放的文本标签
   - **锚定模式**: DataAnchored (跟随数据) / ViewAnchored (固定HUD)
   - **交互功能**: 拖动移动、Ctrl+滚轮缩放、关闭按钮、锁定/解锁
@@ -810,6 +814,23 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
 ## 已知限制和后续计划
 
 ### 最近完成 ✅
+- ✅ **框选缩放功能** (2025-11-13)
+  - 左键拖动框选区域，松开后自动缩放到选中区域
+  - 方案A：X轴精确缩放到框选范围，Y轴自适应数据范围
+  - 最小框选阈值验证，避免误触
+  - 辅助函数封装：`convertViewportRectToChartRect()`、`finalizeBoxSelection()`
+  - ThermalChartView::mousePressEvent/mouseMoveEvent/mouseReleaseEvent 处理框选流程
+- ✅ **ThermalChartView 重构优化** (2025-11-13)
+  - 封装 `handleMassLossToolClick()` 函数，简化质量损失工具点击逻辑
+  - 封装 `handlePeakAreaToolClick()` 函数，简化峰面积工具点击逻辑
+  - 封装 `wheelEvent()` 缩放逻辑，提取中心点缩放计算
+  - 拆分 `eventFilter()` 函数，提取右键事件处理为独立函数
+  - 优化 Ctrl+滚轮缩放：以鼠标位置为中心缩放（而非图表中心）
+- ✅ **移除冗余空指针检查** (2025-11-13)
+  - ChartView 中移除 45 处对构造时注入对象的冗余空指针检查
+  - 实现两阶段依赖注入：构造函数注入 + `initialize()` 完整性校验
+  - 所有依赖注入组件在 `initialize()` 阶段统一验证，运行时保证非空
+  - 简化代码逻辑，提高可读性和性能
 - ✅ **完全依赖注入架构重构** (2025-11-12) 🎉
   - **移除所有单例模式**：AlgorithmManager、HistoryManager、AlgorithmThreadManager 不再是单例
   - **构造函数注入**：所有依赖通过构造函数显式传递
@@ -871,6 +892,7 @@ AlgorithmCoordinator 将在以下场景中发挥关键作用：
   - 确认对话框：显示将删除的子曲线列表
   - 深度优先遍历：先删除子曲线，再删除父曲线
 - ✅ **图表交互增强**
+  - 左键框选缩放功能（方案A：X轴精确缩放，Y轴自适应）
   - 右键拖动平移功能
   - Ctrl+滚轮缩放功能
   - 横轴切换：温度/时间模式（XAxisMode）
