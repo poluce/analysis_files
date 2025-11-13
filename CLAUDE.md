@@ -53,6 +53,27 @@ Analysis.exe
 - C++17 标准
 - Qt Charts 模块
 
+### ⚠️ 云端环境限制
+
+**重要说明**：本项目是基于 Qt 5.14.2 和 MinGW 的 Windows 桌面应用，**无法在云端 Linux 环境中编译**。
+
+- **Claude Code 云端环境**：运行在 Linux 系统上，缺少 Qt 开发环境和 MinGW 编译器
+- **编译要求**：必须在配置好 Qt 5.14.2 + MinGW 7.3.0 的 Windows 环境中编译
+- **Claude 的作用**：
+  - ✅ 可以编写和修改代码（.cpp/.h 文件）
+  - ✅ 可以提交代码到 Git 分支
+  - ✅ 可以进行代码审查和架构设计
+  - ❌ **无法编译项目**（需要用户在本地 Windows 环境编译）
+  - ❌ 无法运行和测试程序
+
+**工作流程**：
+1. Claude 在云端编写/修改代码
+2. Claude 提交代码到 Git 分支
+3. **用户在本地 Windows 环境拉取代码**
+4. **用户在本地编译、运行、测试**
+5. 用户反馈测试结果给 Claude
+6. Claude 根据反馈继续优化
+
 ## 架构设计
 
 项目采用清晰的**四层分层架构**,遵循领域驱动设计(DDD)原则:
@@ -688,6 +709,37 @@ win32:g++:  QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
 ```
 注释和字符串可以使用中文。
 
+### 代码注释规范
+
+**重要规则**：
+
+1. **禁止在代码注释中使用表情符号和特殊图标**
+   - ❌ 禁止使用：`✅`、`❌`、`✨`、`🎉`、`🔥`、`⚠️` 等任何 Emoji 或 Unicode 装饰符号
+   - ✅ 允许使用：纯文本说明，如 `OK`、`FIXME`、`TODO`、`NOTE`、`WARNING`
+
+2. **原因**：
+   - 代码注释应保持纯文本格式，确保在所有开发环境中正确显示
+   - 某些 IDE、编译器、代码审查工具可能无法正确渲染 Emoji
+   - 保持代码的专业性和一致性
+   - 便于搜索、正则匹配和代码分析工具处理
+
+3. **正确的注释风格**：
+   ```cpp
+   // 正确：使用纯文本标记
+   // TODO: 实现框选缩放功能
+   // NOTE: 此函数已重构为三个子函数
+   // WARNING: 此处需要验证输入参数
+
+   // 错误：使用表情符号
+   // ✅ 已完成框选缩放功能  ❌ 禁止这样写
+   // ✨ 新增辅助函数         ❌ 禁止这样写
+   ```
+
+4. **文档中可以使用**：
+   - Markdown 文档（如 CLAUDE.md、README.md）**可以使用** Emoji 来增强可读性
+   - 代码注释（.cpp/.h 文件中的 `//` 和 `/* */`）**禁止使用** Emoji
+   - Git 提交信息（commit message）可以适度使用 Emoji
+
 ## 调试和诊断
 
 ### 微分算法调试
@@ -996,6 +1048,119 @@ FloatingLabel* hud = chartView->addFloatingLabelHUD(
 - 修改数据的操作应封装为 Command 以支持撤销
 - 使用信号槽机制实现松耦合
 - 注释应清晰说明类的职责和方法的用途
+
+## 设计原则
+
+本项目严格遵循现代软件工程的设计原则，确保代码的可维护性、可扩展性和可测试性。
+
+### SOLID 原则
+
+**S - Single Responsibility Principle (单一职责原则)**
+- 每个类、函数只负责一个明确的任务
+- 示例：
+  - `ThermalChart::rescaleYAxisForXRange()` 拆分为3个子函数
+  - `isSeriesAttachedToYAxis()` - 仅负责检查绑定关系
+  - `calculateYRangeInXRange()` - 仅负责计算 Y 值范围
+- 优势：修改某个功能时不影响其他功能，降低耦合
+
+**O - Open/Closed Principle (开闭原则)**
+- 对扩展开放，对修改关闭
+- 示例：
+  - 通过实现 `IThermalAlgorithm` 接口添加新算法，无需修改现有代码
+  - 通过组合辅助函数扩展功能，而非修改主函数
+- 优势：新功能不破坏已有功能，降低回归风险
+
+**L - Liskov Substitution Principle (里氏替换原则)**
+- 子类应该可以替换父类而不改变程序的正确性
+- 示例：
+  - 所有算法实现都可以替换 `IThermalAlgorithm` 接口
+  - 所有文件读取器都可以替换 `IFileReader` 接口
+- 优势：接口抽象清晰，易于扩展和替换实现
+
+**I - Interface Segregation Principle (接口隔离原则)**
+- 客户端不应依赖它不需要的接口
+- 示例：
+  - `IThermalAlgorithm` 只定义算法核心接口
+  - `IFileReader` 只定义文件读取接口
+- 优势：接口小而精，避免臃肿的"胖接口"
+
+**D - Dependency Inversion Principle (依赖倒置原则)**
+- 高层模块不应依赖低层模块，都应依赖抽象
+- 示例：
+  - `ApplicationContext` 通过构造函数注入依赖
+  - `AlgorithmManager` 依赖 `IThermalAlgorithm` 接口，而非具体实现
+- 优势：解耦模块，易于单元测试和替换实现
+
+### DRY 原则 (Don't Repeat Yourself)
+
+**原则**：避免代码重复，提取可复用的逻辑
+
+**实践示例**：
+1. **坐标转换逻辑复用**
+   ```cpp
+   // 错误：在 mouseMoveEvent 和 mouseReleaseEvent 中重复相同逻辑
+   QPointF sceneStart = mapToScene(m_boxSelectStart.toPoint());
+   QPointF sceneEnd = mapToScene(m_boxSelectEnd.toPoint());
+   QPointF chartStart = chart()->mapFromScene(sceneStart);
+   QPointF chartEnd = chart()->mapFromScene(sceneEnd);
+
+   // 正确：提取为可复用函数
+   QRectF convertViewportRectToChartRect(const QPointF& start, const QPointF& end) const;
+   ```
+
+2. **Y 轴绑定检查复用**
+   ```cpp
+   // 错误：在多处重复检查逻辑
+   for (QAbstractAxis* axis : lineSeries->attachedAxes()) {
+       if (axis == yAxis) { ... }
+   }
+
+   // 正确：提取为独立函数
+   bool isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const;
+   ```
+
+**优势**：
+- 减少代码重复，降低维护成本
+- 修改一处，所有调用处自动更新
+- 提高代码一致性
+
+### KISS 原则 (Keep It Simple, Stupid)
+
+**原则**：保持简单，避免过度设计
+
+**实践建议**：
+- 函数长度控制在 50 行以内（超过则考虑拆分）
+- 函数参数不超过 5 个（过多则考虑封装为结构体）
+- 避免深层嵌套（嵌套不超过 3 层）
+- 优先使用清晰的命名，而非复杂的注释
+
+### YAGNI 原则 (You Aren't Gonna Need It)
+
+**原则**：不要实现当前不需要的功能
+
+**实践建议**：
+- 只实现当前需求，不提前设计未来可能需要的功能
+- 避免过度抽象和过度封装
+- 通过迭代开发逐步完善功能
+
+### 组合优于继承
+
+**原则**：优先使用组合（聚合）而非继承
+
+**实践示例**：
+```cpp
+// ChartView 组合 ThermalChart 和 ThermalChartView
+class ChartView : public QWidget {
+private:
+    ThermalChart* m_chart;           // 组合：数据管理
+    ThermalChartView* m_chartView;   // 组合：交互处理
+};
+```
+
+**优势**：
+- 更灵活：可以动态改变组合对象
+- 更松耦合：避免深层继承链
+- 更易测试：可以注入 Mock 对象
 
 ## 项目技术亮点 🌟
 

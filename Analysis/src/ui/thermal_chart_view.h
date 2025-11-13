@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QtCharts/QAbstractSeries>
 #include <QtCharts/QLineSeries>
+#include <QtCharts/QValueAxis>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -14,6 +15,8 @@ class QMouseEvent;
 class QWheelEvent;
 class QContextMenuEvent;
 class CurveManager;
+class ThermalCurve;
+class PeakAreaTool;
 struct ThermalDataPoint;
 
 /**
@@ -205,6 +208,25 @@ private:
     // ==================== 右键拖动 ====================
     void handleRightDrag(const QPointF& currentPos);
 
+    // ==================== 框选缩放辅助函数 ====================
+    /**
+     * @brief 更新框选矩形显示
+     */
+    void updateSelectionBoxDisplay();
+
+    /**
+     * @brief 完成框选并执行缩放
+     */
+    void finalizeBoxSelection();
+
+    /**
+     * @brief 将视口坐标矩形转换为图表坐标矩形
+     * @param viewportStart 视口起始点
+     * @param viewportEnd 视口结束点
+     * @return 图表坐标矩形
+     */
+    QRectF convertViewportRectToChartRect(const QPointF& viewportStart, const QPointF& viewportEnd) const;
+
     // ==================== 缩放辅助函数 ====================
     /**
      * @brief 以指定点为中心缩放 X 轴
@@ -267,6 +289,11 @@ private:
     QString m_peakAreaCurveId;
     bool m_peakAreaUseLinearBaseline = true;
     QString m_peakAreaReferenceCurveId;
+
+    // ==================== 框选缩放状态 ====================
+    bool m_isBoxSelecting = false;       // 是否正在框选
+    QPointF m_boxSelectStart;            // 框选起始点（视口坐标）
+    QPointF m_boxSelectEnd;              // 框选结束点（视口坐标）
 };
 
 #endif // THERMAL_CHART_VIEW_H

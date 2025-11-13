@@ -1104,7 +1104,7 @@ PeakAreaTool* ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
     });
 
     // 连接面积变化信号（用于实时更新 FloatingLabel 等）
-    connect(tool, &PeakAreaTool::areaChanged, this, [tool](qreal newArea) {
+    connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) {
         qDebug() << "峰面积已更新:" << newArea;
         // 未来可以在这里更新 FloatingLabel
     });
@@ -1259,4 +1259,160 @@ void ThermalChart::clearCustomTitles()
     // Y轴标题保持当前值（会在下次添加曲线时自动更新）
 
     qDebug() << "ThermalChart::clearCustomTitles - 清除所有自定义标题";
+}
+
+// ==================== 框选缩放管理实现 ====================
+
+void ThermalChart::showSelectionBox(const QRectF& rect)
+{
+    // 如果选框不存在，创建新的
+    if (!m_selectionBox) {
+        m_selectionBox = new QGraphicsRectItem(this);
+
+        // 设置样式：蓝色虚线边框 + 半透明蓝色填充
+        QPen pen(Qt::blue, 2, Qt::DashLine);
+        m_selectionBox->setPen(pen);
+
+        QBrush brush(QColor(0, 0, 255, 30)); // 半透明蓝色（alpha=30）
+        m_selectionBox->setBrush(brush);
+
+        // 设置 Z 值，确保在所有曲线之上
+        m_selectionBox->setZValue(1000);
+
+        qDebug() << "ThermalChart::showSelectionBox - 创建选框图形项";
+    }
+
+    // 更新矩形位置和大小
+    m_selectionBox->setRect(rect);
+    m_selectionBox->setVisible(true);
+}
+
+void ThermalChart::hideSelectionBox()
+{
+    if (m_selectionBox) {
+        m_selectionBox->setVisible(false);
+    }
+}
+
+void ThermalChart::zoomToRect(const QRectF& rect)
+{
+    if (!m_axisX || !m_axisY_primary) {
+        qWarning() << "ThermalChart::zoomToRect - 坐标轴未初始化";
+        return;
+    }
+
+    // 将图表坐标系的矩形转换为数据坐标
+    QPointF topLeft = mapToValue(rect.topLeft());
+    QPointF bottomRight = mapToValue(rect.bottomRight());
+
+    // 获取 X 轴范围（规范化，处理反向拖动）
+    qreal xMin = qMin(topLeft.x(), bottomRight.x());
+    qreal xMax = qMax(topLeft.x(), bottomRight.x());
+
+    // 1. 精确设置 X 轴范围
+    m_axisX->setRange(xMin, xMax);
+
+    qDebug() << "ThermalChart::zoomToRect - X轴缩放到范围:" << xMin << "~" << xMax;
+
+    // 2. Y 轴自适应到该 X 范围内的数据（方案 A）
+    rescaleYAxisForXRange(m_axisY_primary, xMin, xMax);
+
+    if (m_axisY_secondary) {
+        rescaleYAxisForXRange(m_axisY_secondary, xMin, xMax);
+    }
+
+    // 3. 隐藏选框
+    hideSelectionBox();
+}
+
+bool ThermalChart::isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const
+{
+    if (!series || !yAxis) {
+        return false;
+    }
+
+    QList<QAbstractAxis*> yAxes = series->attachedAxes();
+    for (QAbstractAxis* axis : yAxes) {
+        if (axis == yAxis) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ThermalChart::calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax,
+                                            qreal& outYMin, qreal& outYMax) const
+{
+    if (!series) {
+        return false;
+    }
+
+    bool hasData = false;
+    qreal yMin = std::numeric_limits<qreal>::max();
+    qreal yMax = std::numeric_limits<qreal>::lowest();
+
+    // 遍历系列的数据点，找出在 [xMin, xMax] 范围内的 Y 值范围
+    const QVector<QPointF>& points = series->pointsVector();
+    for (const QPointF& point : points) {
+        qreal x = point.x();
+        qreal y = point.y();
+
+        // 只考虑在 X 范围内的点
+        if (x >= xMin && x <= xMax) {
+            yMin = qMin(yMin, y);
+            yMax = qMax(yMax, y);
+            hasData = true;
+        }
+    }
+
+    if (hasData) {
+        outYMin = yMin;
+        outYMax = yMax;
+    }
+
+    return hasData;
+}
+
+void ThermalChart::rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax)
+{
+    if (!yAxis) {
+        return;
+    }
+
+    qreal yMin = std::numeric_limits<qreal>::max();
+    qreal yMax = std::numeric_limits<qreal>::lowest();
+    bool hasData = false;
+
+    // 遍历所有系列，找出绑定到该 Y 轴的系列
+    for (QAbstractSeries* abstractSeries : series()) {
+        QLineSeries* lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
+        if (!lineSeries) {
+            continue;
+        }
+
+        // 检查该系列是否绑定到当前 Y 轴
+        if (!isSeriesAttachedToYAxis(lineSeries, yAxis)) {
+            continue;
+        }
+
+        // 计算该系列在 X 范围内的 Y 值范围
+        qreal seriesYMin, seriesYMax;
+        if (calculateYRangeInXRange(lineSeries, xMin, xMax, seriesYMin, seriesYMax)) {
+            yMin = qMin(yMin, seriesYMin);
+            yMax = qMax(yMax, seriesYMax);
+            hasData = true;
+        }
+    }
+
+    // 如果找到数据，设置 Y 轴范围
+    if (hasData) {
+        // 添加 5% 的边距，避免曲线贴边
+        qreal margin = (yMax - yMin) * 0.05;
+        yAxis->setRange(yMin - margin, yMax + margin);
+
+        qDebug() << "ThermalChart::rescaleYAxisForXRange - Y轴自适应到范围:" << (yMin - margin) << "~" << (yMax + margin);
+    } else {
+        qDebug() << "ThermalChart::rescaleYAxisForXRange - 在X范围内未找到数据";
+    }
 }

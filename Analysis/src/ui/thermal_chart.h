@@ -156,6 +156,28 @@ public:
     void addSelectedPoint(const QPointF& point);
     void clearSelectedPoints();
 
+    // ==================== 框选缩放管理 ====================
+    /**
+     * @brief 显示框选矩形
+     * @param rect 矩形区域（图表坐标系）
+     */
+    void showSelectionBox(const QRectF& rect);
+
+    /**
+     * @brief 隐藏框选矩形
+     */
+    void hideSelectionBox();
+
+    /**
+     * @brief 缩放到指定矩形区域
+     * @param rect 矩形区域（图表坐标系）
+     *
+     * 实现方案 A：
+     * - X轴：精确缩放到矩形的 X 范围
+     * - Y轴：自适应到该 X 范围内的数据实际范围
+     */
+    void zoomToRect(const QRectF& rect);
+
 signals:
     /**
      * @brief 横轴模式改变信号
@@ -188,6 +210,35 @@ private:
     // ==================== 数据查询辅助函数 ====================
     struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData,
                                                    double temperature) const;
+
+    // ==================== 框选缩放辅助函数 ====================
+    /**
+     * @brief 自适应 Y 轴到指定 X 范围内的数据
+     * @param yAxis Y 轴指针
+     * @param xMin X 轴最小值
+     * @param xMax X 轴最大值
+     */
+    void rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax);
+
+    /**
+     * @brief 检查系列是否绑定到指定 Y 轴
+     * @param series 曲线系列
+     * @param yAxis Y 轴指针
+     * @return true=绑定，false=未绑定
+     */
+    bool isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const;
+
+    /**
+     * @brief 计算系列在指定 X 范围内的 Y 值范围
+     * @param series 曲线系列
+     * @param xMin X 轴最小值
+     * @param xMax X 轴最大值
+     * @param outYMin 输出：Y 最小值
+     * @param outYMax 输出：Y 最大值
+     * @return true=找到数据，false=未找到数据
+     */
+    bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax,
+                                  qreal& outYMin, qreal& outYMax) const;
 
 private:
     // ==================== 坐标轴 ====================
@@ -223,6 +274,9 @@ private:
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;
     QVector<QGraphicsObject*> m_peakAreaTools;
+
+    // ==================== 框选矩形 ====================
+    QGraphicsRectItem* m_selectionBox = nullptr;
 
     // ==================== 外部依赖 ====================
     CurveManager* m_curveManager = nullptr;
