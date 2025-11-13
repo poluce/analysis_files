@@ -636,25 +636,24 @@ void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
     // ==================== 级联处理子曲线 ====================
     QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
     for (ThermalCurve* child : children) {
-            if (!child) continue;
+        if (!child) continue;
 
-            // 只级联处理强绑定的子曲线（如基线）
-            if (child->isStronglyBound()) {
-                QLineSeries* childSeries = seriesForCurve(child->id());
-                if (childSeries) {
-                    childSeries->setVisible(visible);
-                    updateLegendVisibility(childSeries, visible);
+        // 只级联处理强绑定的子曲线（如基线）
+        if (child->isStronglyBound()) {
+            QLineSeries* childSeries = seriesForCurve(child->id());
+            if (childSeries) {
+                childSeries->setVisible(visible);
+                updateLegendVisibility(childSeries, visible);
 
-                    // 递归处理子曲线的标注点
-                    if (m_curveMarkers.contains(child->id())) {
-                        CurveMarkerData& childMarkerData = m_curveMarkers[child->id()];
-                        if (childMarkerData.series) {
-                            childMarkerData.series->setVisible(visible);
-                        }
+                // 递归处理子曲线的标注点
+                if (m_curveMarkers.contains(child->id())) {
+                    CurveMarkerData& childMarkerData = m_curveMarkers[child->id()];
+                    if (childMarkerData.series) {
+                        childMarkerData.series->setVisible(visible);
                     }
-
-                    qDebug() << "ThermalChart::setCurveVisible - 级联设置子曲线可见性:" << child->name() << visible;
                 }
+
+                qDebug() << "ThermalChart::setCurveVisible - 级联设置子曲线可见性:" << child->name() << visible;
             }
         }
     }
