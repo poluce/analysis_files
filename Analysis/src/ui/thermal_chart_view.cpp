@@ -139,9 +139,9 @@ void ThermalChartView::mouseMoveEvent(QMouseEvent* event)
     if (m_isBoxSelecting) {
         m_boxSelectEnd = event->pos();
 
-        // 转换为图表坐标系
-        QPointF sceneStart = mapToScene(m_boxSelectStart);
-        QPointF sceneEnd = mapToScene(m_boxSelectEnd);
+        // 转换为图表坐标系（mapToScene 需要 QPoint，所以转换 QPointF → QPoint）
+        QPointF sceneStart = mapToScene(m_boxSelectStart.toPoint());
+        QPointF sceneEnd = mapToScene(m_boxSelectEnd.toPoint());
         QPointF chartStart = chart()->mapFromScene(sceneStart);
         QPointF chartEnd = chart()->mapFromScene(sceneEnd);
 
@@ -189,9 +189,9 @@ void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
         // 边界检查：框选区域太小（<10像素）时忽略，避免误触
         const qreal minBoxSize = 10.0;
         if (width > minBoxSize && height > minBoxSize) {
-            // 转换为图表坐标系
-            QPointF sceneStart = mapToScene(m_boxSelectStart);
-            QPointF sceneEnd = mapToScene(m_boxSelectEnd);
+            // 转换为图表坐标系（mapToScene 需要 QPoint，所以转换 QPointF → QPoint）
+            QPointF sceneStart = mapToScene(m_boxSelectStart.toPoint());
+            QPointF sceneEnd = mapToScene(m_boxSelectEnd.toPoint());
             QPointF chartStart = chart()->mapFromScene(sceneStart);
             QPointF chartEnd = chart()->mapFromScene(sceneEnd);
 

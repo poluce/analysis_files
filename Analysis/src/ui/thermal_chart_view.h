@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QtCharts/QAbstractSeries>
 #include <QtCharts/QLineSeries>
+#include <QtCharts/QValueAxis>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -14,6 +15,8 @@ class QMouseEvent;
 class QWheelEvent;
 class QContextMenuEvent;
 class CurveManager;
+class ThermalCurve;
+class PeakAreaTool;
 struct ThermalDataPoint;
 
 /**
