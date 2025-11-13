@@ -1,0 +1,42 @@
+#!/bin/bash
+# Git pre-push hook - 提醒更新 CLAUDE.md 文档
+#
+# 安装方法：
+#   cp .git-hooks/pre-push.sample .git/hooks/pre-push
+#   chmod +x .git/hooks/pre-push
+
+echo ""
+echo "=========================================="
+echo "📚 文档更新检查"
+echo "=========================================="
+echo ""
+
+# 检查 CLAUDE.md 是否在最近 3 次提交中被修改过
+recent_claude_update=$(git log -3 --name-only --pretty=format: | grep "CLAUDE.md")
+
+if [ -z "$recent_claude_update" ]; then
+    echo "⚠️  警告：最近 3 次提交中没有更新 CLAUDE.md"
+    echo ""
+    echo "请确认是否需要更新以下内容："
+    echo "  - 项目规模统计（源文件数、代码行数）"
+    echo "  - 最近完成列表（新功能、bug修复、重构）"
+    echo "  - 架构设计章节（如有变更）"
+    echo ""
+    echo "快速更新方法："
+    echo "  1. 使用命令：/update-docs"
+    echo "  2. 手动编辑 CLAUDE.md"
+    echo ""
+    read -p "确认要继续推送吗？(y/n) " answer
+
+    if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+        echo "❌ 推送已取消。请先更新文档！"
+        exit 1
+    fi
+
+    echo "✅ 继续推送..."
+else
+    echo "✅ 检测到 CLAUDE.md 已更新，继续推送..."
+fi
+
+echo ""
+exit 0
