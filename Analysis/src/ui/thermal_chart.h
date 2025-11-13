@@ -52,6 +52,16 @@ public:
     // ==================== 外部依赖注入 ====================
     void setCurveManager(CurveManager* manager);
 
+    /**
+     * @brief 完整性校验与状态标记
+     *
+     * 在所有依赖注入完成后调用，集中断言所有必需依赖非空，
+     * 并将图表标记为"已初始化状态"。
+     *
+     * 调用顺序：构造函数() → setCurveManager(CurveManager*) → initialize()
+     */
+    void initialize();
+
     // ==================== 曲线管理 ====================
     void addCurve(const ThermalCurve& curve);
     void updateCurve(const ThermalCurve& curve);
@@ -241,6 +251,9 @@ private:
                                   qreal& outYMin, qreal& outYMax) const;
 
 private:
+    // ==================== 初始化状态标记 ====================
+    bool m_initialized = false;  // 防止"半初始化对象"的运行时错误
+
     // ==================== 坐标轴 ====================
     QValueAxis* m_axisX = nullptr;
     QValueAxis* m_axisY_primary = nullptr;

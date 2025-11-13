@@ -42,6 +42,12 @@ ChartView::ChartView(QWidget* parent)
 void ChartView::setCurveManager(CurveManager* manager)
 {
     m_curveManager = manager;
+
+    // 设置 ThermalChart 的依赖并初始化
+    m_chart->setCurveManager(manager);
+    m_chart->initialize();  // 统一初始化（断言完整性）
+
+    // 设置 ThermalChartView 的依赖并初始化
     m_chartView->setCurveManager(manager);
     m_chartView->initialize();  // 统一初始化（断言完整性）
 }

@@ -69,6 +69,17 @@ void ThermalChart::setCurveManager(CurveManager* manager)
     m_curveManager = manager;
 }
 
+void ThermalChart::initialize()
+{
+    // 断言 Setter 注入的必需依赖
+    Q_ASSERT(m_curveManager != nullptr);
+
+    // 标记为已初始化状态
+    m_initialized = true;
+
+    qDebug() << "ThermalChart 初始化完成，所有依赖已就绪";
+}
+
 // ==================== 系列查询接口 ====================
 
 QLineSeries* ThermalChart::seriesForCurve(const QString& curveId) const
@@ -601,6 +612,8 @@ void ThermalChart::clearCurves()
 
 void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 早期返回：检查曲线是否存在
     QLineSeries* series = seriesForCurve(curveId);
     if (!series || series->isVisible() == visible) {
@@ -621,9 +634,8 @@ void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
     }
 
     // ==================== 级联处理子曲线 ====================
-    if (m_curveManager) {
-        QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
-        for (ThermalCurve* child : children) {
+    QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
+    for (ThermalCurve* child : children) {
             if (!child) continue;
 
             // 只级联处理强绑定的子曲线（如基线）
@@ -689,6 +701,8 @@ void ThermalChart::rescaleAxes()
 
 void ThermalChart::setXAxisMode(XAxisMode mode)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     if (m_xAxisMode == mode) {
         return;
     }
@@ -732,13 +746,6 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     qDebug() << "ThermalChart::setXAxisMode - 已通知" << m_peakAreaTools.size() << "个峰面积工具更新横轴模式";
 
     // 重新加载所有曲线数据
-    if (!m_curveManager) {
-        qWarning() << "ThermalChart::setXAxisMode - CurveManager 未设置";
-        emit xAxisModeChanged(m_xAxisMode);
-        rescaleAxes();
-        return;
-    }
-
     const auto& allCurves = m_curveManager->getAllCurves();
     for (const ThermalCurve& curve : allCurves) {
         QLineSeries* series = seriesForCurve(curve.id());
@@ -893,6 +900,8 @@ void ThermalChart::clearFloatingLabels()
 void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
                                     const QColor& color, qreal size)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 早期返回：检查前置条件
     if (curveId.isEmpty() || markers.isEmpty()) {
         return;
@@ -910,15 +919,13 @@ void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>&
 
     // 从 CurveManager 获取曲线数据，将 QPointF 转换为 ThermalDataPoint
     QVector<ThermalDataPoint> dataPoints;
-    if (m_curveManager) {
-        ThermalCurve* curve = m_curveManager->getCurve(curveId);
-        if (curve) {
-            const auto& curveData = curve->getProcessedData();
-            for (const QPointF& marker : markers) {
-                double targetTemp = marker.x();
-                ThermalDataPoint foundPoint = findNearestDataPoint(curveData, targetTemp);
-                dataPoints.append(foundPoint);
-            }
+    ThermalCurve* curve = m_curveManager->getCurve(curveId);
+    if (curve) {
+        const auto& curveData = curve->getProcessedData();
+        for (const QPointF& marker : markers) {
+            double targetTemp = marker.x();
+            ThermalDataPoint foundPoint = findNearestDataPoint(curveData, targetTemp);
+            dataPoints.append(foundPoint);
         }
     }
 
@@ -1012,12 +1019,14 @@ void ThermalChart::addMassLossTool(const ThermalDataPoint& point1,
                                      const ThermalDataPoint& point2,
                                      const QString& curveId)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 创建测量工具
     auto* tool = new TrapezoidMeasureTool(this);
     tool->setCurveManager(m_curveManager);
 
     // 设置坐标轴和系列（用于正确的坐标转换）
-    if (m_curveManager && !curveId.isEmpty()) {
+    if (!curveId.isEmpty()) {
         QValueAxis* yAxis = yAxisForCurve(curveId);
         QLineSeries* series = seriesForCurve(curveId);
         tool->setAxes(curveId, m_axisX, yAxis, series);
@@ -1081,12 +1090,14 @@ PeakAreaTool* ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
                                              const ThermalDataPoint& point2,
                                              const QString& curveId)
 {
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
     // 创建峰面积工具
     auto* tool = new PeakAreaTool(this);
     tool->setCurveManager(m_curveManager);
 
     // 设置坐标轴和系列（用于正确的坐标转换）
-    if (m_curveManager && !curveId.isEmpty()) {
+    if (!curveId.isEmpty()) {
         QValueAxis* yAxis = yAxisForCurve(curveId);
         QLineSeries* series = seriesForCurve(curveId);
         tool->setAxes(curveId, m_axisX, yAxis, series);
