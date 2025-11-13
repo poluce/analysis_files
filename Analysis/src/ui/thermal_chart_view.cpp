@@ -122,7 +122,12 @@ void ThermalChartView::mousePressEvent(QMouseEvent* event)
     if (m_mode == InteractionMode::Pick) {
         handleValueClick(viewportPos);
     } else {
-        handleCurveSelectionClick(viewportPos);
+        // View 模式：启动框选缩放
+        m_isBoxSelecting = true;
+        m_boxSelectStart = viewportPos;
+        m_boxSelectEnd = viewportPos;
+
+        qDebug() << "ThermalChartView::mousePressEvent - 开始框选，起点:" << viewportPos;
     }
 
     QChartView::mousePressEvent(event);
@@ -130,6 +135,28 @@ void ThermalChartView::mousePressEvent(QMouseEvent* event)
 
 void ThermalChartView::mouseMoveEvent(QMouseEvent* event)
 {
+    // 如果正在框选，更新选框矩形
+    if (m_isBoxSelecting) {
+        m_boxSelectEnd = event->pos();
+
+        // 转换为图表坐标系
+        QPointF sceneStart = mapToScene(m_boxSelectStart);
+        QPointF sceneEnd = mapToScene(m_boxSelectEnd);
+        QPointF chartStart = chart()->mapFromScene(sceneStart);
+        QPointF chartEnd = chart()->mapFromScene(sceneEnd);
+
+        // 构造矩形（图表坐标系）
+        QRectF chartRect(chartStart, chartEnd);
+
+        // 显示选框
+        if (m_thermalChart) {
+            m_thermalChart->showSelectionBox(chartRect);
+        }
+
+        // 不调用父类方法，避免触发默认的缩放行为
+        return;
+    }
+
     // 更新十字线位置（坐标转换：viewport → scene → chart）
     if (m_thermalChart) {
         QPointF scenePos = mapToScene(event->pos());
@@ -148,6 +175,51 @@ void ThermalChartView::mouseMoveEvent(QMouseEvent* event)
 
 void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
 {
+    // 处理框选缩放
+    if (m_isBoxSelecting && event->button() == Qt::LeftButton) {
+        m_boxSelectEnd = event->pos();
+
+        // 计算框选区域大小（视口坐标系）
+        QPointF delta = m_boxSelectEnd - m_boxSelectStart;
+        qreal width = qAbs(delta.x());
+        qreal height = qAbs(delta.y());
+
+        qDebug() << "ThermalChartView::mouseReleaseEvent - 框选结束，区域大小:" << width << "x" << height;
+
+        // 边界检查：框选区域太小（<10像素）时忽略，避免误触
+        const qreal minBoxSize = 10.0;
+        if (width > minBoxSize && height > minBoxSize) {
+            // 转换为图表坐标系
+            QPointF sceneStart = mapToScene(m_boxSelectStart);
+            QPointF sceneEnd = mapToScene(m_boxSelectEnd);
+            QPointF chartStart = chart()->mapFromScene(sceneStart);
+            QPointF chartEnd = chart()->mapFromScene(sceneEnd);
+
+            // 构造矩形（图表坐标系）
+            QRectF chartRect(chartStart, chartEnd);
+
+            // 执行缩放（方案 A：X轴精确，Y轴自适应）
+            if (m_thermalChart) {
+                m_thermalChart->zoomToRect(chartRect);
+                qDebug() << "ThermalChartView::mouseReleaseEvent - 执行框选缩放";
+            }
+        } else {
+            // 区域太小，隐藏选框
+            if (m_thermalChart) {
+                m_thermalChart->hideSelectionBox();
+            }
+            qDebug() << "ThermalChartView::mouseReleaseEvent - 框选区域过小，忽略";
+        }
+
+        // 重置框选状态
+        m_isBoxSelecting = false;
+        m_boxSelectStart = QPointF();
+        m_boxSelectEnd = QPointF();
+
+        // 不调用父类方法，避免触发默认行为
+        return;
+    }
+
     // 右键拖动和测量工具逻辑已移至 eventFilter
     // 这个方法保留用于未来可能的扩展
     QChartView::mouseReleaseEvent(event);

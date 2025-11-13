@@ -267,6 +267,11 @@ private:
     QString m_peakAreaCurveId;
     bool m_peakAreaUseLinearBaseline = true;
     QString m_peakAreaReferenceCurveId;
+
+    // ==================== 框选缩放状态 ====================
+    bool m_isBoxSelecting = false;       // 是否正在框选
+    QPointF m_boxSelectStart;            // 框选起始点（视口坐标）
+    QPointF m_boxSelectEnd;              // 框选结束点（视口坐标）
 };
 
 #endif // THERMAL_CHART_VIEW_H
