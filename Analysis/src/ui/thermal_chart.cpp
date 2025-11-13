@@ -1104,7 +1104,7 @@ PeakAreaTool* ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1,
     });
 
     // 连接面积变化信号（用于实时更新 FloatingLabel 等）
-    connect(tool, &PeakAreaTool::areaChanged, this, [tool](qreal newArea) {
+    connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) {
         qDebug() << "峰面积已更新:" << newArea;
         // 未来可以在这里更新 FloatingLabel
     });
