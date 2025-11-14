@@ -139,12 +139,12 @@ void ThermalChartView::mousePressEvent(QMouseEvent* event)
     if (m_mode == InteractionMode::Pick) {
         handleValueClick(viewportPos);
     } else {
-        // View 模式：记录起始点，但不立即激活框选
-        // 只有在 mouseMoveEvent 中移动超过阈值时才激活框选
+        // View 模式：启动框选缩放
+        m_isBoxSelecting = true;
         m_boxSelectStart = viewportPos;
         m_boxSelectEnd = viewportPos;
 
-        qDebug() << "ThermalChartView::mousePressEvent - 记录起始点:" << viewportPos;
+        qDebug() << "ThermalChartView::mousePressEvent - 启动框选，起点:" << viewportPos;
     }
 
     QChartView::mousePressEvent(event);
@@ -163,23 +163,6 @@ void ThermalChartView::mouseMoveEvent(QMouseEvent* event)
         return;
     }
 
-    // 如果有起始点但未激活框选，检测是否移动超过阈值
-    if (!m_boxSelectStart.isNull() && m_mode == InteractionMode::View) {
-        const qreal DRAG_THRESHOLD = 5.0;  // 拖动阈值（像素）
-        QPointF delta = event->pos() - m_boxSelectStart;
-        qreal distance = std::sqrt(delta.x() * delta.x() + delta.y() * delta.y());
-
-        if (distance > DRAG_THRESHOLD) {
-            // 移动超过阈值，激活框选
-            m_isBoxSelecting = true;
-            m_boxSelectEnd = event->pos();
-            updateSelectionBoxDisplay();
-
-            qDebug() << "ThermalChartView::mouseMoveEvent - 激活框选，移动距离:" << distance;
-            return;
-        }
-    }
-
     // 更新十字线位置（坐标转换：viewport → scene → chart）
     QPointF scenePos = mapToScene(event->pos());
     QPointF chartPos = chart()->mapFromScene(scenePos);
@@ -196,26 +179,16 @@ void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
-    if (event->button() == Qt::LeftButton) {
-        // 处理框选缩放
-        if (m_isBoxSelecting) {
-            m_boxSelectEnd = event->pos();
-            finalizeBoxSelection();
+    // 处理框选缩放
+    if (m_isBoxSelecting && event->button() == Qt::LeftButton) {
+        m_boxSelectEnd = event->pos();
+        finalizeBoxSelection();
 
-            // 不调用父类方法，避免触发默认行为
-            return;
-        } else if (!m_boxSelectStart.isNull()) {
-            // 有起始点但未激活框选，说明是单纯的点击
-            // 重置起始点并调用父类方法，让 Qt Charts 处理点击切换曲线
-            m_boxSelectStart = QPointF();
-            m_boxSelectEnd = QPointF();
-
-            qDebug() << "ThermalChartView::mouseReleaseEvent - 检测到点击（未拖动），交由 Qt Charts 处理";
-        }
+        // 不调用父类方法，避免触发默认行为
+        return;
     }
 
     // 右键拖动和测量工具逻辑已移至 eventFilter
-    // 调用父类方法处理点击切换曲线等默认行为
     QChartView::mouseReleaseEvent(event);
 }
 
