@@ -11,10 +11,6 @@
 #include <QtMath>
 #include <algorithm>
 
-// ==================== 调试开关 ====================
-// 设置为 1 启用调试日志，设置为 0 禁用（生产环境）
-#define DEBUG_PEAK_AREA_TOOL 0
-
 PeakAreaTool::PeakAreaTool(QChart* chart, QGraphicsItem* parent)
     : QGraphicsObject(parent)
     , m_chart(chart)
@@ -38,10 +34,6 @@ PeakAreaTool::PeakAreaTool(QChart* chart, QGraphicsItem* parent)
     // 样式设置
     m_boundaryPen = QPen(QColor(0, 120, 215), 2.0);  // 蓝色边界线
     m_fillBrush = QBrush(QColor(0, 120, 215, 60));    // 半透明蓝色填充（约25%透明度）
-
-#if DEBUG_PEAK_AREA_TOOL
-    qDebug() << "构造: PeakAreaTool";
-#endif
 }
 
 QRectF PeakAreaTool::boundingRect() const
@@ -63,7 +55,7 @@ void PeakAreaTool::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
         return;
     }
 
-    // ✅ 优化：绘制前确保缓存是最新的（只在脏时才重新计算）
+    // 优化：绘制前确保缓存是最新的（只在脏时才重新计算）
     updateCache();
 
     painter->setRenderHint(QPainter::Antialiasing);
@@ -89,7 +81,7 @@ void PeakAreaTool::setMeasurePoints(const ThermalDataPoint& point1, const Therma
     m_point1 = point1;
     m_point2 = point2;
 
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -100,7 +92,7 @@ void PeakAreaTool::setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis
     m_yAxis = yAxis;
     m_series = series;
 
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -116,7 +108,7 @@ void PeakAreaTool::setXAxisMode(bool useTimeAxis)
     }
 
     m_useTimeAxis = useTimeAxis;
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -127,7 +119,7 @@ void PeakAreaTool::setBaselineMode(BaselineMode mode)
     }
 
     m_baselineMode = mode;
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -136,7 +128,7 @@ void PeakAreaTool::setReferenceCurve(const QString& curveId)
     m_baselineCurveId = curveId;
 
     if (m_baselineMode == BaselineMode::ReferenceCurve) {
-        markDirty();  // ✅ 优化：标记脏，延迟计算
+        markDirty();  // 优化：标记脏，延迟计算
         update();
     }
 }
@@ -324,22 +316,8 @@ qreal PeakAreaTool::calculateArea()
     double x1 = m_useTimeAxis ? m_point1.time : m_point1.temperature;
     double x2 = m_useTimeAxis ? m_point2.time : m_point2.temperature;
 
-#if DEBUG_PEAK_AREA_TOOL
-    qDebug() << "PeakAreaTool::calculateArea - 调试信息:";
-    qDebug() << "  曲线ID:" << m_curveId;
-    qDebug() << "  数据点数量:" << data.size();
-    qDebug() << "  使用时间轴:" << m_useTimeAxis;
-    qDebug() << "  点1 - temp:" << m_point1.temperature << ", time:" << m_point1.time << ", value:" << m_point1.value;
-    qDebug() << "  点2 - temp:" << m_point2.temperature << ", time:" << m_point2.time << ", value:" << m_point2.value;
-    qDebug() << "  X范围: [" << x1 << "," << x2 << "]";
-    qDebug() << "  基线模式:" << static_cast<int>(m_baselineMode);
-#endif
-
     if (x1 > x2) {
         std::swap(x1, x2);
-#if DEBUG_PEAK_AREA_TOOL
-        qDebug() << "  X范围交换后: [" << x1 << "," << x2 << "]";
-#endif
     }
 
     // 梯形积分法计算面积
@@ -361,7 +339,7 @@ qreal PeakAreaTool::calculateArea()
         double effectiveX1 = qMax(xi, x1);
         double effectiveX2 = qMin(xi1, x2);
 
-        // 🐛 BUG修复：使用 effectiveX1 和 effectiveX2 计算基线值（而不是 xi 和 xi1）
+        // BUG修复：使用 effectiveX1 和 effectiveX2 计算基线值（而不是 xi 和 xi1）
         double baselineY1 = getBaselineValue(effectiveX1);
         double baselineY2 = getBaselineValue(effectiveX2);
 
@@ -384,26 +362,11 @@ qreal PeakAreaTool::calculateArea()
         double yi = curveY1 - baselineY1;
         double yi1 = curveY2 - baselineY2;
 
-#if DEBUG_PEAK_AREA_TOOL
-        if (inRangeCount <= 3) {
-            qDebug() << "  第" << inRangeCount << "个有效数据段:";
-            qDebug() << "    X: [" << effectiveX1 << "," << effectiveX2 << "], dx =" << (effectiveX2 - effectiveX1);
-            qDebug() << "    曲线Y: [" << curveY1 << "," << curveY2 << "]";
-            qDebug() << "    基线Y: [" << baselineY1 << "," << baselineY2 << "]";
-            qDebug() << "    净Y: [" << yi << "," << yi1 << "]";
-        }
-#endif
-
         // 梯形面积（使用绝对值，不关心曲线在基线上方还是下方）
         double dx = effectiveX2 - effectiveX1;
         double trapezoidArea = (yi + yi1) / 2.0 * dx;
         area += qAbs(trapezoidArea);
     }
-
-#if DEBUG_PEAK_AREA_TOOL
-    qDebug() << "  有效数据段数量:" << inRangeCount;
-    qDebug() << "  计算得到的面积:" << area;
-#endif
 
     return area;
 }
@@ -433,7 +396,7 @@ QPolygonF PeakAreaTool::buildAreaPolygon()
         std::swap(x1, x2);
     }
 
-    // ✅ 优化：一次遍历同时构建上下边界 (O(n²) → O(n))
+    // 优化：一次遍历同时构建上下边界 (O(n²) → O(n))
     // 上边界：曲线点（从左到右）
     // 下边界：基线点（从右到左，用于闭合多边形）
     QVector<QPointF> upperBoundary;  // 曲线上边界
@@ -567,15 +530,8 @@ void PeakAreaTool::mousePressEvent(QGraphicsSceneMouseEvent* event)
     if (event->button() == Qt::LeftButton) {
         QPointF pos = event->pos();
 
-#if DEBUG_PEAK_AREA_TOOL
-        qDebug() << "PeakAreaTool::mousePressEvent - 点击位置(本地):" << pos;
-#endif
-
         // 检查是否点击关闭按钮
         if (isPointInCloseButton(pos)) {
-#if DEBUG_PEAK_AREA_TOOL
-            qDebug() << "PeakAreaTool::mousePressEvent - 点击关闭按钮";
-#endif
             emit removeRequested();
             event->accept();
             return;
@@ -584,17 +540,11 @@ void PeakAreaTool::mousePressEvent(QGraphicsSceneMouseEvent* event)
         // 检查是否点击拖动手柄
         int handle = getHandleAtPosition(pos);
         if (handle == 1) {
-#if DEBUG_PEAK_AREA_TOOL
-            qDebug() << "PeakAreaTool::mousePressEvent - 开始拖动手柄1";
-#endif
             m_dragState = DraggingHandle1;
             setCursor(Qt::ClosedHandCursor);
             event->accept();
             return;  // 重要：立即返回，不要调用父类
         } else if (handle == 2) {
-#if DEBUG_PEAK_AREA_TOOL
-            qDebug() << "PeakAreaTool::mousePressEvent - 开始拖动手柄2";
-#endif
             m_dragState = DraggingHandle2;
             setCursor(Qt::ClosedHandCursor);
             event->accept();
@@ -616,29 +566,17 @@ void PeakAreaTool::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
         // mapToValue 返回的 QPointF.x() 就是横轴的值
         double xValue = dataPos.x();
 
-#if DEBUG_PEAK_AREA_TOOL
-        qDebug() << "PeakAreaTool::mouseMoveEvent - 场景坐标:" << scenePos
-                 << ", 数据坐标:" << dataPos
-                 << ", xValue:" << xValue;
-#endif
-
         // 吸附到曲线
         ThermalDataPoint snappedPoint = findNearestPointOnCurve(xValue);
 
         // 更新端点
         if (m_dragState == DraggingHandle1) {
             m_point1 = snappedPoint;
-#if DEBUG_PEAK_AREA_TOOL
-            qDebug() << "PeakAreaTool::mouseMoveEvent - 更新端点1:" << snappedPoint.temperature << snappedPoint.time << snappedPoint.value;
-#endif
         } else {
             m_point2 = snappedPoint;
-#if DEBUG_PEAK_AREA_TOOL
-            qDebug() << "PeakAreaTool::mouseMoveEvent - 更新端点2:" << snappedPoint.temperature << snappedPoint.time << snappedPoint.value;
-#endif
         }
 
-        // ✅ 性能优化：使用 markDirty() 延迟计算，避免拖动时重复计算
+        // 性能优化：使用 markDirty() 延迟计算，避免拖动时重复计算
         // 不直接调用 calculateArea() 和 buildAreaPolygon()，而是标记为脏
         // 实际计算延迟到 paint() 时通过 updateCache() 执行（只计算一次）
         markDirty();
@@ -816,24 +754,10 @@ int PeakAreaTool::getHandleAtPosition(const QPointF& pos) const
     qreal dist1 = QLineF(scenePos, scene1).length();
     qreal dist2 = QLineF(scenePos, scene2).length();
 
-#if DEBUG_PEAK_AREA_TOOL
-    qDebug() << "PeakAreaTool::getHandleAtPosition - pos(本地):" << pos
-             << ", scenePos:" << scenePos
-             << ", scene1:" << scene1 << ", dist1:" << dist1
-             << ", scene2:" << scene2 << ", dist2:" << dist2
-             << ", threshold:" << threshold;
-#endif
-
     if (dist1 < threshold) {
-#if DEBUG_PEAK_AREA_TOOL
-        qDebug() << "PeakAreaTool::getHandleAtPosition - 检测到手柄1";
-#endif
         return 1;
     }
     if (dist2 < threshold) {
-#if DEBUG_PEAK_AREA_TOOL
-        qDebug() << "PeakAreaTool::getHandleAtPosition - 检测到手柄2";
-#endif
         return 2;
     }
 
@@ -842,7 +766,7 @@ int PeakAreaTool::getHandleAtPosition(const QPointF& pos) const
 
 void PeakAreaTool::updateCache()
 {
-    // ✅ 优化：脏检查 - 只在数据改变时才重新计算
+    // 优化：脏检查 - 只在数据改变时才重新计算
     if (!m_isDirty) {
         return;  // 数据未变，跳过重新计算
     }
@@ -851,10 +775,6 @@ void PeakAreaTool::updateCache()
     m_cachedArea = calculateArea();
     m_cachedPolygon = buildAreaPolygon();
     m_isDirty = false;  // 清除脏标记
-
-#if DEBUG_PEAK_AREA_TOOL
-    qDebug() << "PeakAreaTool::updateCache - 面积:" << m_cachedArea;
-#endif
 
     // 发出面积变化信号（如果变化显著）
     if (qAbs(m_cachedArea - oldArea) > 0.001) {
