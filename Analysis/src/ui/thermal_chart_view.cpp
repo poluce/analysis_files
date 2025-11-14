@@ -365,11 +365,17 @@ void ThermalChartView::finalizeBoxSelection()
             qDebug() << "ThermalChartView::finalizeBoxSelection - 执行框选缩放";
         }
     } else {
-        // 区域太小，隐藏选框
+        // 区域太小，当作点击处理
+        // 在 View 模式下，调用曲线选择点击处理
+        if (m_mode == InteractionMode::View) {
+            handleCurveSelectionClick(m_boxSelectEnd);
+            qDebug() << "ThermalChartView::finalizeBoxSelection - 小区域框选，当作点击处理";
+        }
+
+        // 隐藏选框
         if (m_thermalChart) {
             m_thermalChart->hideSelectionBox();
         }
-        qDebug() << "ThermalChartView::finalizeBoxSelection - 框选区域过小，忽略";
     }
 
     // 重置框选状态
