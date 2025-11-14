@@ -30,14 +30,14 @@ enum class ResultType {
  *
  * @code
  * // 推荐使用：
- * context->setValue(AlgorithmResult::OutputKeys::latestResult("differentiation"), result);
- * auto result = context->get<AlgorithmResult>(AlgorithmResult::OutputKeys::latestResult("differentiation"));
+ * context->setValue(OutputKeys::latestResult("differentiation"), result);
+ * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
  *
  * // 避免使用：
  * context->setValue("result/differentiation/latest", result);  // 容易拼写错误
  * @endcode
  */
-namespace AlgorithmResult_OutputKeys {
+namespace OutputKeys {
     /** 结果键名前缀 */
     inline constexpr const char* ResultPrefix = "result/";
 
@@ -58,10 +58,10 @@ namespace AlgorithmResult_OutputKeys {
      * 使用示例:
      * @code
      * // 存储最新结果
-     * context->setValue(AlgorithmResult::OutputKeys::latestResult("differentiation"), result);
+     * context->setValue(OutputKeys::latestResult("differentiation"), result);
      *
      * // 读取最新结果
-     * auto result = context->get<AlgorithmResult>(AlgorithmResult::OutputKeys::latestResult("differentiation"));
+     * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
      * @endcode
      */
     inline QString latestResult(const QString& algorithmName) {
@@ -76,7 +76,7 @@ namespace AlgorithmResult_OutputKeys {
      * 使用示例:
      * @code
      * // 存储结果类型（用于快速查询）
-     * context->setValue(AlgorithmResult::OutputKeys::resultType("differentiation"), static_cast<int>(result.type()));
+     * context->setValue(OutputKeys::resultType("differentiation"), static_cast<int>(result.type()));
      * @endcode
      */
     inline QString resultType(const QString& algorithmName) {
@@ -92,10 +92,10 @@ namespace AlgorithmResult_OutputKeys {
      * 使用示例:
      * @code
      * // 存储历史结果（第2次执行）
-     * context->setValue(AlgorithmResult::OutputKeys::historyResult("differentiation", 1), result);
+     * context->setValue(OutputKeys::historyResult("differentiation", 1), result);
      *
      * // 读取历史结果
-     * auto oldResult = context->get<AlgorithmResult>(AlgorithmResult::OutputKeys::historyResult("differentiation", 1));
+     * auto oldResult = context->get<AlgorithmResult>(OutputKeys::historyResult("differentiation", 1));
      * @endcode
      */
     inline QString historyResult(const QString& algorithmName, int index) {
@@ -128,14 +128,6 @@ namespace AlgorithmResult_OutputKeys {
  */
 class AlgorithmResult {
 public:
-    // ==================== 输出键名命名空间 ====================
-    /**
-     * @brief 输出键名命名空间别名
-     *
-     * 允许通过 AlgorithmResult::OutputKeys 访问输出键名常量
-     */
-    using OutputKeys = AlgorithmResult_OutputKeys;
-
     // ==================== 构造函数 ====================
 
     /**
