@@ -215,7 +215,7 @@ private:
     void resetAxesToDefault();
 
     // ==================== 数据查询辅助函数 ====================
-    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double temperature) const;
+    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double xValue) const;
 
     // ==================== 框选缩放辅助函数 ====================
     /**
