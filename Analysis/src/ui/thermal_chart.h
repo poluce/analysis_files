@@ -166,28 +166,6 @@ public:
     void addSelectedPoint(const QPointF& point);
     void clearSelectedPoints();
 
-    // ==================== 框选缩放管理 ====================
-    /**
-     * @brief 显示框选矩形
-     * @param rect 矩形区域（图表坐标系）
-     */
-    void showSelectionBox(const QRectF& rect);
-
-    /**
-     * @brief 隐藏框选矩形
-     */
-    void hideSelectionBox();
-
-    /**
-     * @brief 缩放到指定矩形区域
-     * @param rect 矩形区域（图表坐标系）
-     *
-     * 实现方案 A：
-     * - X轴：精确缩放到矩形的 X 范围
-     * - Y轴：自适应到该 X 范围内的数据实际范围
-     */
-    void zoomToRect(const QRectF& rect);
-
 signals:
     /**
      * @brief 横轴模式改变信号
@@ -280,9 +258,6 @@ private:
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;
     QVector<QGraphicsObject*> m_peakAreaTools;
-
-    // ==================== 框选矩形 ====================
-    QGraphicsRectItem* m_selectionBox = nullptr;
 
     // ==================== 外部依赖 ====================
     CurveManager* m_curveManager = nullptr;
