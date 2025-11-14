@@ -8,7 +8,6 @@
 #include <QVariantMap>
 #include <QVariant>
 #include <QDateTime>
-#include <QUuid>
 #include "domain/model/thermal_curve.h"
 
 /**
@@ -21,6 +20,154 @@ enum class ResultType {
     ScalarValue,    // 单个数值（如外推温度、峰高、斜率）
     Composite       // 混合结果（包含多种类型）
 };
+
+/**
+ * @brief 算法输出上下文键名
+ *
+ * 为算法结果在 AlgorithmContext 中的存储提供类型安全的键名常量。
+ * 与输入键名（ContextKeys）分离，专门用于算法输出结果的存储和检索。
+ *
+ * @code
+ * // 推荐使用：
+ * context->setValue(OutputKeys::latestResult("differentiation"), result);
+ * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
+ *
+ * // 避免使用：
+ * context->setValue("result/differentiation/latest", result);  // 容易拼写错误
+ * @endcode
+ */
+namespace OutputKeys {
+    /** 结果键名前缀 */
+    inline constexpr const char* ResultPrefix = "result/";
+
+    /** 最新结果键名后缀 */
+    inline constexpr const char* LatestSuffix = "/latest";
+
+    /** 结果类型键名后缀 */
+    inline constexpr const char* ResultTypeSuffix = "/resultType";
+
+    /** 历史结果键名中缀 */
+    inline constexpr const char* HistoryInfix = "/history/";
+
+    /**
+     * @brief 生成算法最新结果键名
+     * @param algorithmName 算法名称
+     * @return 完整键名 (格式: "result/{algorithmName}/latest")
+     *
+     * 使用示例:
+     * @code
+     * // 存储最新结果
+     * context->setValue(OutputKeys::latestResult("differentiation"), result);
+     *
+     * // 读取最新结果
+     * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
+     * @endcode
+     */
+    inline QString latestResult(const QString& algorithmName) {
+        return QString(ResultPrefix) + algorithmName + QString(LatestSuffix);
+    }
+
+    /**
+     * @brief 生成算法结果类型键名
+     * @param algorithmName 算法名称
+     * @return 完整键名 (格式: "result/{algorithmName}/resultType")
+     *
+     * 使用示例:
+     * @code
+     * // 存储结果类型（用于快速查询）
+     * context->setValue(OutputKeys::resultType("differentiation"), static_cast<int>(result.type()));
+     * @endcode
+     */
+    inline QString resultType(const QString& algorithmName) {
+        return QString(ResultPrefix) + algorithmName + QString(ResultTypeSuffix);
+    }
+
+    /**
+     * @brief 生成算法历史结果键名
+     * @param algorithmName 算法名称
+     * @param index 历史记录索引（0为最新）
+     * @return 完整键名 (格式: "result/{algorithmName}/history/{index}")
+     *
+     * 使用示例:
+     * @code
+     * // 存储历史结果（第2次执行）
+     * context->setValue(OutputKeys::historyResult("differentiation", 1), result);
+     *
+     * // 读取历史结果
+     * auto oldResult = context->get<AlgorithmResult>(OutputKeys::historyResult("differentiation", 1));
+     * @endcode
+     */
+    inline QString historyResult(const QString& algorithmName, int index) {
+        return QString(ResultPrefix) + algorithmName + QString(HistoryInfix) + QString::number(index);
+    }
+}
+
+/**
+ * @brief 算法结果元数据键名
+ *
+ * 为 AlgorithmResult 的元数据字段提供类型安全的键名常量。
+ * 统一管理所有元数据的键名，避免字符串拼写错误。
+ *
+ * @code
+ * // 推荐使用：
+ * result.setMeta(MetaKeys::Area, 123.45);
+ * result.setMeta(MetaKeys::Unit, "J/g");
+ *
+ * // 避免使用：
+ * result.setMeta("area", 123.45);  // 容易拼写错误
+ * @endcode
+ */
+namespace MetaKeys {
+    // 峰值分析相关
+    inline constexpr const char* Area = "area";                  // 峰面积 (double)
+    inline constexpr const char* PeakHeight = "peakHeight";      // 峰高 (double)
+    inline constexpr const char* PeakPosition = "peakPosition";  // 峰位置 (QPointF)
+
+    // 线性拟合相关
+    inline constexpr const char* Slope = "slope";                // 斜率 (double)
+    inline constexpr const char* Intercept = "intercept";        // 截距 (double)
+
+    // 温度外推相关
+    inline constexpr const char* Onset = "onset";                       // 起始温度 (double)
+    inline constexpr const char* Endset = "endset";                     // 结束温度 (double)
+    inline constexpr const char* ExtrapolatedTemperature = "extrapolatedTemperature";  // 外推温度 (double)
+
+    // 算法参数
+    inline constexpr const char* Method = "method";                     // 算法方法 (QString)
+    inline constexpr const char* WindowSize = "windowSize";             // 窗口大小 (int)
+
+    // 关联曲线信息
+    inline constexpr const char* BaselineCurveId = "baselineCurveId";       // 基线曲线ID (QString)
+    inline constexpr const char* BaselineCurveName = "baselineCurveName";   // 基线曲线名称 (QString)
+    inline constexpr const char* InstrumentType = "instrumentType";         // 仪器类型 (int)
+
+    // 显示相关
+    inline constexpr const char* Unit = "unit";                  // 单位 (QString)
+    inline constexpr const char* Label = "label";                // 标签 (QString)
+    inline constexpr const char* Color = "color";                // 显示颜色 (QColor)
+    inline constexpr const char* MarkerColor = "markerColor";    // 标注点颜色 (QColor)
+
+    // 曲线类型
+    inline constexpr const char* SignalType = "signalType";      // 信号类型 (SignalType)
+
+    /**
+     * @brief 生成标注点标签键名
+     * @param index 标注点索引
+     * @return 完整键名 (格式: "marker.{index}.label")
+     */
+    inline QString markerLabel(int index) {
+        return QString("marker.%1.label").arg(index);
+    }
+
+    /**
+     * @brief 生成区域标签键名
+     * @param index 区域索引
+     * @return 完整键名 (格式: "region.{index}.label")
+     */
+    inline QString regionLabel(int index) {
+        return QString("region.%1.label").arg(index);
+    }
+}
 
 /**
  * @brief 算法执行结果的统一容器
@@ -141,7 +288,7 @@ public:
     void addMarker(const QPointF& point, const QString& label = QString()) {
         m_markers.append(point);
         if (!label.isEmpty()) {
-            m_meta[QString("marker.%1.label").arg(m_markers.size() - 1)] = label;
+            m_meta[MetaKeys::markerLabel(m_markers.size() - 1)] = label;
         }
     }
 
@@ -155,7 +302,7 @@ public:
     void addRegion(const QPolygonF& region, const QString& label = QString()) {
         m_regions.append(region);
         if (!label.isEmpty()) {
-            m_meta[QString("region.%1.label").arg(m_regions.size() - 1)] = label;
+            m_meta[MetaKeys::regionLabel(m_regions.size() - 1)] = label;
         }
     }
 
@@ -169,18 +316,24 @@ public:
     /**
      * @brief 设置元数据（键值对）
      *
-     * 常用键名：
-     * - "area"              : 峰面积 (double)
-     * - "peakHeight"        : 峰高 (double)
-     * - "peakPosition"      : 峰位置 (QPointF)
-     * - "slope"             : 斜率 (double)
-     * - "intercept"         : 截距 (double)
-     * - "onset"             : 起始温度 (double)
-     * - "endset"            : 结束温度 (double)
-     * - "unit"              : 单位 (QString)
-     * - "label"             : 标签 (QString)
-     * - "color"             : 显示颜色 (QColor)
-     * - "signalType"        : 信号类型 (SignalType)
+     * 推荐使用 MetaKeys 命名空间中的常量作为键名：
+     * - MetaKeys::Area              : 峰面积 (double)
+     * - MetaKeys::PeakHeight        : 峰高 (double)
+     * - MetaKeys::PeakPosition      : 峰位置 (QPointF)
+     * - MetaKeys::Slope             : 斜率 (double)
+     * - MetaKeys::Intercept         : 截距 (double)
+     * - MetaKeys::Onset             : 起始温度 (double)
+     * - MetaKeys::Endset            : 结束温度 (double)
+     * - MetaKeys::Unit              : 单位 (QString)
+     * - MetaKeys::Label             : 标签 (QString)
+     * - MetaKeys::Color             : 显示颜色 (QColor)
+     * - MetaKeys::SignalType        : 信号类型 (SignalType)
+     *
+     * 使用示例:
+     * @code
+     * result.setMeta(MetaKeys::Area, 123.45);
+     * result.setMeta(MetaKeys::Unit, "J/g");
+     * @endcode
      */
     void setMeta(const QString& key, const QVariant& value) {
         m_meta[key] = value;
@@ -201,26 +354,26 @@ public:
     // ==================== 便捷方法（常用标量值）====================
 
     void setArea(double area, const QString& unit = "J/g") {
-        m_meta["area"] = area;
-        m_meta["unit"] = unit;
+        m_meta[MetaKeys::Area] = area;
+        m_meta[MetaKeys::Unit] = unit;
     }
 
-    double area() const { return metaValue<double>("area", 0.0); }
+    double area() const { return metaValue<double>(MetaKeys::Area, 0.0); }
 
     void setPeakPosition(const QPointF& pos) {
-        m_meta["peakPosition"] = pos;
+        m_meta[MetaKeys::PeakPosition] = pos;
     }
 
     QPointF peakPosition() const {
-        return metaValue<QPointF>("peakPosition", QPointF());
+        return metaValue<QPointF>(MetaKeys::PeakPosition, QPointF());
     }
 
     void setSignalType(SignalType type) {
-        m_meta["signalType"] = QVariant::fromValue(type);
+        m_meta[MetaKeys::SignalType] = QVariant::fromValue(type);
     }
 
     SignalType signalType() const {
-        return metaValue<SignalType>("signalType", SignalType::Raw);
+        return metaValue<SignalType>(MetaKeys::SignalType, SignalType::Raw);
     }
 
     // ==================== 调试输出 ====================

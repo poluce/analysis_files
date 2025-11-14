@@ -264,13 +264,13 @@ void AlgorithmCoordinator::onAlgorithmResultReady(
     const QString& algorithmName, const AlgorithmResult& result)
 {
     // Store the entire result object in context
-    m_context->setValue(QStringLiteral("result/%1/latest").arg(algorithmName),
+    m_context->setValue(OutputKeys::latestResult(algorithmName),
                        QVariant::fromValue(result),
                        QStringLiteral("AlgorithmCoordinator"));
 
     // Store the result type for quick access
     m_context->setValue(
-        QStringLiteral("result/%1/resultType").arg(algorithmName),
+        OutputKeys::resultType(algorithmName),
         QVariant::fromValue(static_cast<int>(result.type())),
         QStringLiteral("AlgorithmCoordinator"));
 
@@ -418,12 +418,12 @@ void AlgorithmCoordinator::onAsyncAlgorithmFinished(
     }
 
     // 保存结果到上下文（与同步路径保持一致）
-    m_context->setValue(QStringLiteral("result/%1/latest").arg(algorithmName),
+    m_context->setValue(OutputKeys::latestResult(algorithmName),
                        QVariant::fromValue(result),
                        QStringLiteral("AlgorithmCoordinator"));
 
     m_context->setValue(
-        QStringLiteral("result/%1/resultType").arg(algorithmName),
+        OutputKeys::resultType(algorithmName),
         QVariant::fromValue(static_cast<int>(result.type())),
         QStringLiteral("AlgorithmCoordinator"));
 

@@ -195,9 +195,9 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
 
     // 填充结果
     result.setCurve(outputCurve);
-    result.setMeta("method", "Moving Average");
-    result.setMeta("windowSize", w);
-    result.setMeta("label", "滤波曲线");
+    result.setMeta(MetaKeys::Method, "Moving Average");
+    result.setMeta(MetaKeys::WindowSize, w);
+    result.setMeta(MetaKeys::Label, "滤波曲线");
 
     return result;
 }

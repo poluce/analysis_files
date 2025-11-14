@@ -204,8 +204,8 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
             // TODO: 发送区域到 ChartView
         }
 
-        if (result.hasMeta("area")) {
-            qDebug() << "  面积:" << result.area() << result.meta("unit").toString();
+        if (result.hasMeta(MetaKeys::Area)) {
+            qDebug() << "  面积:" << result.area() << result.meta(MetaKeys::Unit).toString();
         }
         break;
     }

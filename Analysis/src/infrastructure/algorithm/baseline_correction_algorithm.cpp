@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QDebug>
 #include <QPointF>
+#include <QUuid>
 #include <QVariant>
 #include <QtMath>
 
