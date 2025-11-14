@@ -783,7 +783,13 @@ QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, q
         return nullptr;
     }
 
-    // 点到线段距离计算函数
+    // 坐标系说明：
+    // - viewportPos: 视口坐标（QChartView 像素坐标）
+    // - chart()->mapToPosition(): 返回场景坐标（QGraphicsScene 坐标）
+    // - mapFromScene(): 场景坐标 → 视口坐标
+    // 必须统一到同一坐标系（视口坐标）才能计算准确距离
+
+    // 点到线段距离计算函数（在视口坐标系下计算）
     auto pointToSegDist = [](const QPointF& p, const QPointF& a, const QPointF& b) -> qreal {
         const qreal vx = b.x() - a.x();
         const qreal vy = b.y() - a.y();
@@ -816,9 +822,16 @@ QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, q
             continue;
         }
 
-        QPointF previous = chart()->mapToPosition(points[0], lineSeries);
+        // 获取第一个点的场景坐标，然后转换为视口坐标
+        QPointF scenePos = chart()->mapToPosition(points[0], lineSeries);
+        QPointF previous = mapFromScene(scenePos);
+
         for (int i = 1; i < points.size(); ++i) {
-            const QPointF current = chart()->mapToPosition(points[i], lineSeries);
+            // 获取当前点的场景坐标，然后转换为视口坐标
+            QPointF scenePosCurrent = chart()->mapToPosition(points[i], lineSeries);
+            QPointF current = mapFromScene(scenePosCurrent);
+
+            // 在视口坐标系下计算距离
             const qreal dist = pointToSegDist(viewportPos, previous, current);
             if (dist < bestDist) {
                 bestDist = dist;
