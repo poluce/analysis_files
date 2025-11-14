@@ -135,14 +135,19 @@ void ThermalChartView::mousePressEvent(QMouseEvent* event)
     const QPointF viewportPos = event->pos();
 
     // 测量工具逻辑已移至 eventFilter
-    // 只处理普通的点选
+    // 根据模式和修饰键处理不同的交互
     if (m_mode == InteractionMode::Pick) {
+        // Pick 模式：处理点选
         handleValueClick(viewportPos);
     } else if (m_mode == InteractionMode::View) {
-        // View 模式：检测 Ctrl 键以启用框选缩放
+        // View 模式：检测 Ctrl 键决定是框选缩放还是曲线选择
         if (event->modifiers() & Qt::ControlModifier) {
+            // Ctrl+左键：启用框选缩放
             setRubberBand(QChartView::RectangleRubberBand);
             qDebug() << "ThermalChartView::mousePressEvent - Ctrl+左键，启用框选缩放";
+        } else {
+            // 普通左键：曲线选择（高亮点击的曲线）
+            handleCurveSelectionClick(viewportPos);
         }
     }
 
