@@ -98,13 +98,6 @@ void MainController::setPlotWidget(ChartView* plotWidget)
                 qDebug() << "ChartView 交互状态变化:" << stateName;
             }, Qt::UniqueConnection);
 
-    // ==================== 连接 AlgorithmManager 信号 ====================
-    // 当算法请求添加浮动标签时，转发到 ChartView
-    connect(m_algorithmManager, &AlgorithmManager::floatingLabelRequested, m_plotWidget,
-            [this](const QString& text, const QPointF& dataPos, const QString& curveId) {
-                qDebug() << "MainController: 收到浮动标签请求 -" << text << "位置:" << dataPos << "曲线:" << curveId;
-                m_plotWidget->addFloatingLabel(text, dataPos, curveId);
-            }, Qt::UniqueConnection);
 }
 
 void MainController::attachMainWindow(MainWindow* mainWindow)

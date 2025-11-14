@@ -19,7 +19,6 @@ class QGraphicsLineItem;
 class QGraphicsObject;
 class ThermalCurve;
 class CurveManager;
-class FloatingLabel;
 
 /**
  * @brief 定义横轴显示模式
@@ -145,13 +144,6 @@ public:
     bool horizontalCrosshairEnabled() const { return m_horizontalCrosshairEnabled; }
     void updateCrosshairAtChartPos(const QPointF& chartPos);
     void clearCrosshair();
-
-    // ==================== 浮动标签管理 ====================
-    FloatingLabel* addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId);
-    FloatingLabel* addFloatingLabelHUD(const QString& text, const QPointF& viewPos);
-    void removeFloatingLabel(FloatingLabel* label);
-    void clearFloatingLabels();
-    const QVector<FloatingLabel*>& floatingLabels() const { return m_floatingLabels; }
 
     // ==================== 标注点（Markers）管理 ====================
     void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color = Qt::red, qreal size = 12.0);
@@ -284,9 +276,6 @@ private:
         QVector<struct ThermalDataPoint> dataPoints;
     };
     QMap<QString, CurveMarkerData> m_curveMarkers;
-
-    // ==================== 浮动标签 ====================
-    QVector<FloatingLabel*> m_floatingLabels;
 
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;

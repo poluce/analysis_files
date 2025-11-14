@@ -14,7 +14,6 @@ class ThermalChart;
 class ThermalChartView;
 class ThermalCurve;
 class CurveManager;
-class FloatingLabel;
 class QGraphicsObject;
 class QPen;
 
@@ -170,13 +169,6 @@ public:
     const QString& selectedPointsCurveId() const { return m_selectedPointsCurveId; }
 
     // ==================== 叠加物管理（转发给 ThermalChart）====================
-    // 浮动标签
-    FloatingLabel* addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId);
-    FloatingLabel* addFloatingLabelHUD(const QString& text, const QPointF& viewPos);
-    void removeFloatingLabel(FloatingLabel* label);
-    void clearFloatingLabels();
-    const QVector<FloatingLabel*>& floatingLabels() const;
-
     // 标注点（Markers）
     void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
                          const QColor& color, qreal size);

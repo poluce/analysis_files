@@ -206,16 +206,6 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 
         if (result.hasMeta("area")) {
             qDebug() << "  面积:" << result.area() << result.meta("unit").toString();
-
-            // 如果有标签文本和位置，创建 FloatingLabel
-            if (result.hasMeta("label") && result.hasMeta("labelPosition")) {
-                QString labelText = result.meta("label").toString();
-                QPointF labelPos = result.metaValue<QPointF>("labelPosition");
-                QString targetCurveId = result.parentCurveId();
-
-                qDebug() << "  发出 FloatingLabel 请求：" << labelText << "位置：" << labelPos;
-                emit floatingLabelRequested(labelText, labelPos, targetCurveId);
-            }
         }
         break;
     }
