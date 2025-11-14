@@ -24,7 +24,6 @@ SOURCES += \
     src/ui/chart_view.cpp \
     src/ui/thermal_chart.cpp \
     src/ui/thermal_chart_view.cpp \
-    src/ui/floating_label.cpp \
     src/ui/trapezoid_measure_tool.cpp \
     src/ui/peak_area_tool.cpp \
     src/ui/peak_area_dialog.cpp \
@@ -68,7 +67,6 @@ HEADERS += \
     src/ui/chart_view.h \
     src/ui/thermal_chart.h \
     src/ui/thermal_chart_view.h \
-    src/ui/floating_label.h \
     src/ui/trapezoid_measure_tool.h \
     src/ui/peak_area_tool.h \
     src/ui/peak_area_dialog.h \

@@ -278,12 +278,7 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
     result.setMeta("baselineCurveId", baselineCurve.id());
     result.setMeta("baselineCurveName", baselineCurve.name());
     result.setMeta("instrumentType", static_cast<int>(inputCurve.instrumentType()));
-    result.setMeta("label", tempText);
     result.setMeta("markerColor", QColor(Qt::red));
-
-    // 标签显示位置（外推点旁边）
-    QPointF labelPos(extrapolatedTemp + 5, extrapolatedY + 0.5);
-    result.setMeta("labelPosition", labelPos);
 
     return result;
 }

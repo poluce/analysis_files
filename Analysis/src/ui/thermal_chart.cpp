@@ -2,7 +2,6 @@
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
-#include "floating_label.h"
 #include "peak_area_tool.h"
 #include "trapezoid_measure_tool.h"
 
@@ -372,17 +371,24 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
 
 // ==================== 数据查询辅助函数 ====================
 
-ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const
+ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double xValue) const
 {
     if (curveData.isEmpty()) {
         return ThermalDataPoint();
     }
 
+    // 根据当前横轴模式选择比较字段
+    bool useTimeAxis = (m_xAxisMode == XAxisMode::Time);
+
     int nearestIdx = 0;
-    double minDist = qAbs(curveData[0].temperature - temperature);
+    double minDist = useTimeAxis
+                     ? qAbs(curveData[0].time - xValue)
+                     : qAbs(curveData[0].temperature - xValue);
 
     for (int i = 1; i < curveData.size(); ++i) {
-        double dist = qAbs(curveData[i].temperature - temperature);
+        double dist = useTimeAxis
+                      ? qAbs(curveData[i].time - xValue)
+                      : qAbs(curveData[i].temperature - xValue);
         if (dist < minDist) {
             minDist = dist;
             nearestIdx = i;
@@ -466,7 +472,6 @@ void ThermalChart::clearCurves()
     m_selectedSeries = nullptr;
     resetAxesToDefault();
     clearCrosshair();
-    clearFloatingLabels();
     clearAllMarkers();
     clearAllMassLossTools(); // 清空所有测量工具（TrapezoidMeasureTool）
     clearAllPeakAreaTools(); // 清空所有峰面积工具
@@ -638,7 +643,7 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
 
     qDebug() << "ThermalChart::setXAxisMode - 已完成横轴切换和曲线重绘";
 
-    // 发出信号通知浮动标签更新（FloatingLabel 会监听此信号）
+    // 发出信号通知叠加物更新
     emit xAxisModeChanged(m_xAxisMode);
 }
 
@@ -646,109 +651,6 @@ void ThermalChart::toggleXAxisMode()
 {
     XAxisMode newMode = (m_xAxisMode == XAxisMode::Temperature) ? XAxisMode::Time : XAxisMode::Temperature;
     setXAxisMode(newMode);
-}
-
-// ==================== Phase 3: 浮动标签管理实现 ====================
-
-FloatingLabel* ThermalChart::addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId)
-{
-    // 查找对应的系列
-    QLineSeries* series = seriesForCurveId(curveId);
-    if (!series) {
-        qWarning() << "ThermalChart::addFloatingLabel - 未找到曲线" << curveId;
-        return nullptr;
-    }
-
-    // 创建浮动标签（数据锚定模式）
-    auto* label = new FloatingLabel(this);
-    label->setMode(FloatingLabel::Mode::DataAnchored);
-    label->setText(text);
-    label->setAnchorValue(dataPos, series);
-
-    // 添加到场景
-    scene()->addItem(label);
-
-    // 保存到列表
-    m_floatingLabels.append(label);
-
-    // 连接关闭信号
-    connect(label, &FloatingLabel::closeRequested, this, [this, label]() { removeFloatingLabel(label); });
-
-    // 连接 plotAreaChanged 信号，确保标签跟随坐标轴变化
-    connect(this, &QChart::plotAreaChanged, label, &FloatingLabel::updateGeometry);
-
-    // 连接 xAxisModeChanged 信号，确保标签在横轴切换时更新位置
-    connect(this, &ThermalChart::xAxisModeChanged, label, &FloatingLabel::updateGeometry);
-
-    qDebug() << "ThermalChart::addFloatingLabel - 添加浮动标签（数据锚定）：" << text << "，位置：" << dataPos << "，曲线："
-             << curveId;
-
-    return label;
-}
-
-FloatingLabel* ThermalChart::addFloatingLabelHUD(const QString& text, const QPointF& viewPos)
-{
-    // 创建浮动标签（视图锚定模式）
-    auto* label = new FloatingLabel(this);
-    label->setMode(FloatingLabel::Mode::ViewAnchored);
-    label->setText(text);
-
-    // 计算绝对位置（相对于 plotArea）
-    QRectF area = plotArea();
-    QPointF absolutePos = area.topLeft() + viewPos;
-    label->setPos(absolutePos);
-
-    // 添加到场景
-    scene()->addItem(label);
-
-    // 保存到列表
-    m_floatingLabels.append(label);
-
-    // 连接关闭信号
-    connect(label, &FloatingLabel::closeRequested, this, [this, label]() { removeFloatingLabel(label); });
-
-    qDebug() << "ThermalChart::addFloatingLabelHUD - 添加浮动标签（视图锚定）：" << text << "，位置：" << viewPos;
-
-    return label;
-}
-
-void ThermalChart::removeFloatingLabel(FloatingLabel* label)
-{
-    if (!label) {
-        return;
-    }
-
-    // 从列表中移除
-    int index = m_floatingLabels.indexOf(label);
-    if (index >= 0) {
-        m_floatingLabels.remove(index);
-    }
-
-    // 从场景中移除并删除
-    if (scene()) {
-        scene()->removeItem(label);
-    }
-
-    label->deleteLater();
-
-    qDebug() << "ThermalChart::removeFloatingLabel - 移除浮动标签";
-}
-
-void ThermalChart::clearFloatingLabels()
-{
-    // 移除所有浮动标签
-    for (FloatingLabel* label : m_floatingLabels) {
-        if (label) {
-            if (scene()) {
-                scene()->removeItem(label);
-            }
-            label->deleteLater();
-        }
-    }
-
-    m_floatingLabels.clear();
-
-    qDebug() << "ThermalChart::clearFloatingLabels - 清空所有浮动标签";
 }
 
 // ==================== Phase 3: 标注点（Markers）管理实现 ====================
@@ -778,8 +680,8 @@ void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>&
     if (curve) {
         const auto& curveData = curve->getProcessedData();
         for (const QPointF& marker : markers) {
-            double targetTemp = marker.x();
-            ThermalDataPoint foundPoint = findNearestDataPoint(curveData, targetTemp);
+            double targetX = marker.x(); // 根据横轴模式，可能是 temperature 或 time
+            ThermalDataPoint foundPoint = findNearestDataPoint(curveData, targetX);
             dataPoints.append(foundPoint);
         }
     }
@@ -962,10 +864,9 @@ ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataP
     // 连接删除信号
     connect(tool, &PeakAreaTool::removeRequested, this, [this, tool]() { removePeakAreaTool(tool); });
 
-    // 连接面积变化信号（用于实时更新 FloatingLabel 等）
+    // 连接面积变化信号
     connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) {
         qDebug() << "峰面积已更新:" << newArea;
-        // 未来可以在这里更新 FloatingLabel
     });
 
     // 连接坐标轴变化信号，确保缩放/平移后刷新阴影区域

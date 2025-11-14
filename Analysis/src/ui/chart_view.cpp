@@ -1,7 +1,6 @@
 #include "chart_view.h"
 #include "thermal_chart.h"
 #include "thermal_chart_view.h"
-#include "floating_label.h"
 #include "domain/model/thermal_curve.h"
 #include "application/curve/curve_manager.h"
 #include <QDebug>
@@ -190,31 +189,6 @@ bool ChartView::horizontalCrosshairEnabled() const
 }
 
 // ==================== 叠加物管理（转发给 ThermalChart）====================
-
-FloatingLabel* ChartView::addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId)
-{
-    return m_chart->addFloatingLabel(text, dataPos, curveId);
-}
-
-FloatingLabel* ChartView::addFloatingLabelHUD(const QString& text, const QPointF& viewPos)
-{
-    return m_chart->addFloatingLabelHUD(text, viewPos);
-}
-
-void ChartView::removeFloatingLabel(FloatingLabel* label)
-{
-    m_chart->removeFloatingLabel(label);
-}
-
-void ChartView::clearFloatingLabels()
-{
-    m_chart->clearFloatingLabels();
-}
-
-const QVector<FloatingLabel*>& ChartView::floatingLabels() const
-{
-    return m_chart->floatingLabels();
-}
 
 void ChartView::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
                                  const QColor& color, qreal size)

@@ -19,7 +19,6 @@ class QGraphicsLineItem;
 class QGraphicsObject;
 class ThermalCurve;
 class CurveManager;
-class FloatingLabel;
 
 /**
  * @brief 定义横轴显示模式
@@ -125,6 +124,18 @@ public:
     QString curveIdForSeries(QLineSeries* series) const;
     QColor getCurveColor(const QString& curveId) const;
 
+    // ==================== 数据查询 ====================
+    /**
+     * @brief 查找最接近指定 X 值的数据点
+     * @param curveData 曲线数据
+     * @param xValue X 值（根据横轴模式，可能是 temperature 或 time）
+     * @return 最接近的数据点
+     *
+     * 根据当前横轴模式（Temperature/Time）自动选择比较字段。
+     * 供 ThermalChartView 和其他组件使用。
+     */
+    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double xValue) const;
+
     // ==================== 十字线管理（仅图元接口）====================
     void setCrosshairEnabled(bool vertical, bool horizontal);
     void setVerticalCrosshairEnabled(bool enabled);
@@ -133,13 +144,6 @@ public:
     bool horizontalCrosshairEnabled() const { return m_horizontalCrosshairEnabled; }
     void updateCrosshairAtChartPos(const QPointF& chartPos);
     void clearCrosshair();
-
-    // ==================== 浮动标签管理 ====================
-    FloatingLabel* addFloatingLabel(const QString& text, const QPointF& dataPos, const QString& curveId);
-    FloatingLabel* addFloatingLabelHUD(const QString& text, const QPointF& viewPos);
-    void removeFloatingLabel(FloatingLabel* label);
-    void clearFloatingLabels();
-    const QVector<FloatingLabel*>& floatingLabels() const { return m_floatingLabels; }
 
     // ==================== 标注点（Markers）管理 ====================
     void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color = Qt::red, qreal size = 12.0);
@@ -214,9 +218,6 @@ private:
 
     void resetAxesToDefault();
 
-    // ==================== 数据查询辅助函数 ====================
-    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double temperature) const;
-
     // ==================== 框选缩放辅助函数 ====================
     /**
      * @brief 自适应 Y 轴到指定 X 范围内的数据
@@ -275,9 +276,6 @@ private:
         QVector<struct ThermalDataPoint> dataPoints;
     };
     QMap<QString, CurveMarkerData> m_curveMarkers;
-
-    // ==================== 浮动标签 ====================
-    QVector<FloatingLabel*> m_floatingLabels;
 
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;

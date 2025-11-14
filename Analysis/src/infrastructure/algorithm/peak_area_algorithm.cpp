@@ -211,13 +211,7 @@ AlgorithmResult PeakAreaAlgorithm::executeWithContext(AlgorithmContext* context)
     result.setMeta("peakArea", area);
     result.setMeta("temperatureRange", QString("%1 - %2").arg(temp1).arg(temp2));
     result.setMeta("instrumentType", static_cast<int>(inputCurve.instrumentType()));
-    result.setMeta("label", areaText);  // 用于 UI 显示的文本
     result.setMeta("markerColor", QColor(Qt::blue));
-
-    // 标签显示位置（两点中间）
-    QPointF labelPos((point1.x() + point2.x()) / 2.0,
-                     (point1.y() + point2.y()) / 2.0);
-    result.setMeta("labelPosition", labelPos);
 
     return result;
 }
