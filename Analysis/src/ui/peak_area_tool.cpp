@@ -55,7 +55,7 @@ void PeakAreaTool::paint(QPainter* painter, const QStyleOptionGraphicsItem* opti
         return;
     }
 
-    // ✅ 优化：绘制前确保缓存是最新的（只在脏时才重新计算）
+    // 优化：绘制前确保缓存是最新的（只在脏时才重新计算）
     updateCache();
 
     painter->setRenderHint(QPainter::Antialiasing);
@@ -81,7 +81,7 @@ void PeakAreaTool::setMeasurePoints(const ThermalDataPoint& point1, const Therma
     m_point1 = point1;
     m_point2 = point2;
 
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -92,7 +92,7 @@ void PeakAreaTool::setAxes(const QString& curveId, QValueAxis* xAxis, QValueAxis
     m_yAxis = yAxis;
     m_series = series;
 
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -108,7 +108,7 @@ void PeakAreaTool::setXAxisMode(bool useTimeAxis)
     }
 
     m_useTimeAxis = useTimeAxis;
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -119,7 +119,7 @@ void PeakAreaTool::setBaselineMode(BaselineMode mode)
     }
 
     m_baselineMode = mode;
-    markDirty();  // ✅ 优化：标记脏，延迟计算
+    markDirty();  // 优化：标记脏，延迟计算
     update();
 }
 
@@ -128,7 +128,7 @@ void PeakAreaTool::setReferenceCurve(const QString& curveId)
     m_baselineCurveId = curveId;
 
     if (m_baselineMode == BaselineMode::ReferenceCurve) {
-        markDirty();  // ✅ 优化：标记脏，延迟计算
+        markDirty();  // 优化：标记脏，延迟计算
         update();
     }
 }
@@ -339,7 +339,7 @@ qreal PeakAreaTool::calculateArea()
         double effectiveX1 = qMax(xi, x1);
         double effectiveX2 = qMin(xi1, x2);
 
-        // 🐛 BUG修复：使用 effectiveX1 和 effectiveX2 计算基线值（而不是 xi 和 xi1）
+        // BUG修复：使用 effectiveX1 和 effectiveX2 计算基线值（而不是 xi 和 xi1）
         double baselineY1 = getBaselineValue(effectiveX1);
         double baselineY2 = getBaselineValue(effectiveX2);
 
@@ -396,7 +396,7 @@ QPolygonF PeakAreaTool::buildAreaPolygon()
         std::swap(x1, x2);
     }
 
-    // ✅ 优化：一次遍历同时构建上下边界 (O(n²) → O(n))
+    // 优化：一次遍历同时构建上下边界 (O(n²) → O(n))
     // 上边界：曲线点（从左到右）
     // 下边界：基线点（从右到左，用于闭合多边形）
     QVector<QPointF> upperBoundary;  // 曲线上边界
