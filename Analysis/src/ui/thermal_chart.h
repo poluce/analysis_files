@@ -125,6 +125,18 @@ public:
     QString curveIdForSeries(QLineSeries* series) const;
     QColor getCurveColor(const QString& curveId) const;
 
+    // ==================== 数据查询 ====================
+    /**
+     * @brief 查找最接近指定 X 值的数据点
+     * @param curveData 曲线数据
+     * @param xValue X 值（根据横轴模式，可能是 temperature 或 time）
+     * @return 最接近的数据点
+     *
+     * 根据当前横轴模式（Temperature/Time）自动选择比较字段。
+     * 供 ThermalChartView 和其他组件使用。
+     */
+    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double xValue) const;
+
     // ==================== 十字线管理（仅图元接口）====================
     void setCrosshairEnabled(bool vertical, bool horizontal);
     void setVerticalCrosshairEnabled(bool enabled);
@@ -213,9 +225,6 @@ private:
     QList<QLineSeries*> lineSeriesAttachedToAxis(QAbstractAxis* axis) const;
 
     void resetAxesToDefault();
-
-    // ==================== 数据查询辅助函数 ====================
-    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double xValue) const;
 
     // ==================== 框选缩放辅助函数 ====================
     /**
