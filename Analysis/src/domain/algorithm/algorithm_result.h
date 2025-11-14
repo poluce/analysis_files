@@ -127,14 +127,25 @@ namespace MetaKeys {
     inline constexpr const char* Slope = "slope";                // 斜率 (double)
     inline constexpr const char* Intercept = "intercept";        // 截距 (double)
 
-    // 温度相关
-    inline constexpr const char* Onset = "onset";                // 起始温度 (double)
-    inline constexpr const char* Endset = "endset";              // 结束温度 (double)
+    // 温度外推相关
+    inline constexpr const char* Onset = "onset";                       // 起始温度 (double)
+    inline constexpr const char* Endset = "endset";                     // 结束温度 (double)
+    inline constexpr const char* ExtrapolatedTemperature = "extrapolatedTemperature";  // 外推温度 (double)
+
+    // 算法参数
+    inline constexpr const char* Method = "method";                     // 算法方法 (QString)
+    inline constexpr const char* WindowSize = "windowSize";             // 窗口大小 (int)
+
+    // 关联曲线信息
+    inline constexpr const char* BaselineCurveId = "baselineCurveId";       // 基线曲线ID (QString)
+    inline constexpr const char* BaselineCurveName = "baselineCurveName";   // 基线曲线名称 (QString)
+    inline constexpr const char* InstrumentType = "instrumentType";         // 仪器类型 (int)
 
     // 显示相关
     inline constexpr const char* Unit = "unit";                  // 单位 (QString)
     inline constexpr const char* Label = "label";                // 标签 (QString)
     inline constexpr const char* Color = "color";                // 显示颜色 (QColor)
+    inline constexpr const char* MarkerColor = "markerColor";    // 标注点颜色 (QColor)
 
     // 曲线类型
     inline constexpr const char* SignalType = "signalType";      // 信号类型 (SignalType)

@@ -272,13 +272,13 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
     QString tempText = formatTemperatureText(extrapolatedTemp, inputCurve.instrumentType());
 
     // 添加元数据
-    result.setMeta("extrapolatedTemperature", extrapolatedTemp);
-    result.setMeta("slope", slope);
-    result.setMeta("intercept", intercept);
-    result.setMeta("baselineCurveId", baselineCurve.id());
-    result.setMeta("baselineCurveName", baselineCurve.name());
-    result.setMeta("instrumentType", static_cast<int>(inputCurve.instrumentType()));
-    result.setMeta("markerColor", QColor(Qt::red));
+    result.setMeta(MetaKeys::ExtrapolatedTemperature, extrapolatedTemp);
+    result.setMeta(MetaKeys::Slope, slope);
+    result.setMeta(MetaKeys::Intercept, intercept);
+    result.setMeta(MetaKeys::BaselineCurveId, baselineCurve.id());
+    result.setMeta(MetaKeys::BaselineCurveName, baselineCurve.name());
+    result.setMeta(MetaKeys::InstrumentType, static_cast<int>(inputCurve.instrumentType()));
+    result.setMeta(MetaKeys::MarkerColor, QColor(Qt::red));
 
     return result;
 }
