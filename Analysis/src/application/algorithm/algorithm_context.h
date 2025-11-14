@@ -6,7 +6,6 @@
 #include <QStringList>
 #include <QVariant>
 #include <QVariantMap>
-#include <functional>
 #include <optional>
 
 // ============================================================================
