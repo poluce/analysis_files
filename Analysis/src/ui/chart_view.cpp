@@ -306,8 +306,8 @@ void ChartView::startAlgorithmInteraction(const QString& algorithmName, const QS
 
     // 设置选点系列，附着到目标曲线的 Y 轴
     if (!curveId.isEmpty()) {
-        QValueAxis* targetYAxis = m_chart->yAxisForCurve(curveId);
-        m_chart->setupSelectedPointsSeries(targetYAxis);
+        QValueAxis* targetYAxis = m_chart->yAxisForCurveId(curveId);
+        m_chart->rebindSelectedPointsSeries(targetYAxis);
     }
 
     qDebug() << "ChartView: 算法" << displayName << "已进入等待用户选点状态";

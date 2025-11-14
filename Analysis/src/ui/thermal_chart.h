@@ -2,15 +2,16 @@
 #define THERMAL_CHART_H
 
 #include <QChart>
-#include <QHash>
-#include <QMap>
-#include <QVector>
-#include <QPointF>
 #include <QColor>
-#include <QtCharts/QValueAxis>
+#include <QHash>
+#include <QList>
+#include <QMap>
+#include <QPointF>
+#include <QVector>
+#include <QtCharts/QAbstractSeries>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
-#include <QtCharts/QAbstractSeries>
+#include <QtCharts/QValueAxis>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -73,7 +74,7 @@ public:
     // ==================== 坐标轴管理 ====================
     void rescaleAxes();
     void setXAxisMode(XAxisMode mode);
-    void toggleXAxisMode();  // 切换横轴模式（温度 ↔ 时间）
+    void toggleXAxisMode(); // 切换横轴模式（温度 ↔ 时间）
     XAxisMode xAxisMode() const { return m_xAxisMode; }
 
     // ==================== 标题配置（自定义标题）====================
@@ -104,10 +105,9 @@ public:
     /**
      * @brief 批量设置所有标题（便捷方法）
      */
-    void setCustomTitles(const QString& chartTitle,
-                        const QString& xAxisTitle = QString(),
-                        const QString& yAxisTitlePrimary = QString(),
-                        const QString& yAxisTitleSecondary = QString());
+    void setCustomTitles(
+        const QString& chartTitle, const QString& xAxisTitle = QString(), const QString& yAxisTitlePrimary = QString(),
+        const QString& yAxisTitleSecondary = QString());
 
     /**
      * @brief 清除所有自定义标题，恢复自动生成
@@ -116,12 +116,12 @@ public:
 
     // 查询接口（供 ThermalChartView 和叠加物使用）
     QValueAxis* axisX() const { return m_axisX; }
-    QValueAxis* primaryAxisY() const { return m_axisY_primary; }
-    QValueAxis* secondaryAxisY() const { return m_axisY_secondary; }
-    QValueAxis* yAxisForCurve(const QString& curveId);
+    QValueAxis* primaryAxisY() const { return m_axisY_mass; }
+    QValueAxis* secondaryAxisY() const { return m_axisY_diff; }
+    QValueAxis* yAxisForCurveId(const QString& curveId);
 
     // ==================== 系列查询 ====================
-    QLineSeries* seriesForCurve(const QString& curveId) const;
+    QLineSeries* seriesForCurveId(const QString& curveId) const;
     QString curveIdForSeries(QLineSeries* series) const;
     QColor getCurveColor(const QString& curveId) const;
 
@@ -142,27 +142,23 @@ public:
     const QVector<FloatingLabel*>& floatingLabels() const { return m_floatingLabels; }
 
     // ==================== 标注点（Markers）管理 ====================
-    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
-                         const QColor& color = Qt::red, qreal size = 12.0);
+    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color = Qt::red, qreal size = 12.0);
     void removeCurveMarkers(const QString& curveId);
     void clearAllMarkers();
 
     // ==================== 测量工具管理 ====================
-    void addMassLossTool(const struct ThermalDataPoint& point1,
-                         const struct ThermalDataPoint& point2,
-                         const QString& curveId);
+    void addMassLossTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
     void removeMassLossTool(QGraphicsObject* tool);
     void clearAllMassLossTools();
 
     // ==================== 峰面积工具管理 ====================
-    class PeakAreaTool* addPeakAreaTool(const struct ThermalDataPoint& point1,
-                                         const struct ThermalDataPoint& point2,
-                                         const QString& curveId);
+    class PeakAreaTool*
+    addPeakAreaTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
 
     // ==================== 选中点管理（用于算法交互）====================
-    void setupSelectedPointsSeries(QValueAxis* targetYAxis);
+    void rebindSelectedPointsSeries(QValueAxis* targetYAxis);
     void addSelectedPoint(const QPointF& point);
     void clearSelectedPoints();
 
@@ -203,23 +199,23 @@ signals:
 
 private:
     // ==================== 系列管理辅助函数 ====================
-    QLineSeries* createSeriesForCurve(const ThermalCurve& curve) const;
-    void populateSeriesWithCurveData(QLineSeries* series, const ThermalCurve& curve) const;
-    void attachSeriesToAxes(QLineSeries* series, QValueAxis* axisY);
-    void detachSeriesFromAxes(QLineSeries* series);
+    QLineSeries* createSeriesForThermalCurve(const ThermalCurve& curve) const;
+    QList<QPointF> buildSeriesPoints(const ThermalCurve& curve) const;
+    void attachSeriesToAxes(QXYSeries* series, QValueAxis* axisY);
+    void detachSeriesFromAxes(QXYSeries* series);
     void registerSeriesMapping(QLineSeries* series, const QString& curveId);
     void unregisterSeriesMapping(const QString& curveId);
     void updateSeriesStyle(QLineSeries* series, bool selected);
-    void updateLegendVisibility(QLineSeries* series, bool visible) const;
 
     // ==================== 坐标轴管理辅助函数 ====================
     QValueAxis* ensureYAxisForCurve(const ThermalCurve& curve);
-    void rescaleAxis(QValueAxis* axis) const;
+    void updateAxisRangeForAttachedSeries(QValueAxis* axis) const;
+    QList<QLineSeries*> lineSeriesAttachedToAxis(QAbstractAxis* axis) const;
+
     void resetAxesToDefault();
 
     // ==================== 数据查询辅助函数 ====================
-    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData,
-                                                   double temperature) const;
+    struct ThermalDataPoint findNearestDataPoint(const QVector<struct ThermalDataPoint>& curveData, double temperature) const;
 
     // ==================== 框选缩放辅助函数 ====================
     /**
@@ -247,17 +243,16 @@ private:
      * @param outYMax 输出：Y 最大值
      * @return true=找到数据，false=未找到数据
      */
-    bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax,
-                                  qreal& outYMin, qreal& outYMax) const;
+    bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const;
 
 private:
     // ==================== 初始化状态标记 ====================
-    bool m_initialized = false;  // 防止"半初始化对象"的运行时错误
+    bool m_initialized = false; // 防止"半初始化对象"的运行时错误
 
     // ==================== 坐标轴 ====================
     QValueAxis* m_axisX = nullptr;
-    QValueAxis* m_axisY_primary = nullptr;
-    QValueAxis* m_axisY_secondary = nullptr;
+    QValueAxis* m_axisY_mass = nullptr;
+    QValueAxis* m_axisY_diff = nullptr;
     XAxisMode m_xAxisMode = XAxisMode::Temperature;
 
     // ==================== 曲线系列管理 ====================
@@ -295,10 +290,10 @@ private:
     CurveManager* m_curveManager = nullptr;
 
     // ==================== 自定义标题（空表示使用默认）====================
-    QString m_customChartTitle;              // 自定义图表标题
-    QString m_customXAxisTitle;              // 自定义X轴标题
-    QString m_customYAxisTitlePrimary;       // 自定义主Y轴标题
-    QString m_customYAxisTitleSecondary;     // 自定义次Y轴标题
+    QString m_customChartTitle;          // 自定义图表标题
+    QString m_customXAxisTitle;          // 自定义X轴标题
+    QString m_customYAxisTitlePrimary;   // 自定义主Y轴标题
+    QString m_customYAxisTitleDiff; // 自定义次Y轴标题
 };
 
 #endif // THERMAL_CHART_H

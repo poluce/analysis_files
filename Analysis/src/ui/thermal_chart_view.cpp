@@ -452,7 +452,7 @@ bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve
     }
 
     // 获取活动曲线的系列（用于正确的坐标转换）
-    QLineSeries* activeSeries = m_thermalChart->seriesForCurve(activeCurve->id());
+    QLineSeries* activeSeries = m_thermalChart->seriesForCurveId(activeCurve->id());
     if (!activeSeries) {
         qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 无法获取活动曲线的系列";
         return false;
@@ -538,7 +538,7 @@ bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve
     }
 
     // 获取目标曲线的系列（用于正确的坐标转换）
-    QLineSeries* targetSeries = m_thermalChart->seriesForCurve(targetCurve->id());
+    QLineSeries* targetSeries = m_thermalChart->seriesForCurveId(targetCurve->id());
     if (!targetSeries) {
         qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线的系列";
         return false;
