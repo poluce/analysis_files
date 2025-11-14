@@ -23,6 +23,87 @@ enum class ResultType {
 };
 
 /**
+ * @brief 算法输出上下文键名
+ *
+ * 为算法结果在 AlgorithmContext 中的存储提供类型安全的键名常量。
+ * 与输入键名（ContextKeys）分离，专门用于算法输出结果的存储和检索。
+ *
+ * @code
+ * // 推荐使用：
+ * context->setValue(AlgorithmResult::OutputKeys::latestResult("differentiation"), result);
+ * auto result = context->get<AlgorithmResult>(AlgorithmResult::OutputKeys::latestResult("differentiation"));
+ *
+ * // 避免使用：
+ * context->setValue("result/differentiation/latest", result);  // 容易拼写错误
+ * @endcode
+ */
+namespace AlgorithmResult_OutputKeys {
+    /** 结果键名前缀 */
+    inline constexpr const char* ResultPrefix = "result/";
+
+    /** 最新结果键名后缀 */
+    inline constexpr const char* LatestSuffix = "/latest";
+
+    /** 结果类型键名后缀 */
+    inline constexpr const char* ResultTypeSuffix = "/resultType";
+
+    /** 历史结果键名中缀 */
+    inline constexpr const char* HistoryInfix = "/history/";
+
+    /**
+     * @brief 生成算法最新结果键名
+     * @param algorithmName 算法名称
+     * @return 完整键名 (格式: "result/{algorithmName}/latest")
+     *
+     * 使用示例:
+     * @code
+     * // 存储最新结果
+     * context->setValue(AlgorithmResult::OutputKeys::latestResult("differentiation"), result);
+     *
+     * // 读取最新结果
+     * auto result = context->get<AlgorithmResult>(AlgorithmResult::OutputKeys::latestResult("differentiation"));
+     * @endcode
+     */
+    inline QString latestResult(const QString& algorithmName) {
+        return QString(ResultPrefix) + algorithmName + QString(LatestSuffix);
+    }
+
+    /**
+     * @brief 生成算法结果类型键名
+     * @param algorithmName 算法名称
+     * @return 完整键名 (格式: "result/{algorithmName}/resultType")
+     *
+     * 使用示例:
+     * @code
+     * // 存储结果类型（用于快速查询）
+     * context->setValue(AlgorithmResult::OutputKeys::resultType("differentiation"), static_cast<int>(result.type()));
+     * @endcode
+     */
+    inline QString resultType(const QString& algorithmName) {
+        return QString(ResultPrefix) + algorithmName + QString(ResultTypeSuffix);
+    }
+
+    /**
+     * @brief 生成算法历史结果键名
+     * @param algorithmName 算法名称
+     * @param index 历史记录索引（0为最新）
+     * @return 完整键名 (格式: "result/{algorithmName}/history/{index}")
+     *
+     * 使用示例:
+     * @code
+     * // 存储历史结果（第2次执行）
+     * context->setValue(AlgorithmResult::OutputKeys::historyResult("differentiation", 1), result);
+     *
+     * // 读取历史结果
+     * auto oldResult = context->get<AlgorithmResult>(AlgorithmResult::OutputKeys::historyResult("differentiation", 1));
+     * @endcode
+     */
+    inline QString historyResult(const QString& algorithmName, int index) {
+        return QString(ResultPrefix) + algorithmName + QString(HistoryInfix) + QString::number(index);
+    }
+}
+
+/**
  * @brief 算法执行结果的统一容器
  *
  * 封装所有类型的算法输出，提供类型安全的访问接口。
@@ -47,6 +128,14 @@ enum class ResultType {
  */
 class AlgorithmResult {
 public:
+    // ==================== 输出键名命名空间 ====================
+    /**
+     * @brief 输出键名命名空间别名
+     *
+     * 允许通过 AlgorithmResult::OutputKeys 访问输出键名常量
+     */
+    using OutputKeys = AlgorithmResult_OutputKeys;
+
     // ==================== 构造函数 ====================
 
     /**
