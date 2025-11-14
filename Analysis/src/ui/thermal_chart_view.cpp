@@ -333,6 +333,13 @@ bool ThermalChartView::handleRightButtonPress(QMouseEvent* mouseEvent)
         return false;
     }
 
+    // Ctrl+右键：不启动拖动（预留用于恢复视图）
+    if (mouseEvent->modifiers() & Qt::ControlModifier) {
+        qDebug() << "ThermalChartView::handleRightButtonPress - Ctrl+右键，不启动拖动";
+        return false;
+    }
+
+    // 普通右键：启动拖动
     m_isRightDragging = true;
     m_rightDragStartPos = mouseEvent->pos();
     setCursor(Qt::ClosedHandCursor);
@@ -341,12 +348,25 @@ bool ThermalChartView::handleRightButtonPress(QMouseEvent* mouseEvent)
 
 bool ThermalChartView::handleRightButtonRelease(QMouseEvent* mouseEvent)
 {
-    if (mouseEvent->button() != Qt::RightButton || !m_isRightDragging) {
+    if (mouseEvent->button() != Qt::RightButton) {
         return false;
     }
 
-    m_isRightDragging = false;
-    unsetCursor();
+    // Ctrl+右键释放：恢复视图（自动缩放所有坐标轴）
+    if (mouseEvent->modifiers() & Qt::ControlModifier) {
+        if (m_thermalChart) {
+            qDebug() << "ThermalChartView::handleRightButtonRelease - Ctrl+右键释放，恢复视图";
+            m_thermalChart->rescaleAxes();
+        }
+        return false;
+    }
+
+    // 普通右键释放：结束拖动
+    if (m_isRightDragging) {
+        m_isRightDragging = false;
+        unsetCursor();
+    }
+
     return false;  // 让事件继续传递
 }
 
