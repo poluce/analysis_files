@@ -274,10 +274,6 @@ private:
     QPointF sceneToChart(const QPointF& scenePos) const;
     QPointF chartToValue(const QPointF& chartPos) const;
 
-    // ==================== 数据查询辅助函数 ====================
-    ThermalDataPoint findNearestDataPoint(const QVector<ThermalDataPoint>& curveData,
-                                           double xValue) const;
-
 private:
     // ==================== 初始化状态标记 ====================
     bool m_initialized = false;  // 防止"半初始化对象"的运行时错误

@@ -144,7 +144,7 @@ void ThermalChartView::mousePressEvent(QMouseEvent* event)
         m_boxSelectStart = viewportPos;
         m_boxSelectEnd = viewportPos;
 
-        qDebug() << "ThermalChartView::mousePressEvent - 开始框选，起点:" << viewportPos;
+        qDebug() << "ThermalChartView::mousePressEvent - 启动框选，起点:" << viewportPos;
     }
 
     QChartView::mousePressEvent(event);
@@ -189,7 +189,6 @@ void ThermalChartView::mouseReleaseEvent(QMouseEvent* event)
     }
 
     // 右键拖动和测量工具逻辑已移至 eventFilter
-    // 这个方法保留用于未来可能的扩展
     QChartView::mouseReleaseEvent(event);
 }
 
@@ -339,11 +338,17 @@ void ThermalChartView::finalizeBoxSelection()
             qDebug() << "ThermalChartView::finalizeBoxSelection - 执行框选缩放";
         }
     } else {
-        // 区域太小，隐藏选框
+        // 区域太小，当作点击处理
+        // 在 View 模式下，调用曲线选择点击处理
+        if (m_mode == InteractionMode::View) {
+            handleCurveSelectionClick(m_boxSelectEnd);
+            qDebug() << "ThermalChartView::finalizeBoxSelection - 小区域框选，当作点击处理";
+        }
+
+        // 隐藏选框
         if (m_thermalChart) {
             m_thermalChart->hideSelectionBox();
         }
-        qDebug() << "ThermalChartView::finalizeBoxSelection - 框选区域过小，忽略";
     }
 
     // 重置框选状态
@@ -503,9 +508,9 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
     qreal startX = dataClick.x() - rangeExtension;
     qreal endX = dataClick.x() + rangeExtension;
 
-    // 5. 查找最接近的点
-    ThermalDataPoint point1 = findNearestDataPoint(data, startX);
-    ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+    // 5. 查找最接近的点（委托给 ThermalChart）
+    ThermalDataPoint point1 = m_thermalChart->findNearestDataPoint(data, startX);
+    ThermalDataPoint point2 = m_thermalChart->findNearestDataPoint(data, endX);
 
     qDebug() << "ThermalChartView::handleMassLossToolClick - 自动延伸范围: ±" << rangeExtension;
 
@@ -654,9 +659,9 @@ bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
     qreal startX = dataClick.x() - rangeExtension;
     qreal endX = dataClick.x() + rangeExtension;
 
-    // 6. 查找最接近的点
-    ThermalDataPoint point1 = findNearestDataPoint(data, startX);
-    ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+    // 6. 查找最接近的点（委托给 ThermalChart）
+    ThermalDataPoint point1 = m_thermalChart->findNearestDataPoint(data, startX);
+    ThermalDataPoint point2 = m_thermalChart->findNearestDataPoint(data, endX);
 
     qDebug() << "ThermalChartView::handlePeakAreaToolClick - 自动延伸范围: ±" << rangeExtension;
 
@@ -778,7 +783,13 @@ QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, q
         return nullptr;
     }
 
-    // 点到线段距离计算函数
+    // 坐标系说明：
+    // - viewportPos: 视口坐标（QChartView 像素坐标）
+    // - chart()->mapToPosition(): 返回场景坐标（QGraphicsScene 坐标）
+    // - mapFromScene(): 场景坐标 → 视口坐标
+    // 必须统一到同一坐标系（视口坐标）才能计算准确距离
+
+    // 点到线段距离计算函数（在视口坐标系下计算）
     auto pointToSegDist = [](const QPointF& p, const QPointF& a, const QPointF& b) -> qreal {
         const qreal vx = b.x() - a.x();
         const qreal vy = b.y() - a.y();
@@ -811,9 +822,16 @@ QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, q
             continue;
         }
 
-        QPointF previous = chart()->mapToPosition(points[0], lineSeries);
+        // 获取第一个点的场景坐标，然后转换为视口坐标
+        QPointF scenePos = chart()->mapToPosition(points[0], lineSeries);
+        QPointF previous = mapFromScene(scenePos);
+
         for (int i = 1; i < points.size(); ++i) {
-            const QPointF current = chart()->mapToPosition(points[i], lineSeries);
+            // 获取当前点的场景坐标，然后转换为视口坐标
+            QPointF scenePosCurrent = chart()->mapToPosition(points[i], lineSeries);
+            QPointF current = mapFromScene(scenePosCurrent);
+
+            // 在视口坐标系下计算距离
             const qreal dist = pointToSegDist(viewportPos, previous, current);
             if (dist < bestDist) {
                 bestDist = dist;
@@ -883,36 +901,6 @@ void ThermalChartView::handleRightDrag(const QPointF& currentPos)
 
     // 更新起始位置
     m_rightDragStartPos = currentPos;
-}
-
-// ==================== 数据查询辅助函数 ====================
-
-ThermalDataPoint ThermalChartView::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData,
-                                                          double xValue) const
-{
-    if (curveData.isEmpty()) {
-        return ThermalDataPoint();
-    }
-
-    // 根据当前横轴模式选择比较字段
-    bool useTimeAxis = (m_thermalChart && m_thermalChart->xAxisMode() == XAxisMode::Time);
-
-    int nearestIdx = 0;
-    double minDist = useTimeAxis
-                     ? qAbs(curveData[0].time - xValue)
-                     : qAbs(curveData[0].temperature - xValue);
-
-    for (int i = 1; i < curveData.size(); ++i) {
-        double dist = useTimeAxis
-                      ? qAbs(curveData[i].time - xValue)
-                      : qAbs(curveData[i].temperature - xValue);
-        if (dist < minDist) {
-            minDist = dist;
-            nearestIdx = i;
-        }
-    }
-
-    return curveData[nearestIdx];
 }
 
 // ==================== 坐标转换 ====================
