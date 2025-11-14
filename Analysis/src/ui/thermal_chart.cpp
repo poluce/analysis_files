@@ -2,7 +2,6 @@
 #include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
-#include "floating_label.h"
 #include "peak_area_tool.h"
 #include "trapezoid_measure_tool.h"
 

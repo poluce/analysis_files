@@ -1,7 +1,6 @@
 #include "chart_view.h"
 #include "thermal_chart.h"
 #include "thermal_chart_view.h"
-#include "floating_label.h"
 #include "domain/model/thermal_curve.h"
 #include "application/curve/curve_manager.h"
 #include <QDebug>
