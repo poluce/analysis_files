@@ -372,17 +372,24 @@ QValueAxis* ThermalChart::ensureYAxisForCurve(const ThermalCurve& curve)
 
 // ==================== 数据查询辅助函数 ====================
 
-ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const
+ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData, double xValue) const
 {
     if (curveData.isEmpty()) {
         return ThermalDataPoint();
     }
 
+    // 根据当前横轴模式选择比较字段
+    bool useTimeAxis = (m_xAxisMode == XAxisMode::Time);
+
     int nearestIdx = 0;
-    double minDist = qAbs(curveData[0].temperature - temperature);
+    double minDist = useTimeAxis
+                     ? qAbs(curveData[0].time - xValue)
+                     : qAbs(curveData[0].temperature - xValue);
 
     for (int i = 1; i < curveData.size(); ++i) {
-        double dist = qAbs(curveData[i].temperature - temperature);
+        double dist = useTimeAxis
+                      ? qAbs(curveData[i].time - xValue)
+                      : qAbs(curveData[i].temperature - xValue);
         if (dist < minDist) {
             minDist = dist;
             nearestIdx = i;

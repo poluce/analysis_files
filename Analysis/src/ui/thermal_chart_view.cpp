@@ -503,9 +503,9 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
     qreal startX = dataClick.x() - rangeExtension;
     qreal endX = dataClick.x() + rangeExtension;
 
-    // 5. 查找最接近的点
-    ThermalDataPoint point1 = findNearestDataPoint(data, startX);
-    ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+    // 5. 查找最接近的点（委托给 ThermalChart）
+    ThermalDataPoint point1 = m_thermalChart->findNearestDataPoint(data, startX);
+    ThermalDataPoint point2 = m_thermalChart->findNearestDataPoint(data, endX);
 
     qDebug() << "ThermalChartView::handleMassLossToolClick - 自动延伸范围: ±" << rangeExtension;
 
@@ -654,9 +654,9 @@ bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
     qreal startX = dataClick.x() - rangeExtension;
     qreal endX = dataClick.x() + rangeExtension;
 
-    // 6. 查找最接近的点
-    ThermalDataPoint point1 = findNearestDataPoint(data, startX);
-    ThermalDataPoint point2 = findNearestDataPoint(data, endX);
+    // 6. 查找最接近的点（委托给 ThermalChart）
+    ThermalDataPoint point1 = m_thermalChart->findNearestDataPoint(data, startX);
+    ThermalDataPoint point2 = m_thermalChart->findNearestDataPoint(data, endX);
 
     qDebug() << "ThermalChartView::handlePeakAreaToolClick - 自动延伸范围: ±" << rangeExtension;
 
@@ -883,36 +883,6 @@ void ThermalChartView::handleRightDrag(const QPointF& currentPos)
 
     // 更新起始位置
     m_rightDragStartPos = currentPos;
-}
-
-// ==================== 数据查询辅助函数 ====================
-
-ThermalDataPoint ThermalChartView::findNearestDataPoint(const QVector<ThermalDataPoint>& curveData,
-                                                          double xValue) const
-{
-    if (curveData.isEmpty()) {
-        return ThermalDataPoint();
-    }
-
-    // 根据当前横轴模式选择比较字段
-    bool useTimeAxis = (m_thermalChart && m_thermalChart->xAxisMode() == XAxisMode::Time);
-
-    int nearestIdx = 0;
-    double minDist = useTimeAxis
-                     ? qAbs(curveData[0].time - xValue)
-                     : qAbs(curveData[0].temperature - xValue);
-
-    for (int i = 1; i < curveData.size(); ++i) {
-        double dist = useTimeAxis
-                      ? qAbs(curveData[i].time - xValue)
-                      : qAbs(curveData[i].temperature - xValue);
-        if (dist < minDist) {
-            minDist = dist;
-            nearestIdx = i;
-        }
-    }
-
-    return curveData[nearestIdx];
 }
 
 // ==================== 坐标转换 ====================
