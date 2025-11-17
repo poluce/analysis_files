@@ -9,11 +9,6 @@ AlgorithmContext::AlgorithmContext(QObject* parent)
 
 bool AlgorithmContext::contains(const QString& key) const { return m_entries.contains(key); }
 
-QVariant AlgorithmContext::value(const QString& key, const QVariant& defaultValue) const
-{
-    return m_entries.contains(key) ? m_entries.value(key).storedValue : defaultValue;
-}
-
 void AlgorithmContext::setValue(const QString& key, const QVariant& value, const QString& source)
 {
     if (!value.isValid()) {
@@ -39,18 +34,6 @@ void AlgorithmContext::remove(const QString& key)
     emit valueRemoved(key);
 }
 
-void AlgorithmContext::clear()
-{
-    if (m_entries.isEmpty()) {
-        return;
-    }
-    const auto keys = m_entries.keys();
-    m_entries.clear();
-    for (const QString& key : keys) {
-        emit valueRemoved(key);
-    }
-}
-
 QStringList AlgorithmContext::keys(const QString& prefix) const
 {
     if (prefix.isEmpty()) {
@@ -64,17 +47,6 @@ QStringList AlgorithmContext::keys(const QString& prefix) const
         }
     }
     return filtered;
-}
-
-QVariantMap AlgorithmContext::values(const QString& prefix) const
-{
-    QVariantMap map;
-    for (auto it = m_entries.constBegin(); it != m_entries.constEnd(); ++it) {
-        if (prefix.isEmpty() || it.key().startsWith(prefix)) {
-            map.insert(it.key(), it.value().storedValue);
-        }
-    }
-    return map;
 }
 
 AlgorithmContext* AlgorithmContext::clone() const

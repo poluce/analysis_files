@@ -52,15 +52,6 @@ private:
      */
     QVector<ThermalDataPoint>
     generateBaseline(const QVector<ThermalDataPoint>& curveData, const QPointF& point1, const QPointF& point2) const;
-
-    /**
-     * @brief 从曲线数据中找到最接近指定温度的点
-     *
-     * @param curveData 曲线数据
-     * @param temperature 目标温度
-     * @return 最接近的数据点
-     */
-    ThermalDataPoint findNearestPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const;
 };
 
 #endif // BASELINECORRECTIONALGORITHM_H

@@ -89,10 +89,6 @@ bool HistoryManager::canUndo() const { return !m_undoStack.empty(); }
 
 bool HistoryManager::canRedo() const { return !m_redoStack.empty(); }
 
-int HistoryManager::undoCount() const { return m_undoStack.size(); }
-
-int HistoryManager::redoCount() const { return m_redoStack.size(); }
-
 void HistoryManager::clear()
 {
     m_undoStack.clear();

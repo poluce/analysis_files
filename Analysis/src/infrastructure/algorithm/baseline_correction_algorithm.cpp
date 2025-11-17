@@ -262,25 +262,3 @@ QVector<ThermalDataPoint> BaselineCorrectionAlgorithm::generateBaseline(
 
     return baseline;
 }
-
-ThermalDataPoint
-BaselineCorrectionAlgorithm::findNearestPoint(const QVector<ThermalDataPoint>& curveData, double temperature) const
-{
-    if (curveData.isEmpty()) {
-        return ThermalDataPoint();
-    }
-
-    // 找到最接近指定温度的点
-    int nearestIdx = 0;
-    double minDist = qAbs(curveData[0].temperature - temperature);
-
-    for (int i = 1; i < curveData.size(); ++i) {
-        double dist = qAbs(curveData[i].temperature - temperature);
-        if (dist < minDist) {
-            minDist = dist;
-            nearestIdx = i;
-        }
-    }
-
-    return curveData[nearestIdx];
-}
