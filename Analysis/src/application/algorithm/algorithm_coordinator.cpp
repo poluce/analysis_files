@@ -322,39 +322,29 @@ void AlgorithmCoordinator::executeAlgorithm(
         return;
     }
 
-    // 清空上下文中的算法相关数据，准备新的执行
-    m_context->remove(ContextKeys::ActiveCurve);
-    m_context->remove(ContextKeys::BaselineCurves);
-    m_context->remove(ContextKeys::SelectedPoints);
-    QStringList paramKeys = m_context->keys("param.");
-    for (const QString& key : paramKeys) {
-        m_context->remove(key);
-    }
-
     // 将主曲线设置到上下文（存储副本以确保线程安全）
     // 当上下文被克隆时，ThermalCurve 会被深拷贝，确保工作线程拥有独立的数据副本
+    // setValue() 会自动覆盖旧值，无需手动清空
     m_context->setValue(ContextKeys::ActiveCurve, QVariant::fromValue(*curve), "AlgorithmCoordinator");
 
     // 自动查找并注入活动曲线的基线（如果存在）
     QVector<ThermalCurve*> baselines = m_curveManager->getBaselines(curve->id());
-
     if (!baselines.isEmpty()) {
         // 注入所有基线，由算法自己决定如何使用
         m_context->setValue(ContextKeys::BaselineCurves, QVariant::fromValue(baselines), "AlgorithmCoordinator");
-
         qDebug() << "AlgorithmCoordinator::executeAlgorithm - 找到" << baselines.size()
                  << "条基线曲线，由算法决定使用哪条";
     } else {
-        // 确保清除之前可能存在的基线
+        // 清除之前可能存在的基线（避免使用过期数据）
         m_context->remove(ContextKeys::BaselineCurves);
     }
 
-    // 将参数设置到上下文（使用 param. 前缀）
+    // 将参数设置到上下文（setValue 自动覆盖旧值）
     for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it) {
         m_context->setValue(QString("param.%1").arg(it.key()), it.value(), "AlgorithmCoordinator");
     }
 
-    // 将选择的点设置到上下文（如果有）
+    // 将选择的点设置到上下文（setValue 自动覆盖旧值）
     if (!points.isEmpty()) {
         m_context->setValue(ContextKeys::SelectedPoints, QVariant::fromValue(points), "AlgorithmCoordinator");
     }
