@@ -76,16 +76,6 @@ public:
     void setXAxisMode(bool useTimeAxis);
 
     /**
-     * @brief 获取第一个测量点
-     */
-    const ThermalDataPoint& point1() const { return m_point1; }
-
-    /**
-     * @brief 获取第二个测量点
-     */
-    const ThermalDataPoint& point2() const { return m_point2; }
-
-    /**
      * @brief 获取测量值（垂直距离）
      */
     qreal measureValue() const;
@@ -136,11 +126,6 @@ private:
      * @brief 绘制测量值文本
      */
     void paintMeasureText(QPainter* painter);
-
-    /**
-     * @brief 更新图形位置（当坐标轴范围变化时）
-     */
-    void updatePosition();
 
     /**
      * @brief 检查鼠标是否在关闭按钮上

@@ -41,15 +41,11 @@ const CurveMetadata& ThermalCurve::getMetadata() const { return m_metadata; }
 
 QString ThermalCurve::parentId() const { return m_parentId; }
 
-PlotStyle ThermalCurve::plotStyle() const { return m_plotStyle; }
-
 bool ThermalCurve::isAuxiliaryCurve() const { return m_isAuxiliaryCurve; }
 
 bool ThermalCurve::isStronglyBound() const { return m_isStronglyBound; }
 
 bool ThermalCurve::isMainCurve() const { return m_isMainCurve; }
-
-void ThermalCurve::setName(const QString& name) { m_name = name; }
 
 void ThermalCurve::setProjectName(const QString& projectName) { m_projectName = projectName; }
 
@@ -69,15 +65,11 @@ void ThermalCurve::setMetadata(const CurveMetadata& metadata) { m_metadata = met
 
 void ThermalCurve::setParentId(const QString& parentId) { m_parentId = parentId; }
 
-void ThermalCurve::setPlotStyle(PlotStyle style) { m_plotStyle = style; }
-
 void ThermalCurve::setIsAuxiliaryCurve(bool isAuxiliary) { m_isAuxiliaryCurve = isAuxiliary; }
 
 void ThermalCurve::setIsStronglyBound(bool isStronglyBound) { m_isStronglyBound = isStronglyBound; }
 
 void ThermalCurve::setIsMainCurve(bool isMainCurve) { m_isMainCurve = isMainCurve; }
-
-void ThermalCurve::resetToRaw() { m_processedData = m_rawData; }
 
 QString ThermalCurve::getYAxisLabel() const
 {
