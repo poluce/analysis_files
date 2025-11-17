@@ -123,6 +123,23 @@ private:
     [[nodiscard]] std::optional<AlgorithmDescriptor> descriptorFor(const QString& algorithmName);
 
     /**
+     * @brief 统一错误处理入口
+     * @param algorithmName 算法名称
+     * @param reason 错误原因描述
+     *
+     * 统一处理算法执行过程中的所有错误：
+     * 1. 打印警告日志
+     * 2. 清理所有状态（自动调用 resetState()）
+     * 3. 发出失败信号通知 UI
+     *
+     * 使用场景：
+     * - 前置条件检查失败
+     * - 参数验证失败
+     * - 算法执行失败
+     */
+    void handleError(const QString& algorithmName, const QString& reason);
+
+    /**
      * @brief 保存算法结果到上下文
      * @param algorithmName 算法名称
      * @param result 算法执行结果

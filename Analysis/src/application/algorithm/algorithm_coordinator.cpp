@@ -93,20 +93,20 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
 
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
-        emit algorithmFailed(algorithmName, QStringLiteral("没有选中的曲线，无法执行算法"));
+        handleError(algorithmName, QStringLiteral("没有选中的曲线，无法执行算法"));
         return;
     }
 
     auto descriptorOpt = descriptorFor(algorithmName);
     if (!descriptorOpt.has_value()) {
-        emit algorithmFailed(algorithmName, QStringLiteral("找不到算法或算法描述信息"));
+        handleError(algorithmName, QStringLiteral("找不到算法或算法描述信息"));
         return;
     }
 
     const AlgorithmDescriptor descriptor = descriptorOpt.value();
 
     if (!ensurePrerequisites(descriptor, activeCurve)) {
-        emit algorithmFailed(algorithmName, QStringLiteral("算法前置条件未满足"));
+        handleError(algorithmName, QStringLiteral("算法前置条件未满足"));
         return;
     }
 
@@ -187,8 +187,7 @@ void AlgorithmCoordinator::handleParameterSubmission(const QString& algorithmNam
     if (m_pending->descriptor.interaction == AlgorithmInteraction::ParameterDialog) {
         ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
         if (!curve) {
-            emit algorithmFailed(algorithmName, QStringLiteral("无法获取曲线，算法终止"));
-            resetState();
+            handleError(algorithmName, QStringLiteral("无法获取曲线，算法终止"));
             return;
         }
         executeAlgorithm(m_pending->descriptor, curve, parameters, {});
@@ -219,16 +218,14 @@ void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataP
     if (points.size() < m_pending->pointsRequired) {
         qWarning() << "AlgorithmCoordinator::handlePointSelectionResult - 点数量不足，期待" << m_pending->pointsRequired
                    << "个，实际" << points.size();
-        emit algorithmFailed(m_pending->descriptor.name, QStringLiteral("选点数量不足"));
-        resetState();
+        handleError(m_pending->descriptor.name, QStringLiteral("选点数量不足"));
         return;
     }
 
     m_pending->collectedPoints = points;
     ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
     if (!curve) {
-        emit algorithmFailed(m_pending->descriptor.name, QStringLiteral("无法获取曲线，算法终止"));
-        resetState();
+        handleError(m_pending->descriptor.name, QStringLiteral("无法获取曲线，算法终止"));
         return;
     }
 
@@ -314,14 +311,14 @@ void AlgorithmCoordinator::executeAlgorithm(
     const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points)
 {
     if (!curve) {
-        emit algorithmFailed(descriptor.name, QStringLiteral("曲线数据无效"));
+        handleError(descriptor.name, QStringLiteral("曲线数据无效"));
         return;
     }
 
     // 验证算法是否注册
     if (!m_algorithmManager->getAlgorithm(descriptor.name)) {
         qWarning() << "AlgorithmCoordinator::executeAlgorithm - 找不到算法实例:" << descriptor.name;
-        emit algorithmFailed(descriptor.name, QStringLiteral("算法未注册"));
+        handleError(descriptor.name, QStringLiteral("算法未注册"));
         return;
     }
 
@@ -378,7 +375,7 @@ void AlgorithmCoordinator::executeAlgorithm(
 
     if (taskId.isEmpty()) {
         qCritical() << "[AlgorithmCoordinator] executeAsync 返回空 taskId，执行失败！";
-        emit algorithmFailed(descriptor.name, QStringLiteral("算法提交失败"));
+        handleError(descriptor.name, QStringLiteral("算法提交失败"));
         return;
     }
 
@@ -392,6 +389,13 @@ void AlgorithmCoordinator::resetState()
 {
     m_pending.reset();
     m_currentTaskId.clear();
+}
+
+void AlgorithmCoordinator::handleError(const QString& algorithmName, const QString& reason)
+{
+    qWarning() << "[AlgorithmCoordinator] 错误:" << algorithmName << "-" << reason;
+    resetState();  // 自动清理所有状态
+    emit algorithmFailed(algorithmName, reason);
 }
 
 // ==================== 异步执行槽函数实现 ====================
