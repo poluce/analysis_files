@@ -28,36 +28,6 @@ ProjectTreeManager::ProjectTreeManager(CurveManager* curveManager, QObject* pare
     buildTree();
 }
 
-QStringList ProjectTreeManager::getCheckedCurveIds() const
-{
-    QStringList result;
-
-    // 从根节点开始递归收集所有勾选的曲线
-    for (int i = 0; i < m_model->rowCount(); ++i) {
-        collectCheckedItems(m_model->item(i), result);
-    }
-
-    return result;
-}
-
-void ProjectTreeManager::setCurveChecked(const QString& curveId, bool checked)
-{
-    QStandardItem* item = findCurveItem(curveId);
-    if (!item) {
-        qWarning() << "找不到曲线:" << curveId;
-        return;
-    }
-
-    // 使用 QSignalBlocker 自动阻塞和恢复信号（RAII 模式）
-    {
-        QSignalBlocker blocker(m_model);
-        item->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
-    }
-
-    // 手动发射信号
-    emit curveCheckStateChanged(curveId, checked);
-}
-
 void ProjectTreeManager::setActiveCurve(const QString& curveId)
 {
     QStandardItem* item = findCurveItem(curveId);
@@ -276,26 +246,6 @@ QStandardItem* ProjectTreeManager::findCurveItem(const QString& curveId, QStanda
     }
 
     return nullptr;
-}
-
-void ProjectTreeManager::collectCheckedItems(QStandardItem* parent, QStringList& result) const
-{
-    if (!parent) {
-        return;
-    }
-
-    // 如果当前节点是曲线节点且被勾选,添加到结果列表
-    if (parent->isCheckable() && parent->checkState() == Qt::Checked) {
-        QString curveId = parent->data(Qt::UserRole).toString();
-        if (!curveId.isEmpty()) {
-            result.append(curveId);
-        }
-    }
-
-    // 递归处理子节点
-    for (int i = 0; i < parent->rowCount(); ++i) {
-        collectCheckedItems(parent->child(i), result);
-    }
 }
 
 QStandardItem* ProjectTreeManager::createCurveItem(const ThermalCurve& curve, bool checked)

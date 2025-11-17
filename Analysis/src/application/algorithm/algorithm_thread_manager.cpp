@@ -52,17 +52,6 @@ void AlgorithmThreadManager::setMaxThreads(int maxThreads)
     qDebug() << "[ThreadManager] maxThreads set to" << m_maxThreads;
 }
 
-int AlgorithmThreadManager::activeThreadCount() const
-{
-    int count = 0;
-    for (const WorkerInfo& info : m_workers) {
-        if (info.isBusy) {
-            ++count;
-        }
-    }
-    return count;
-}
-
 QPair<AlgorithmWorker*, QThread*> AlgorithmThreadManager::acquireWorker()
 {
     // 1. 查找空闲的工作线程
@@ -71,7 +60,7 @@ QPair<AlgorithmWorker*, QThread*> AlgorithmThreadManager::acquireWorker()
             info.isBusy = true;
             qDebug() << "[ThreadManager] Acquired idle worker" << info.worker
                      << "thread:" << info.thread
-                     << "active:" << activeThreadCount() << "/" << m_workers.size();
+                     << "total threads:" << m_workers.size();
             return {info.worker, info.thread};
         }
     }
@@ -100,7 +89,7 @@ QPair<AlgorithmWorker*, QThread*> AlgorithmThreadManager::acquireWorker()
     }
 
     // 3. 所有线程都忙且已达上限，返回 nullptr
-    qDebug() << "[ThreadManager] All workers busy" << activeThreadCount() << "/" << m_workers.size()
+    qDebug() << "[ThreadManager] All workers busy, total threads:" << m_workers.size()
              << ", task should be queued";
     return {nullptr, nullptr};
 }
@@ -122,7 +111,7 @@ void AlgorithmThreadManager::releaseWorker(AlgorithmWorker* worker)
 
             info.isBusy = false;
             qDebug() << "[ThreadManager] Released worker" << worker
-                     << "active:" << activeThreadCount() << "/" << m_workers.size();
+                     << "total threads:" << m_workers.size();
 
             // 发出信号，通知可以处理队列中的任务
             emit workerReleased();
