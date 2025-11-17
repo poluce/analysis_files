@@ -122,13 +122,10 @@ private slots:
 
     /**
      * @brief 通用算法触发槽（从QAction中提取算法名称）
+     *
+     * 统一入口：所有算法通过此方法触发，无论是否需要参数对话框
      */
     void onAlgorithmActionTriggered();
-
-    /**
-     * @brief 移动平均滤波算法触发槽
-     */
-    void onMovingAverageAction();
 
     /**
      * @brief 处理质量损失测量工具请求

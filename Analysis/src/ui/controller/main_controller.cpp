@@ -21,6 +21,7 @@
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QProgressDialog>
+#include <QInputDialog>
 #include <memory>
 
 MainController::MainController(CurveManager* curveManager,
@@ -151,6 +152,9 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
         m_algorithmCoordinator, &AlgorithmCoordinator::requestPointSelection, this,
         &MainController::onCoordinatorRequestPointSelection, Qt::UniqueConnection);
     connect(
+        m_algorithmCoordinator, &AlgorithmCoordinator::requestParameterDialog, this,
+        &MainController::onRequestParameterDialog, Qt::UniqueConnection);
+    connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::showMessage, this, &MainController::onCoordinatorShowMessage,
         Qt::UniqueConnection);
     connect(
@@ -166,7 +170,7 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
     connect(m_algorithmCoordinator, &AlgorithmCoordinator::algorithmProgress,
             this, &MainController::onAlgorithmProgress, Qt::UniqueConnection);
 
-    qDebug() << "[MainController] 已连接 AlgorithmCoordinator 的异步执行信号";
+    qDebug() << "[MainController] 已连接 AlgorithmCoordinator 的所有信号（包括参数对话框请求）";
 }
 
 // ==================== 完整性校验与状态标记 ====================
@@ -380,6 +384,56 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
              << (cascadeDelete ? "（包括子曲线）" : "");
 }
 
+void MainController::onRequestParameterDialog(
+    const QString& algorithmName,
+    const QList<AlgorithmParameterDefinition>& parameters,
+    const QVariantMap& initialValues)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "MainController::onRequestParameterDialog - 算法:" << algorithmName
+             << ", 参数数量:" << parameters.size();
+
+    // 统一入口：弹出参数对话框
+    if (parameters.isEmpty()) {
+        qWarning() << "MainController::onRequestParameterDialog - 参数列表为空，跳过对话框";
+        return;
+    }
+
+    // 简化版：只处理单个整数参数（如移动平均的窗口大小）
+    // 未来可扩展为通用参数对话框
+    if (parameters.size() == 1 && parameters[0].type == QVariant::Int) {
+        const auto& param = parameters[0];
+        bool ok = false;
+        int minValue = param.constraints.value("min", 1).toInt();
+        int maxValue = param.constraints.value("max", 999).toInt();
+        int defaultValue = initialValues.value(param.name, param.defaultValue).toInt();
+
+        int value = QInputDialog::getInt(
+            m_mainWindow,
+            param.displayName,
+            param.displayName + ":",
+            defaultValue,
+            minValue,
+            maxValue,
+            1,
+            &ok
+        );
+
+        if (ok) {
+            QVariantMap result;
+            result.insert(param.name, value);
+            m_algorithmCoordinator->handleParameterSubmission(algorithmName, result);
+            qDebug() << "MainController: 用户提交参数 -" << param.name << "=" << value;
+        } else {
+            qDebug() << "MainController: 用户取消参数输入";
+            m_algorithmCoordinator->cancelPendingRequest();
+        }
+    } else {
+        // 未来扩展：通用参数对话框
+        qWarning() << "MainController::onRequestParameterDialog - 暂不支持多参数或非整数参数";
+    }
+}
 
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
