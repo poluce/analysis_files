@@ -135,7 +135,7 @@ FilePreviewData CurveManager::readFilePreview(const QString& filePath) const
                 return textReader->readPreview(filePath);
             }
             // 其他类型的 Reader 可能不支持预览
-            qWarning() << "CurveManager::readFilePreview - Reader 类型不支持预览:" << typeid(*r).name();
+            qWarning() << "CurveManager::readFilePreview - Reader 类型不支持预览:" << typeid(*r.get()).name();
             break;
         }
     }
