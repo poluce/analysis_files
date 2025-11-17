@@ -73,7 +73,6 @@ public:
     // ==================== 坐标轴管理 ====================
     void rescaleAxes();
     void setXAxisMode(XAxisMode mode);
-    void toggleXAxisMode(); // 切换横轴模式（温度 ↔ 时间）
     XAxisMode xAxisMode() const { return m_xAxisMode; }
 
     // ==================== 标题配置（自定义标题）====================
@@ -197,14 +196,6 @@ private:
     void resetAxesToDefault();
 
     // ==================== 框选缩放辅助函数 ====================
-    /**
-     * @brief 自适应 Y 轴到指定 X 范围内的数据
-     * @param yAxis Y 轴指针
-     * @param xMin X 轴最小值
-     * @param xMax X 轴最大值
-     */
-    void rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax);
-
     /**
      * @brief 检查系列是否绑定到指定 Y 轴
      * @param series 曲线系列

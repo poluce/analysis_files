@@ -115,16 +115,6 @@ public:
      */
     const ActiveAlgorithmInfo& activeAlgorithm() const { return m_activeAlgorithm; }
 
-    /**
-     * @brief 获取已选择的点（完整数据点，包含温度、时间、值）
-     */
-    const QVector<ThermalDataPoint>& selectedPoints() const { return m_selectedPoints; }
-
-    /**
-     * @brief 获取选中点所属的曲线ID
-     */
-    const QString& selectedPointsCurveId() const { return m_selectedPointsCurveId; }
-
     // ==================== 叠加物管理（转发给 ThermalChart）====================
     // 标注点（Markers）
     void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,

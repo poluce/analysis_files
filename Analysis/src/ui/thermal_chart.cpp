@@ -643,12 +643,6 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     emit xAxisModeChanged(m_xAxisMode);
 }
 
-void ThermalChart::toggleXAxisMode()
-{
-    XAxisMode newMode = (m_xAxisMode == XAxisMode::Temperature) ? XAxisMode::Time : XAxisMode::Temperature;
-    setXAxisMode(newMode);
-}
-
 // ==================== Phase 3: 标注点（Markers）管理实现 ====================
 
 void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color, qreal size)
@@ -1045,45 +1039,3 @@ bool ThermalChart::calculateYRangeInXRange(QLineSeries* series, qreal xMin, qrea
     return hasData;
 }
 
-void ThermalChart::rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax)
-{
-    if (!yAxis) {
-        return;
-    }
-
-    qreal yMin = std::numeric_limits<qreal>::max();
-    qreal yMax = std::numeric_limits<qreal>::lowest();
-    bool hasData = false;
-
-    // 遍历所有系列，找出绑定到该 Y 轴的系列
-    for (QAbstractSeries* abstractSeries : series()) {
-        QLineSeries* lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
-        if (!lineSeries) {
-            continue;
-        }
-
-        // 检查该系列是否绑定到当前 Y 轴
-        if (!isSeriesAttachedToYAxis(lineSeries, yAxis)) {
-            continue;
-        }
-
-        // 计算该系列在 X 范围内的 Y 值范围
-        qreal seriesYMin, seriesYMax;
-        if (calculateYRangeInXRange(lineSeries, xMin, xMax, seriesYMin, seriesYMax)) {
-            yMin = qMin(yMin, seriesYMin);
-            yMax = qMax(yMax, seriesYMax);
-            hasData = true;
-        }
-    }
-
-    // 如果找到数据，设置 Y 轴范围
-    if (hasData) {
-        // 添加 5% 的边距，避免曲线贴边
-        qreal margin = (yMax - yMin) * 0.05;
-        yAxis->setRange(yMin - margin, yMax + margin);
-
-        qDebug() << "ThermalChart::rescaleYAxisForXRange - Y轴自适应到范围:" << (yMin - margin) << "~" << (yMax + margin);
-    } else {
-        qDebug() << "ThermalChart::rescaleYAxisForXRange - 在X范围内未找到数据";
-    }
-}
