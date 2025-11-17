@@ -112,6 +112,11 @@ public:
      */
     QString peakAreaText() const;
 
+    /**
+     * @brief 获取关联的曲线ID
+     */
+    QString curveId() const { return m_curveId; }
+
 signals:
     /**
      * @brief 工具被删除时发射

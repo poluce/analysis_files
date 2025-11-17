@@ -215,6 +215,19 @@ private:
      */
     bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const;
 
+    // ==================== 工具清理辅助函数 ====================
+    /**
+     * @brief 删除特定曲线关联的所有测量工具
+     * @param curveId 曲线ID
+     */
+    void removeCurveMassLossTools(const QString& curveId);
+
+    /**
+     * @brief 删除特定曲线关联的所有峰面积工具
+     * @param curveId 曲线ID
+     */
+    void removeCurvePeakAreaTools(const QString& curveId);
+
 private:
     // ==================== 初始化状态标记 ====================
     bool m_initialized = false; // 防止"半初始化对象"的运行时错误

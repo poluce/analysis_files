@@ -443,6 +443,12 @@ void ThermalChart::removeCurve(const QString& curveId)
     // 清除该曲线的标注点（如果有）
     removeCurveMarkers(curveId);
 
+    // 清除该曲线关联的测量工具（防止悬空指针导致崩溃）
+    removeCurveMassLossTools(curveId);
+
+    // 清除该曲线关联的峰面积工具（防止悬空指针导致崩溃）
+    removeCurvePeakAreaTools(curveId);
+
     unregisterSeriesMapping(curveId);
     series->deleteLater();
 
@@ -819,6 +825,30 @@ void ThermalChart::clearAllMassLossTools()
     qDebug() << "ThermalChart::clearAllMassLossTools - 清空所有测量工具";
 }
 
+void ThermalChart::removeCurveMassLossTools(const QString& curveId)
+{
+    if (curveId.isEmpty()) {
+        return;
+    }
+
+    // 逆序遍历，避免删除时索引错乱
+    for (int i = m_massLossTools.size() - 1; i >= 0; --i) {
+        QGraphicsObject* obj = m_massLossTools[i];
+        if (!obj) {
+            continue;
+        }
+
+        // 尝试转换为 TrapezoidMeasureTool 并检查 curveId
+        TrapezoidMeasureTool* tool = qobject_cast<TrapezoidMeasureTool*>(obj);
+        if (tool && tool->curveId() == curveId) {
+            qDebug() << "ThermalChart::removeCurveMassLossTools - 删除曲线" << curveId << "的测量工具";
+            m_massLossTools.removeAt(i);
+            scene()->removeItem(obj);
+            obj->deleteLater();
+        }
+    }
+}
+
 // ==================== 峰面积工具实现 ====================
 
 PeakAreaTool*
@@ -888,6 +918,30 @@ void ThermalChart::clearAllPeakAreaTools()
     m_peakAreaTools.clear();
 
     qDebug() << "ThermalChart::clearAllPeakAreaTools - 清空所有峰面积工具";
+}
+
+void ThermalChart::removeCurvePeakAreaTools(const QString& curveId)
+{
+    if (curveId.isEmpty()) {
+        return;
+    }
+
+    // 逆序遍历，避免删除时索引错乱
+    for (int i = m_peakAreaTools.size() - 1; i >= 0; --i) {
+        QGraphicsObject* obj = m_peakAreaTools[i];
+        if (!obj) {
+            continue;
+        }
+
+        // 尝试转换为 PeakAreaTool 并检查 curveId
+        PeakAreaTool* tool = qobject_cast<PeakAreaTool*>(obj);
+        if (tool && tool->curveId() == curveId) {
+            qDebug() << "ThermalChart::removeCurvePeakAreaTools - 删除曲线" << curveId << "的峰面积工具";
+            m_peakAreaTools.removeAt(i);
+            scene()->removeItem(obj);
+            obj->deleteLater();
+        }
+    }
 }
 
 // ==================== 标题配置（自定义标题）====================
