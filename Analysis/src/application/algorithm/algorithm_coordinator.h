@@ -108,6 +108,18 @@ private:
     void resetPending();
     [[nodiscard]] std::optional<AlgorithmDescriptor> descriptorFor(const QString& algorithmName);
 
+    /**
+     * @brief 保存算法结果到上下文
+     * @param algorithmName 算法名称
+     * @param result 算法执行结果
+     *
+     * 将算法结果保存到上下文中，供后续查询和使用。
+     * 保存两个键值对：
+     * - latestResult(algorithmName): 完整的 AlgorithmResult 对象
+     * - resultType(algorithmName): 结果类型（int）
+     */
+    void saveResultToContext(const QString& algorithmName, const AlgorithmResult& result);
+
     AlgorithmManager* m_algorithmManager = nullptr;
     CurveManager* m_curveManager = nullptr;
     AlgorithmContext* m_context = nullptr;

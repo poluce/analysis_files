@@ -260,7 +260,7 @@ void AlgorithmCoordinator::cancelPendingRequest()
     }
 }
 
-void AlgorithmCoordinator::onAlgorithmResultReady(
+void AlgorithmCoordinator::saveResultToContext(
     const QString& algorithmName, const AlgorithmResult& result)
 {
     // Store the entire result object in context
@@ -273,7 +273,12 @@ void AlgorithmCoordinator::onAlgorithmResultReady(
         OutputKeys::resultType(algorithmName),
         QVariant::fromValue(static_cast<int>(result.type())),
         QStringLiteral("AlgorithmCoordinator"));
+}
 
+void AlgorithmCoordinator::onAlgorithmResultReady(
+    const QString& algorithmName, const AlgorithmResult& result)
+{
+    saveResultToContext(algorithmName, result);
     emit algorithmSucceeded(algorithmName);
 }
 
@@ -417,15 +422,8 @@ void AlgorithmCoordinator::onAsyncAlgorithmFinished(
         m_currentTaskId.clear();
     }
 
-    // 保存结果到上下文（与同步路径保持一致）
-    m_context->setValue(OutputKeys::latestResult(algorithmName),
-                       QVariant::fromValue(result),
-                       QStringLiteral("AlgorithmCoordinator"));
-
-    m_context->setValue(
-        OutputKeys::resultType(algorithmName),
-        QVariant::fromValue(static_cast<int>(result.type())),
-        QStringLiteral("AlgorithmCoordinator"));
+    // 保存结果到上下文（复用统一方法）
+    saveResultToContext(algorithmName, result);
 
     // 发出成功信号
     emit algorithmSucceeded(algorithmName);
