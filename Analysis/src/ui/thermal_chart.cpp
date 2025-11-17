@@ -381,14 +381,10 @@ ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoi
     bool useTimeAxis = (m_xAxisMode == XAxisMode::Time);
 
     int nearestIdx = 0;
-    double minDist = useTimeAxis
-                     ? qAbs(curveData[0].time - xValue)
-                     : qAbs(curveData[0].temperature - xValue);
+    double minDist = useTimeAxis ? qAbs(curveData[0].time - xValue) : qAbs(curveData[0].temperature - xValue);
 
     for (int i = 1; i < curveData.size(); ++i) {
-        double dist = useTimeAxis
-                      ? qAbs(curveData[i].time - xValue)
-                      : qAbs(curveData[i].temperature - xValue);
+        double dist = useTimeAxis ? qAbs(curveData[i].time - xValue) : qAbs(curveData[i].temperature - xValue);
         if (dist < minDist) {
             minDist = dist;
             nearestIdx = i;
@@ -805,16 +801,10 @@ void ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const Thermal
 
 void ThermalChart::removeMassLossTool(QGraphicsObject* tool)
 {
-    if (!tool) {
-        return;
-    }
-
     m_massLossTools.removeOne(tool);
 
     // 从场景中移除
-    if (scene()) {
-        scene()->removeItem(tool);
-    }
+    scene()->removeItem(tool);
 
     tool->deleteLater();
 
@@ -825,9 +815,7 @@ void ThermalChart::clearAllMassLossTools()
 {
     for (QGraphicsObject* tool : m_massLossTools) {
         if (tool) {
-            if (scene()) {
-                scene()->removeItem(tool);
-            }
+            scene()->removeItem(tool);
             tool->deleteLater();
         }
     }
@@ -865,9 +853,7 @@ ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataP
     connect(tool, &PeakAreaTool::removeRequested, this, [this, tool]() { removePeakAreaTool(tool); });
 
     // 连接面积变化信号
-    connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) {
-        qDebug() << "峰面积已更新:" << newArea;
-    });
+    connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) { qDebug() << "峰面积已更新:" << newArea; });
 
     // 连接坐标轴变化信号，确保缩放/平移后刷新阴影区域
     connect(this, &QChart::plotAreaChanged, tool, &PeakAreaTool::updateCache);
@@ -887,15 +873,9 @@ ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataP
 
 void ThermalChart::removePeakAreaTool(QGraphicsObject* tool)
 {
-    if (!tool) {
-        return;
-    }
-
     m_peakAreaTools.removeOne(tool);
 
-    if (scene()) {
-        scene()->removeItem(tool);
-    }
+    scene()->removeItem(tool);
 
     tool->deleteLater();
 
@@ -906,9 +886,7 @@ void ThermalChart::clearAllPeakAreaTools()
 {
     for (QGraphicsObject* tool : m_peakAreaTools) {
         if (tool) {
-            if (scene()) {
-                scene()->removeItem(tool);
-            }
+            scene()->removeItem(tool);
             tool->deleteLater();
         }
     }
