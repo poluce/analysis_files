@@ -129,10 +129,6 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
         onAlgorithmRequested(name, QVariantMap());
     }, Qt::UniqueConnection);
 
-    connect(mainWindow, &MainWindow::newAlgorithmRequested, this, [this](const QString& name) {
-        onAlgorithmRequested(name, QVariantMap());
-    }, Qt::UniqueConnection);
-
     connect(mainWindow, &MainWindow::algorithmRequestedWithParams, this, &MainController::onAlgorithmRequested, Qt::UniqueConnection);
 }
 

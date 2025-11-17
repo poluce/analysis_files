@@ -185,20 +185,31 @@ private:
     AlgorithmManager(const AlgorithmManager&) = delete;
     AlgorithmManager& operator=(const AlgorithmManager&) = delete;
 
-    // 根据结果类型处理算法结果
+    // 根据结果类型处理算法结果（分发器）
     void handleAlgorithmResult(const AlgorithmResult& result);
+
+    // 各类型结果处理方法（单一职责）
+    void handleCurveResult(const AlgorithmResult& result);
+    void handleMarkerResult(const AlgorithmResult& result);
+    void handleRegionResult(const AlgorithmResult& result);
+    void handleScalarResult(const AlgorithmResult& result);
+    void handleCompositeResult(const AlgorithmResult& result);
 
     // 添加曲线（使用历史管理）
     void addCurveWithHistory(const ThermalCurve& curve);
 
-    // 创建输出曲线的通用方法（向后兼容，已废弃）
-    void createAndAddOutputCurve(
-        IThermalAlgorithm* algorithm,
-        ThermalCurve* parentCurve,
-        const QVector<ThermalDataPoint>& outputData,
-        bool useHistoryManager = false);
-
     // ==================== 异步执行私有方法 ====================
+
+    /**
+     * @brief 验证异步执行的前置条件
+     *
+     * 验证算法、上下文、CurveManager、数据完整性。
+     *
+     * @param name 算法名称
+     * @param context 算法上下文
+     * @return 算法实例指针，验证失败返回 nullptr
+     */
+    IThermalAlgorithm* validateAsyncExecution(const QString& name, AlgorithmContext* context);
 
     /**
      * @brief 提交任务到工作线程执行
@@ -219,6 +230,21 @@ private:
      * 当工作线程释放时调用，尝试从队列中取出任务执行。
      */
     void processQueue();
+
+    /**
+     * @brief 获取任务的算法名称
+     *
+     * @param taskId 任务ID
+     * @return 算法名称，任务不存在返回空字符串
+     */
+    QString getTaskAlgorithmName(const QString& taskId);
+
+    /**
+     * @brief 清理任务（释放工作线程并移除任务记录）
+     *
+     * @param taskId 任务ID
+     */
+    void cleanupTask(const QString& taskId);
 
 private slots:
     /**

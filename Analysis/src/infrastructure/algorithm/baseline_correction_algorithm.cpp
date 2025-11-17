@@ -29,12 +29,6 @@ QString BaselineCorrectionAlgorithm::category() const
     return "Preprocess";
 }
 
-SignalType BaselineCorrectionAlgorithm::getOutputSignalType(SignalType inputType) const
-{
-    // 基线校正不改变信号类型
-    return inputType;
-}
-
 IThermalAlgorithm::InputType BaselineCorrectionAlgorithm::inputType() const
 {
     // B类算法：需要用户选择2个点

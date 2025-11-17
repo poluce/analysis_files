@@ -35,12 +35,6 @@ QString TemperatureExtrapolationAlgorithm::category() const
     return "Analysis";
 }
 
-SignalType TemperatureExtrapolationAlgorithm::getOutputSignalType(SignalType inputType) const
-{
-    // 外推温度不改变信号类型，保持原样
-    return inputType;
-}
-
 IThermalAlgorithm::InputType TemperatureExtrapolationAlgorithm::inputType() const
 {
     // B类算法：需要用户选择2个点（切线区域）

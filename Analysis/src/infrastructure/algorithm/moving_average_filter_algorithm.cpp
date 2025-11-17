@@ -27,13 +27,6 @@ QString MovingAverageFilterAlgorithm::category() const
     return "Preprocess";
 }
 
-SignalType MovingAverageFilterAlgorithm::getOutputSignalType(SignalType inputType) const
-{
-    // 移动平均滤波是预处理算法，不改变信号类型
-    // 输出信号类型与输入信号类型相同
-    return inputType;
-}
-
 IThermalAlgorithm::InputType MovingAverageFilterAlgorithm::inputType() const
 {
     // A类算法：单曲线，无需用户交互
@@ -186,7 +179,8 @@ AlgorithmResult MovingAverageFilterAlgorithm::executeWithContext(AlgorithmContex
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
     outputCurve.setInstrumentType(inputCurve.instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    // 移动平均滤波不改变信号类型
+    outputCurve.setSignalType(inputCurve.signalType());
     outputCurve.setParentId(inputCurve.id());
     outputCurve.setProjectName(inputCurve.projectName());
     outputCurve.setMetadata(inputCurve.getMetadata());
