@@ -27,16 +27,6 @@ QString IntegrationAlgorithm::category() const
     return "Analysis";
 }
 
-SignalType IntegrationAlgorithm::getOutputSignalType(SignalType inputType) const
-{
-    // 积分算法将微分信号转换回原始信号（适用所有仪器类型）
-    if (inputType == SignalType::Derivative) {
-        return SignalType::Raw;
-    }
-    // 如果输入已经是原始信号，则保持不变
-    return inputType;
-}
-
 IThermalAlgorithm::InputType IntegrationAlgorithm::inputType() const
 {
     // A类算法：单曲线，无需用户交互
@@ -176,7 +166,11 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
     outputCurve.setInstrumentType(inputCurve.instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    // 积分算法：Derivative → Raw，其他保持不变
+    SignalType outputSignalType = (inputCurve.signalType() == SignalType::Derivative)
+                                    ? SignalType::Raw
+                                    : inputCurve.signalType();
+    outputCurve.setSignalType(outputSignalType);
     outputCurve.setParentId(inputCurve.id());
     outputCurve.setProjectName(inputCurve.projectName());
     outputCurve.setMetadata(inputCurve.getMetadata());

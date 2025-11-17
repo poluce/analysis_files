@@ -19,7 +19,6 @@ public:
     QString name() const override;
     QString displayName() const override;
     QString category() const override;
-    SignalType getOutputSignalType(SignalType inputType) const override;
     InputType inputType() const override;
     OutputType outputType() const override;
     AlgorithmDescriptor descriptor() const override;

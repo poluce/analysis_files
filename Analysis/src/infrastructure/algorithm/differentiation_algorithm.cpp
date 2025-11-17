@@ -27,12 +27,6 @@ QString DifferentiationAlgorithm::category() const
     return "Analysis";
 }
 
-SignalType DifferentiationAlgorithm::getOutputSignalType(SignalType inputType) const
-{
-    // 微分算法将原始信号转换为微分信号（适用所有仪器类型）
-    return (inputType == SignalType::Raw) ? SignalType::Derivative : inputType;
-}
-
 IThermalAlgorithm::InputType DifferentiationAlgorithm::inputType() const
 {
     // A类算法：单曲线，无需用户交互
@@ -223,7 +217,11 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     ThermalCurve outputCurve(QUuid::createUuid().toString(), displayName());
     outputCurve.setProcessedData(outputData);
     outputCurve.setInstrumentType(inputCurve.instrumentType());
-    outputCurve.setSignalType(getOutputSignalType(inputCurve.signalType()));
+    // 微分算法：Raw → Derivative，其他保持不变
+    SignalType outputSignalType = (inputCurve.signalType() == SignalType::Raw)
+                                    ? SignalType::Derivative
+                                    : inputCurve.signalType();
+    outputCurve.setSignalType(outputSignalType);
     outputCurve.setParentId(inputCurve.id());
     outputCurve.setProjectName(inputCurve.projectName());
     outputCurve.setMetadata(inputCurve.getMetadata());

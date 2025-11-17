@@ -104,20 +104,6 @@ public:
     virtual QString category() const = 0;
 
     /**
-     * @brief 根据输入信号类型获取输出信号类型。
-     *
-     * 算法只影响信号类型（Raw <-> Derivative），不改变仪器类型。
-     * 例如：
-     * - 微分算法：Raw → Derivative
-     * - 积分算法：Derivative → Raw
-     * - 滤波算法：保持不变
-     *
-     * @param inputType 输入信号的类型。
-     * @return 输出信号的类型。
-     */
-    virtual SignalType getOutputSignalType(SignalType inputType) const = 0;
-
-    /**
      * @brief 返回算法的输入类型（决定交互方式）。
      *
      * 决定算法是否需要用户交互（选点、选择曲线等）。

@@ -34,12 +34,6 @@ QString PeakAreaAlgorithm::category() const
     return "Analysis";
 }
 
-SignalType PeakAreaAlgorithm::getOutputSignalType(SignalType /*inputType*/) const
-{
-    // 峰面积计算输出的是 PeakArea 类型
-    return SignalType::PeakArea;
-}
-
 IThermalAlgorithm::InputType PeakAreaAlgorithm::inputType() const
 {
     // B类算法：需要用户选择2个点
