@@ -105,7 +105,21 @@ private:
     bool ensurePrerequisites(const AlgorithmDescriptor& descriptor, ThermalCurve* curve);
     bool populateDefaultParameters(const AlgorithmDescriptor& descriptor, QVariantMap& parameters) const;
     void executeAlgorithm(const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
-    void resetPending();
+
+    /**
+     * @brief 重置所有状态（统一状态清理入口）
+     *
+     * 清理所有运行时状态，包括：
+     * - 待处理请求 (m_pending)
+     * - 当前任务ID (m_currentTaskId)
+     *
+     * 在以下场景调用：
+     * - 取消操作
+     * - 算法执行完成/失败
+     * - 错误处理
+     */
+    void resetState();
+
     [[nodiscard]] std::optional<AlgorithmDescriptor> descriptorFor(const QString& algorithmName);
 
     /**

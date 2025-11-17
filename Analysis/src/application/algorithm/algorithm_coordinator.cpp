@@ -188,11 +188,11 @@ void AlgorithmCoordinator::handleParameterSubmission(const QString& algorithmNam
         ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
         if (!curve) {
             emit algorithmFailed(algorithmName, QStringLiteral("无法获取曲线，算法终止"));
-            resetPending();
+            resetState();
             return;
         }
         executeAlgorithm(m_pending->descriptor, curve, parameters, {});
-        resetPending();
+        resetState();
         return;
     }
 
@@ -220,7 +220,7 @@ void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataP
         qWarning() << "AlgorithmCoordinator::handlePointSelectionResult - 点数量不足，期待" << m_pending->pointsRequired
                    << "个，实际" << points.size();
         emit algorithmFailed(m_pending->descriptor.name, QStringLiteral("选点数量不足"));
-        resetPending();
+        resetState();
         return;
     }
 
@@ -228,12 +228,12 @@ void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataP
     ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
     if (!curve) {
         emit algorithmFailed(m_pending->descriptor.name, QStringLiteral("无法获取曲线，算法终止"));
-        resetPending();
+        resetState();
         return;
     }
 
     executeAlgorithm(m_pending->descriptor, curve, m_pending->parameters, m_pending->collectedPoints);
-    resetPending();
+    resetState();
 }
 
 void AlgorithmCoordinator::cancelPendingRequest()
@@ -241,7 +241,7 @@ void AlgorithmCoordinator::cancelPendingRequest()
     // 1. 取消待处理的交互请求（参数收集、点选等）
     if (m_pending.has_value()) {
         const QString algorithmName = m_pending->descriptor.name;
-        resetPending();
+        resetState();
         emit showMessage(QStringLiteral("已取消算法 %1 的待处理操作").arg(algorithmName));
     }
 
@@ -252,8 +252,8 @@ void AlgorithmCoordinator::cancelPendingRequest()
         bool cancelled = m_algorithmManager->cancelTask(m_currentTaskId);
         if (cancelled) {
             qDebug() << "[AlgorithmCoordinator] 任务取消成功:" << m_currentTaskId;
+            resetState();
             emit showMessage(QStringLiteral("已取消正在执行的算法任务"));
-            m_currentTaskId.clear();
         } else {
             qWarning() << "[AlgorithmCoordinator] 任务取消失败（任务可能已完成）:" << m_currentTaskId;
         }
@@ -388,7 +388,11 @@ void AlgorithmCoordinator::executeAlgorithm(
     qDebug() << "[AlgorithmCoordinator] 算法已提交到异步队列，taskId =" << taskId;
 }
 
-void AlgorithmCoordinator::resetPending() { m_pending.reset(); }
+void AlgorithmCoordinator::resetState()
+{
+    m_pending.reset();
+    m_currentTaskId.clear();
+}
 
 // ==================== 异步执行槽函数实现 ====================
 
@@ -417,9 +421,9 @@ void AlgorithmCoordinator::onAsyncAlgorithmFinished(
     qDebug() << "[AlgorithmCoordinator] 异步任务完成:" << algorithmName
              << "taskId:" << taskId << "耗时:" << elapsedMs << "ms";
 
-    // 清除任务ID
+    // 清除所有状态（统一清理）
     if (m_currentTaskId == taskId) {
-        m_currentTaskId.clear();
+        resetState();
     }
 
     // 保存结果到上下文（复用统一方法）
@@ -437,9 +441,9 @@ void AlgorithmCoordinator::onAsyncAlgorithmFailed(
     qWarning() << "[AlgorithmCoordinator] 异步任务失败:" << algorithmName
                << "taskId:" << taskId << "错误:" << errorMessage;
 
-    // 清除任务ID
+    // 清除所有状态（统一清理）
     if (m_currentTaskId == taskId) {
-        m_currentTaskId.clear();
+        resetState();
     }
 
     // 发出失败信号
