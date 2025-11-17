@@ -40,7 +40,7 @@ MainWindow::MainWindow(ChartView* chartView, ProjectExplorerView* projectExplore
 
 MainWindow::~MainWindow() = default;
 
-void MainWindow::on_toolButtonOpen_clicked() { emit dataImportRequested(); }
+void MainWindow::onOpenButtonClicked() { emit dataImportRequested(); }
 
 void MainWindow::onProjectTreeContextMenuRequested(const QPoint& pos)
 {
@@ -149,7 +149,7 @@ QToolBar* MainWindow::createFileToolBar()
     toolbar->addAction(style()->standardIcon(QStyle::SP_DialogSaveButton), tr("保存"));
     toolbar->addSeparator();
     QAction* importDataAction = toolbar->addAction(style()->standardIcon(QStyle::SP_DirOpenIcon), tr("导入数据..."));
-    connect(importDataAction, &QAction::triggered, this, &MainWindow::on_toolButtonOpen_clicked);
+    connect(importDataAction, &QAction::triggered, this, &MainWindow::onOpenButtonClicked);
     toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp), tr("导出图表..."));
 
     toolbar->addSeparator();
@@ -273,9 +273,11 @@ void MainWindow::setupRightDock()
 // 通用算法触发槽（统一处理，减少代码重复）
 void MainWindow::onAlgorithmActionTriggered()
 {
-    // 由于 algorithmRequested 和 newAlgorithmRequested 都连接到同一个 MainController 方法，
-    // 我们可以简单地发射 algorithmRequested 信号
-    triggerAlgorithmFromAction(&MainWindow::algorithmRequested);
+    auto* action = qobject_cast<QAction*>(sender());
+    const QString algorithmName = action->data().toString();
+    if (!algorithmName.isEmpty()) {
+        emit algorithmRequested(algorithmName);
+    }
 }
 
 void MainWindow::onMovingAverageAction()
@@ -300,18 +302,6 @@ void MainWindow::onPeakAreaToolRequested()
 {
     qDebug() << "MainWindow::onPeakAreaToolRequested - 请求激活峰面积测量工具";
     emit peakAreaToolRequested();
-}
-
-void MainWindow::triggerAlgorithmFromAction(void (MainWindow::*signal)(const QString&))
-{
-    auto* action = qobject_cast<QAction*>(sender());
-    if (!action) {
-        return;
-    }
-    const QString algorithmName = action->data().toString();
-    if (!algorithmName.isEmpty()) {
-        (this->*signal)(algorithmName); // 通过成员函数指针发射信号
-    }
 }
 
 void MainWindow::updateHistoryButtons()

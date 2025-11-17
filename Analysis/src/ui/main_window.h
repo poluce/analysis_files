@@ -75,12 +75,6 @@ signals:
     void redoRequested();
 
     /**
-     * @brief 请求执行新算法（旧版信号，保留兼容）
-     * @param algorithmName 算法名称
-     */
-    void newAlgorithmRequested(const QString& algorithmName);
-
-    /**
      * @brief 请求执行算法
      * @param algorithmName 算法名称
      */
@@ -129,7 +123,7 @@ private slots:
     /**
      * @brief 处理"打开文件"按钮点击
      */
-    void on_toolButtonOpen_clicked();
+    void onOpenButtonClicked();
 
     /**
      * @brief 处理项目树右键菜单请求
@@ -163,14 +157,7 @@ private slots:
     void onResetLayoutRequested();
 
 private:
-    /**
-     * @brief 辅助方法：从 QAction 提取算法名称并发射信号
-     * @param signal 要发射的信号的成员函数指针
-     */
-    void triggerAlgorithmFromAction(void (MainWindow::*signal)(const QString&));
-
     // 初始化函数
-
     /**
      * @brief 初始化工具栏（Ribbon风格）
      */

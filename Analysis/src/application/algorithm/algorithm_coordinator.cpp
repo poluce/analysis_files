@@ -93,20 +93,20 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
 
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (!activeCurve) {
-        emit algorithmFailed(algorithmName, QStringLiteral("没有选中的曲线，无法执行算法"));
+        handleError(algorithmName, QStringLiteral("没有选中的曲线，无法执行算法"));
         return;
     }
 
     auto descriptorOpt = descriptorFor(algorithmName);
     if (!descriptorOpt.has_value()) {
-        emit algorithmFailed(algorithmName, QStringLiteral("找不到算法或算法描述信息"));
+        handleError(algorithmName, QStringLiteral("找不到算法或算法描述信息"));
         return;
     }
 
     const AlgorithmDescriptor descriptor = descriptorOpt.value();
 
     if (!ensurePrerequisites(descriptor, activeCurve)) {
-        emit algorithmFailed(algorithmName, QStringLiteral("算法前置条件未满足"));
+        handleError(algorithmName, QStringLiteral("算法前置条件未满足"));
         return;
     }
 
@@ -187,12 +187,11 @@ void AlgorithmCoordinator::handleParameterSubmission(const QString& algorithmNam
     if (m_pending->descriptor.interaction == AlgorithmInteraction::ParameterDialog) {
         ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
         if (!curve) {
-            emit algorithmFailed(algorithmName, QStringLiteral("无法获取曲线，算法终止"));
-            resetPending();
+            handleError(algorithmName, QStringLiteral("无法获取曲线，算法终止"));
             return;
         }
         executeAlgorithm(m_pending->descriptor, curve, parameters, {});
-        resetPending();
+        resetState();
         return;
     }
 
@@ -219,21 +218,19 @@ void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataP
     if (points.size() < m_pending->pointsRequired) {
         qWarning() << "AlgorithmCoordinator::handlePointSelectionResult - 点数量不足，期待" << m_pending->pointsRequired
                    << "个，实际" << points.size();
-        emit algorithmFailed(m_pending->descriptor.name, QStringLiteral("选点数量不足"));
-        resetPending();
+        handleError(m_pending->descriptor.name, QStringLiteral("选点数量不足"));
         return;
     }
 
     m_pending->collectedPoints = points;
     ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
     if (!curve) {
-        emit algorithmFailed(m_pending->descriptor.name, QStringLiteral("无法获取曲线，算法终止"));
-        resetPending();
+        handleError(m_pending->descriptor.name, QStringLiteral("无法获取曲线，算法终止"));
         return;
     }
 
     executeAlgorithm(m_pending->descriptor, curve, m_pending->parameters, m_pending->collectedPoints);
-    resetPending();
+    resetState();
 }
 
 void AlgorithmCoordinator::cancelPendingRequest()
@@ -241,7 +238,7 @@ void AlgorithmCoordinator::cancelPendingRequest()
     // 1. 取消待处理的交互请求（参数收集、点选等）
     if (m_pending.has_value()) {
         const QString algorithmName = m_pending->descriptor.name;
-        resetPending();
+        resetState();
         emit showMessage(QStringLiteral("已取消算法 %1 的待处理操作").arg(algorithmName));
     }
 
@@ -252,15 +249,15 @@ void AlgorithmCoordinator::cancelPendingRequest()
         bool cancelled = m_algorithmManager->cancelTask(m_currentTaskId);
         if (cancelled) {
             qDebug() << "[AlgorithmCoordinator] 任务取消成功:" << m_currentTaskId;
+            resetState();
             emit showMessage(QStringLiteral("已取消正在执行的算法任务"));
-            m_currentTaskId.clear();
         } else {
             qWarning() << "[AlgorithmCoordinator] 任务取消失败（任务可能已完成）:" << m_currentTaskId;
         }
     }
 }
 
-void AlgorithmCoordinator::onAlgorithmResultReady(
+void AlgorithmCoordinator::saveResultToContext(
     const QString& algorithmName, const AlgorithmResult& result)
 {
     // Store the entire result object in context
@@ -273,7 +270,12 @@ void AlgorithmCoordinator::onAlgorithmResultReady(
         OutputKeys::resultType(algorithmName),
         QVariant::fromValue(static_cast<int>(result.type())),
         QStringLiteral("AlgorithmCoordinator"));
+}
 
+void AlgorithmCoordinator::onAlgorithmResultReady(
+    const QString& algorithmName, const AlgorithmResult& result)
+{
+    saveResultToContext(algorithmName, result);
     emit algorithmSucceeded(algorithmName);
 }
 
@@ -309,50 +311,40 @@ void AlgorithmCoordinator::executeAlgorithm(
     const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points)
 {
     if (!curve) {
-        emit algorithmFailed(descriptor.name, QStringLiteral("曲线数据无效"));
+        handleError(descriptor.name, QStringLiteral("曲线数据无效"));
         return;
     }
 
     // 验证算法是否注册
     if (!m_algorithmManager->getAlgorithm(descriptor.name)) {
         qWarning() << "AlgorithmCoordinator::executeAlgorithm - 找不到算法实例:" << descriptor.name;
-        emit algorithmFailed(descriptor.name, QStringLiteral("算法未注册"));
+        handleError(descriptor.name, QStringLiteral("算法未注册"));
         return;
-    }
-
-    // 清空上下文中的算法相关数据，准备新的执行
-    m_context->remove(ContextKeys::ActiveCurve);
-    m_context->remove(ContextKeys::BaselineCurves);
-    m_context->remove(ContextKeys::SelectedPoints);
-    QStringList paramKeys = m_context->keys("param.");
-    for (const QString& key : paramKeys) {
-        m_context->remove(key);
     }
 
     // 将主曲线设置到上下文（存储副本以确保线程安全）
     // 当上下文被克隆时，ThermalCurve 会被深拷贝，确保工作线程拥有独立的数据副本
+    // setValue() 会自动覆盖旧值，无需手动清空
     m_context->setValue(ContextKeys::ActiveCurve, QVariant::fromValue(*curve), "AlgorithmCoordinator");
 
     // 自动查找并注入活动曲线的基线（如果存在）
     QVector<ThermalCurve*> baselines = m_curveManager->getBaselines(curve->id());
-
     if (!baselines.isEmpty()) {
         // 注入所有基线，由算法自己决定如何使用
         m_context->setValue(ContextKeys::BaselineCurves, QVariant::fromValue(baselines), "AlgorithmCoordinator");
-
         qDebug() << "AlgorithmCoordinator::executeAlgorithm - 找到" << baselines.size()
                  << "条基线曲线，由算法决定使用哪条";
     } else {
-        // 确保清除之前可能存在的基线
+        // 清除之前可能存在的基线（避免使用过期数据）
         m_context->remove(ContextKeys::BaselineCurves);
     }
 
-    // 将参数设置到上下文（使用 param. 前缀）
+    // 将参数设置到上下文（setValue 自动覆盖旧值）
     for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it) {
         m_context->setValue(QString("param.%1").arg(it.key()), it.value(), "AlgorithmCoordinator");
     }
 
-    // 将选择的点设置到上下文（如果有）
+    // 将选择的点设置到上下文（setValue 自动覆盖旧值）
     if (!points.isEmpty()) {
         m_context->setValue(ContextKeys::SelectedPoints, QVariant::fromValue(points), "AlgorithmCoordinator");
     }
@@ -373,7 +365,7 @@ void AlgorithmCoordinator::executeAlgorithm(
 
     if (taskId.isEmpty()) {
         qCritical() << "[AlgorithmCoordinator] executeAsync 返回空 taskId，执行失败！";
-        emit algorithmFailed(descriptor.name, QStringLiteral("算法提交失败"));
+        handleError(descriptor.name, QStringLiteral("算法提交失败"));
         return;
     }
 
@@ -383,7 +375,18 @@ void AlgorithmCoordinator::executeAlgorithm(
     qDebug() << "[AlgorithmCoordinator] 算法已提交到异步队列，taskId =" << taskId;
 }
 
-void AlgorithmCoordinator::resetPending() { m_pending.reset(); }
+void AlgorithmCoordinator::resetState()
+{
+    m_pending.reset();
+    m_currentTaskId.clear();
+}
+
+void AlgorithmCoordinator::handleError(const QString& algorithmName, const QString& reason)
+{
+    qWarning() << "[AlgorithmCoordinator] 错误:" << algorithmName << "-" << reason;
+    resetState();  // 自动清理所有状态
+    emit algorithmFailed(algorithmName, reason);
+}
 
 // ==================== 异步执行槽函数实现 ====================
 
@@ -412,20 +415,13 @@ void AlgorithmCoordinator::onAsyncAlgorithmFinished(
     qDebug() << "[AlgorithmCoordinator] 异步任务完成:" << algorithmName
              << "taskId:" << taskId << "耗时:" << elapsedMs << "ms";
 
-    // 清除任务ID
+    // 清除所有状态（统一清理）
     if (m_currentTaskId == taskId) {
-        m_currentTaskId.clear();
+        resetState();
     }
 
-    // 保存结果到上下文（与同步路径保持一致）
-    m_context->setValue(OutputKeys::latestResult(algorithmName),
-                       QVariant::fromValue(result),
-                       QStringLiteral("AlgorithmCoordinator"));
-
-    m_context->setValue(
-        OutputKeys::resultType(algorithmName),
-        QVariant::fromValue(static_cast<int>(result.type())),
-        QStringLiteral("AlgorithmCoordinator"));
+    // 保存结果到上下文（复用统一方法）
+    saveResultToContext(algorithmName, result);
 
     // 发出成功信号
     emit algorithmSucceeded(algorithmName);
@@ -439,9 +435,9 @@ void AlgorithmCoordinator::onAsyncAlgorithmFailed(
     qWarning() << "[AlgorithmCoordinator] 异步任务失败:" << algorithmName
                << "taskId:" << taskId << "错误:" << errorMessage;
 
-    // 清除任务ID
+    // 清除所有状态（统一清理）
     if (m_currentTaskId == taskId) {
-        m_currentTaskId.clear();
+        resetState();
     }
 
     // 发出失败信号

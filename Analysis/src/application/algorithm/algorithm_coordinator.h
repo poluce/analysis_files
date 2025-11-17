@@ -28,18 +28,84 @@ class AlgorithmCoordinator : public QObject {
 public:
     explicit AlgorithmCoordinator(AlgorithmManager* manager, CurveManager* curveManager, AlgorithmContext* context, QObject* parent = nullptr);
 
+    /**
+     * @brief 处理算法触发请求（主入口）
+     * @param algorithmName 算法名称
+     * @param presetParameters 预设参数（可选）
+     *
+     * 根据算法描述符的交互类型分发处理：
+     * - None: 直接执行
+     * - ParameterDialog: 弹出参数对话框
+     * - PointSelection: 请求用户选点
+     * - ParameterThenPoint: 先参数后选点
+     */
     void handleAlgorithmTriggered(const QString& algorithmName, const QVariantMap& presetParameters = {});
+
+    /**
+     * @brief 处理参数提交结果
+     * @param algorithmName 算法名称
+     * @param parameters 用户提交的参数
+     *
+     * 根据待处理请求的交互类型决定下一步：
+     * - ParameterDialog: 执行算法
+     * - ParameterThenPoint: 进入点选阶段
+     */
     void handleParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
+
+    /**
+     * @brief 处理点选结果
+     * @param points 用户选择的点集合
+     *
+     * 验证点数量是否满足要求，然后执行算法。
+     */
     void handlePointSelectionResult(const QVector<ThermalDataPoint>& points);
+
+    /**
+     * @brief 取消待处理请求
+     *
+     * 取消当前所有待处理的操作：
+     * - 待处理的交互请求（参数收集、点选等）
+     * - 正在执行的异步任务
+     */
     void cancelPendingRequest();
 
 signals:
+    /**
+     * @brief 请求弹出参数对话框
+     * @param algorithmName 算法名称
+     * @param parameters 参数定义列表
+     * @param initialValues 初始值（默认值或历史值）
+     */
     void requestParameterDialog(
         const QString& algorithmName, const QList<AlgorithmParameterDefinition>& parameters, const QVariantMap& initialValues);
+
+    /**
+     * @brief 请求用户在图表上选点
+     * @param algorithmName 算法名称
+     * @param curveId 目标曲线ID
+     * @param requiredPoints 所需点数
+     * @param hint 提示信息（如"请选择基线起点和终点"）
+     */
     void requestPointSelection(
         const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+
+    /**
+     * @brief 显示消息（用于状态提示）
+     * @param text 消息文本
+     */
     void showMessage(const QString& text);
+
+    /**
+     * @brief 算法执行失败
+     * @param algorithmName 算法名称
+     * @param reason 失败原因
+     */
     void algorithmFailed(const QString& algorithmName, const QString& reason);
+
+    /**
+     * @brief 算法执行成功
+     * @param algorithmName 算法名称
+     */
     void algorithmSucceeded(const QString& algorithmName);
 
     // ==================== 异步执行信号（转发到 UI 层）====================
@@ -102,11 +168,95 @@ private:
         PendingPhase phase = PendingPhase::None;
     };
 
+    /**
+     * @brief 检查算法前置条件是否满足
+     * @param descriptor 算法描述符
+     * @param curve 目标曲线（预留参数）
+     * @return 如果所有前置条件都满足返回 true，否则返回 false
+     *
+     * 检查 descriptor.prerequisites 列出的所有上下文键是否存在。
+     */
     bool ensurePrerequisites(const AlgorithmDescriptor& descriptor, ThermalCurve* curve);
+
+    /**
+     * @brief 填充默认参数
+     * @param descriptor 算法描述符
+     * @param parameters 参数映射表（输入/输出）
+     * @return 如果所有必需参数都已就绪返回 true，否则返回 false
+     *
+     * 对于 parameters 中不存在的参数键：
+     * - 如果 descriptor 提供了默认值，则填充
+     * - 如果参数是必需的但无默认值，返回 false
+     */
     bool populateDefaultParameters(const AlgorithmDescriptor& descriptor, QVariantMap& parameters) const;
+
+    /**
+     * @brief 执行算法（核心方法）
+     * @param descriptor 算法描述符
+     * @param curve 目标曲线
+     * @param parameters 算法参数
+     * @param points 用户选择的点（可选）
+     *
+     * 执行流程：
+     * 1. 验证输入有效性
+     * 2. 注入数据到上下文（曲线、参数、选点）
+     * 3. 调用 AlgorithmManager::executeAsync() 提交任务
+     * 4. 保存任务ID
+     */
     void executeAlgorithm(const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
-    void resetPending();
+
+    /**
+     * @brief 重置所有状态（统一状态清理入口）
+     *
+     * 清理所有运行时状态，包括：
+     * - 待处理请求 (m_pending)
+     * - 当前任务ID (m_currentTaskId)
+     *
+     * 在以下场景调用：
+     * - 取消操作
+     * - 算法执行完成/失败
+     * - 错误处理
+     */
+    void resetState();
+
+    /**
+     * @brief 获取算法描述符
+     * @param algorithmName 算法名称
+     * @return 如果算法存在返回描述符，否则返回 std::nullopt
+     *
+     * 从 AlgorithmManager 获取算法实例并调用 descriptor() 方法。
+     * 自动填充缺失的元数据（交互类型、点选数量等）。
+     */
     [[nodiscard]] std::optional<AlgorithmDescriptor> descriptorFor(const QString& algorithmName);
+
+    /**
+     * @brief 统一错误处理入口
+     * @param algorithmName 算法名称
+     * @param reason 错误原因描述
+     *
+     * 统一处理算法执行过程中的所有错误：
+     * 1. 打印警告日志
+     * 2. 清理所有状态（自动调用 resetState()）
+     * 3. 发出失败信号通知 UI
+     *
+     * 使用场景：
+     * - 前置条件检查失败
+     * - 参数验证失败
+     * - 算法执行失败
+     */
+    void handleError(const QString& algorithmName, const QString& reason);
+
+    /**
+     * @brief 保存算法结果到上下文
+     * @param algorithmName 算法名称
+     * @param result 算法执行结果
+     *
+     * 将算法结果保存到上下文中，供后续查询和使用。
+     * 保存两个键值对：
+     * - latestResult(algorithmName): 完整的 AlgorithmResult 对象
+     * - resultType(algorithmName): 结果类型（int）
+     */
+    void saveResultToContext(const QString& algorithmName, const AlgorithmResult& result);
 
     AlgorithmManager* m_algorithmManager = nullptr;
     CurveManager* m_curveManager = nullptr;
