@@ -81,16 +81,6 @@ public:
      */
     bool cancelTask(const QString& taskId);
 
-    /**
-     * @brief 获取当前排队任务数量
-     */
-    int queuedTaskCount() const { return m_taskQueue.size(); }
-
-    /**
-     * @brief 获取活跃任务数量（包括执行中和排队）
-     */
-    int activeTaskCount() const { return m_activeTasks.size(); }
-
 signals:
     /**
      * @brief 算法执行完成信号

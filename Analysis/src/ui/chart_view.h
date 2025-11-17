@@ -78,53 +78,10 @@ public:
     void setCurveManager(CurveManager* manager);
 
     // ==================== 交互配置（转发给 ThermalChartView）====================
-    void setHitTestBasePixelThreshold(qreal px);
-    qreal hitTestBasePixelThreshold() const;
-    void setHitTestIncludePenWidth(bool enabled);
-    bool hitTestIncludePenWidth() const;
     void setInteractionMode(int type);  // 使用 int 避免枚举冲突
 
     // ==================== 横轴模式（转发给 ThermalChart）====================
     int xAxisMode() const;  // 返回 int (0=Temperature, 1=Time)
-    void toggleXAxisMode();
-
-    // ==================== 标题配置（转发给 ThermalChart）====================
-    /**
-     * @brief 设置图表主标题
-     * @param title 自定义标题（空字符串恢复默认 "热分析曲线"）
-     */
-    void setChartTitle(const QString& title);
-
-    /**
-     * @brief 设置X轴标题
-     * @param title 自定义标题（空字符串恢复默认温度/时间自动切换）
-     */
-    void setXAxisTitle(const QString& title);
-
-    /**
-     * @brief 设置主Y轴标题
-     * @param title 自定义标题（空字符串恢复默认自动生成）
-     */
-    void setYAxisTitlePrimary(const QString& title);
-
-    /**
-     * @brief 设置次Y轴标题
-     * @param title 自定义标题（空字符串恢复默认自动生成）
-     */
-    void setYAxisTitleSecondary(const QString& title);
-
-    /**
-     * @brief 批量设置所有标题
-     */
-    void setAllTitles(const QString& chartTitle,
-                     const QString& xAxisTitle = QString(),
-                     const QString& yAxisTitlePrimary = QString(),
-                     const QString& yAxisTitleSecondary = QString());
-
-    /**
-     * @brief 清除所有自定义标题，恢复自动生成
-     */
-    void clearCustomTitles();
 
     // ==================== 算法交互状态机（ChartView 核心职责）====================
     /**

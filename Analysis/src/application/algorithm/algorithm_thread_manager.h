@@ -56,16 +56,6 @@ public:
     int maxThreads() const { return m_maxThreads; }
 
     /**
-     * @brief 获取当前活跃线程数
-     */
-    int activeThreadCount() const;
-
-    /**
-     * @brief 获取总线程数（包括空闲线程）
-     */
-    int totalThreadCount() const { return m_workers.size(); }
-
-    /**
      * @brief 获取一个可用的工作线程
      * @return QPair<worker, thread>，如果所有线程都忙返回 {nullptr, nullptr}
      *

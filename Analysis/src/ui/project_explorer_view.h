@@ -46,12 +46,6 @@ public:
 
 signals:
     /**
-     * @brief 当文件节点被双击时发射
-     * @param index 被双击的节点索引
-     */
-    void fileDoubleClicked(const QModelIndex& index);
-
-    /**
      * @brief 当曲线节点被单击时发射
      * @param index 被单击的节点索引
      */

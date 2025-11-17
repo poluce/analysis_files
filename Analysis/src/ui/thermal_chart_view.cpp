@@ -77,18 +77,6 @@ void ThermalChartView::setInteractionMode(InteractionMode mode)
     }
 }
 
-// ==================== 碰撞检测配置 ====================
-
-void ThermalChartView::setHitTestBasePixelThreshold(qreal px)
-{
-    m_hitTestBasePx = (px <= 0) ? 1.0 : px;
-}
-
-void ThermalChartView::setHitTestIncludePenWidth(bool enabled)
-{
-    m_hitTestIncludePen = enabled;
-}
-
 // ==================== 测量工具 ====================
 
 void ThermalChartView::startMassLossTool()

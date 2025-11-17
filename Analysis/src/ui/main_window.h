@@ -46,12 +46,6 @@ public:
      */
     void bindHistoryManager(HistoryManager& historyManager);
 
-    /**
-     * @brief 获取图表视图组件
-     * @return ChartView 指针
-     */
-    ChartView* chartView() const { return m_chartView; }
-
 signals:
     /**
      * @brief 请求删除曲线
@@ -113,11 +107,6 @@ signals:
      * @brief 请求激活峰面积测量工具
      */
     void peakAreaToolRequested();
-
-    /**
-     * @brief 请求恢复默认窗口布局
-     */
-    void resetLayoutRequested();
 
 private slots:
     /**

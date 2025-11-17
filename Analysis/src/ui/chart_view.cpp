@@ -52,26 +52,6 @@ void ChartView::setCurveManager(CurveManager* manager)
 }
 
 // ==================== 交互配置（转发给 ThermalChartView）====================
-void ChartView::setHitTestBasePixelThreshold(qreal px)
-{
-    m_chartView->setHitTestBasePixelThreshold(px);
-}
-
-qreal ChartView::hitTestBasePixelThreshold() const
-{
-    return m_chartView->hitTestBasePixelThreshold();
-}
-
-void ChartView::setHitTestIncludePenWidth(bool enabled)
-{
-    m_chartView->setHitTestIncludePenWidth(enabled);
-}
-
-bool ChartView::hitTestIncludePenWidth() const
-{
-    return m_chartView->hitTestIncludePenWidth();
-}
-
 void ChartView::setInteractionMode(int type)
 {
     m_chartView->setInteractionMode(static_cast<InteractionMode>(type));
@@ -81,46 +61,6 @@ void ChartView::setInteractionMode(int type)
 int ChartView::xAxisMode() const
 {
     return static_cast<int>(m_chart->xAxisMode());
-}
-
-void ChartView::toggleXAxisMode()
-{
-    m_chart->toggleXAxisMode();
-}
-
-// ==================== 标题配置（转发给 ThermalChart）====================
-void ChartView::setChartTitle(const QString& title)
-{
-    m_chart->setCustomChartTitle(title);
-}
-
-void ChartView::setXAxisTitle(const QString& title)
-{
-    m_chart->setCustomXAxisTitle(title);
-}
-
-void ChartView::setYAxisTitlePrimary(const QString& title)
-{
-    m_chart->setCustomYAxisTitlePrimary(title);
-}
-
-void ChartView::setYAxisTitleSecondary(const QString& title)
-{
-    m_chart->setCustomYAxisTitleSecondary(title);
-}
-
-void ChartView::setAllTitles(const QString& chartTitle,
-                            const QString& xAxisTitle,
-                            const QString& yAxisTitlePrimary,
-                            const QString& yAxisTitleSecondary)
-{
-    m_chart->setCustomTitles(chartTitle, xAxisTitle,
-                            yAxisTitlePrimary, yAxisTitleSecondary);
-}
-
-void ChartView::clearCustomTitles()
-{
-    m_chart->clearCustomTitles();
 }
 
 // ==================== 曲线管理（转发给 ThermalChart）====================

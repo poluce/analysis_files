@@ -35,18 +35,6 @@ public:
     QStandardItemModel* model() { return m_model; }
 
     /**
-     * @brief 获取所有被勾选的曲线ID列表
-     */
-    QStringList getCheckedCurveIds() const;
-
-    /**
-     * @brief 设置指定曲线的勾选状态
-     * @param curveId 曲线ID
-     * @param checked 是否勾选
-     */
-    void setCurveChecked(const QString& curveId, bool checked);
-
-    /**
      * @brief 设置活动曲线（高亮显示）
      * @param curveId 曲线ID
      */
@@ -154,13 +142,6 @@ private:
      * @return 找到的 item,未找到返回 nullptr
      */
     QStandardItem* findCurveItem(const QString& curveId, QStandardItem* parent = nullptr) const;
-
-    /**
-     * @brief 递归收集所有被勾选的曲线ID
-     * @param parent 从哪个节点开始收集
-     * @param result 输出参数,收集的曲线ID列表
-     */
-    void collectCheckedItems(QStandardItem* parent, QStringList& result) const;
 
     /**
      * @brief 创建一个曲线节点

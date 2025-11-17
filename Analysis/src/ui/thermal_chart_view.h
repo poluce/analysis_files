@@ -70,12 +70,6 @@ public:
     void setInteractionMode(InteractionMode mode);
     InteractionMode interactionMode() const { return m_mode; }
 
-    // ==================== 碰撞检测配置 ====================
-    void setHitTestBasePixelThreshold(qreal px);
-    qreal hitTestBasePixelThreshold() const { return m_hitTestBasePx; }
-    void setHitTestIncludePenWidth(bool enabled);
-    bool hitTestIncludePenWidth() const { return m_hitTestIncludePen; }
-
     // ==================== 测量工具 ====================
     void startMassLossTool();
 

@@ -53,7 +53,6 @@ signals:
      * @param curve 加载的曲线对象。
      */
     void curveAvailable(const ThermalCurve& curve);
-    void curveDataChanged(const QString& curveId); // 添加
 
 public slots:
     /**
