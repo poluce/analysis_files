@@ -125,94 +125,88 @@ void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
         return;
     }
 
-    auto resultType = result.type();
+    switch (result.type()) {
+    case ResultType::Curve:       handleCurveResult(result); break;
+    case ResultType::Marker:      handleMarkerResult(result); break;
+    case ResultType::Region:      handleRegionResult(result); break;
+    case ResultType::ScalarValue: handleScalarResult(result); break;
+    case ResultType::Composite:   handleCompositeResult(result); break;
+    default:
+        qWarning() << "未知的结果类型:" << static_cast<int>(result.type());
+        break;
+    }
+}
 
-    switch (resultType) {
-    case ResultType::Curve: {
-        // 输出为新曲线（最常见情况）
-        if (!result.hasCurves()) {
-            qWarning() << "算法结果中没有曲线数据";
-            return;
-        }
+void AlgorithmManager::handleCurveResult(const AlgorithmResult& result)
+{
+    if (!result.hasCurves()) {
+        qWarning() << "算法结果中没有曲线数据";
+        return;
+    }
 
-        // 添加所有输出曲线
+    for (const ThermalCurve& curve : result.curves()) {
+        addCurveWithHistory(curve);
+    }
+}
+
+void AlgorithmManager::handleMarkerResult(const AlgorithmResult& result)
+{
+    qDebug() << "标注点数量:" << result.markerCount();
+    for (int i = 0; i < result.markerCount(); ++i) {
+        qDebug() << "  标注点" << i << ":" << result.markers()[i];
+    }
+
+    if (result.hasMarkers()) {
+        QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
+        emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
+    }
+}
+
+void AlgorithmManager::handleRegionResult(const AlgorithmResult& result)
+{
+    qDebug() << "区域数量:" << result.regionCount();
+    // TODO: 发送区域到 ChartView（用于阴影填充）
+}
+
+void AlgorithmManager::handleScalarResult(const AlgorithmResult& result)
+{
+    qDebug() << "标量结果:";
+    for (auto it = result.allMeta().constBegin(); it != result.allMeta().constEnd(); ++it) {
+        qDebug() << "  " << it.key() << ":" << it.value();
+    }
+    // TODO: 显示结果对话框或状态栏
+}
+
+void AlgorithmManager::handleCompositeResult(const AlgorithmResult& result)
+{
+    qDebug() << "混合结果:";
+
+    if (result.hasCurves()) {
+        qDebug() << "  包含" << result.curveCount() << "条曲线";
         for (const ThermalCurve& curve : result.curves()) {
             addCurveWithHistory(curve);
         }
-        break;
     }
 
-    case ResultType::Marker: {
-        // 输出为标注点
-        qDebug() << "标注点数量:" << result.markerCount();
-        for (int i = 0; i < result.markerCount(); ++i) {
-            qDebug() << "  标注点" << i << ":" << result.markers()[i];
+    if (result.hasMarkers()) {
+        qDebug() << "  包含" << result.markerCount() << "个标注点";
+
+        QString targetCurveId = result.parentCurveId();
+        if (result.hasCurves() && !result.curves().isEmpty()) {
+            targetCurveId = result.curves().first().id();
         }
 
-        // 发送标注点到 ChartView
-        if (result.hasMarkers()) {
-            QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));  // 默认红色，与用户选点颜色一致
-            emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
-        }
-        break;
+        QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
+        emit markersGenerated(targetCurveId, result.markers(), markerColor);
     }
 
-    case ResultType::Region: {
-        // 输出为区域
-        qDebug() << "区域数量:" << result.regionCount();
-        // TODO: 发送区域到 ChartView（用于阴影填充）
-        break;
+    if (result.hasRegions()) {
+        qDebug() << "  包含" << result.regionCount() << "个区域";
+        // TODO: 发送区域到 ChartView
     }
 
-    case ResultType::ScalarValue: {
-        // 输出为标量值
-        qDebug() << "标量结果:";
-        for (auto it = result.allMeta().constBegin(); it != result.allMeta().constEnd(); ++it) {
-            qDebug() << "  " << it.key() << ":" << it.value();
-        }
-        // TODO: 显示结果对话框或状态栏
-        break;
-    }
-
-    case ResultType::Composite: {
-        // 混合输出：依次处理所有输出
-        qDebug() << "混合结果:";
-
-        if (result.hasCurves()) {
-            qDebug() << "  包含" << result.curveCount() << "条曲线";
-            for (const ThermalCurve& curve : result.curves()) {
-                addCurveWithHistory(curve);
-            }
-        }
-
-        if (result.hasMarkers()) {
-            qDebug() << "  包含" << result.markerCount() << "个标注点";
-
-            // 发送标注点到 ChartView（关联到生成的第一条曲线）
-            QString targetCurveId = result.parentCurveId();
-            if (result.hasCurves() && !result.curves().isEmpty()) {
-                // 如果生成了新曲线，标注点关联到新曲线
-                targetCurveId = result.curves().first().id();
-            }
-
-            QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));  // 默认红色，与用户选点颜色一致
-            emit markersGenerated(targetCurveId, result.markers(), markerColor);
-        }
-
-        if (result.hasRegions()) {
-            qDebug() << "  包含" << result.regionCount() << "个区域";
-            // TODO: 发送区域到 ChartView
-        }
-
-        if (result.hasMeta(MetaKeys::Area)) {
-            qDebug() << "  面积:" << result.area() << result.meta(MetaKeys::Unit).toString();
-        }
-        break;
-    }
-
-    default:
-        qWarning() << "未知的结果类型:" << static_cast<int>(resultType);
-        break;
+    if (result.hasMeta(MetaKeys::Area)) {
+        qDebug() << "  面积:" << result.area() << result.meta(MetaKeys::Unit).toString();
     }
 }
 
@@ -235,98 +229,60 @@ void AlgorithmManager::addCurveWithHistory(const ThermalCurve& curve)
     }
 }
 
-void AlgorithmManager::createAndAddOutputCurve(
-    IThermalAlgorithm* algorithm,
-    ThermalCurve* parentCurve,
-    const QVector<ThermalDataPoint>& outputData,
-    bool useHistoryManager)
-{
-    if (!algorithm || !parentCurve || !m_curveManager) {
-        qWarning() << "创建输出曲线失败：参数无效";
-        return;
-    }
-
-    // 创建新曲线
-    const QString newId = QUuid::createUuid().toString();
-    const QString newName = algorithm->displayName();
-    ThermalCurve newCurve(newId, newName);
-
-    // 填充数据和元数据
-    newCurve.setProcessedData(outputData);
-    newCurve.setMetadata(parentCurve->getMetadata());
-    newCurve.setParentId(parentCurve->id());
-    newCurve.setProjectName(parentCurve->projectName());
-
-    // 设置类型
-    newCurve.setInstrumentType(parentCurve->instrumentType());
-    newCurve.setSignalType(algorithm->getOutputSignalType(parentCurve->signalType()));
-
-    // 添加到管理器（根据是否使用历史管理）
-    if (useHistoryManager && m_historyManager) {
-        const QString description = QStringLiteral("执行 %1 算法").arg(algorithm->displayName());
-        auto command = std::make_unique<AddCurveCommand>(m_curveManager, newCurve, description);
-        if (!m_historyManager->executeCommand(std::move(command))) {
-            qWarning() << "算法结果入栈失败，放弃添加新曲线";
-        }
-    } else {
-        m_curveManager->addCurve(newCurve);
-        m_curveManager->setActiveCurve(newId);
-    }
-}
-
 // ==================== 异步执行实现 ====================
+
+IThermalAlgorithm* AlgorithmManager::validateAsyncExecution(const QString& name, AlgorithmContext* context)
+{
+    IThermalAlgorithm* algorithm = getAlgorithm(name);
+    if (!algorithm) {
+        qWarning() << "[AlgorithmManager] 算法不存在:" << name;
+        return nullptr;
+    }
+
+    if (!context) {
+        qWarning() << "[AlgorithmManager] 上下文为空";
+        return nullptr;
+    }
+
+    if (!m_curveManager) {
+        qWarning() << "[AlgorithmManager] CurveManager 未设置";
+        return nullptr;
+    }
+
+    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
+
+    if (!algorithm->prepareContext(context)) {
+        qWarning() << "[AlgorithmManager] prepareContext 失败，数据不完整";
+        return nullptr;
+    }
+
+    return algorithm;
+}
 
 QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* context)
 {
-    // 1. 验证算法
-    IThermalAlgorithm* algorithm = getAlgorithm(name);
+    IThermalAlgorithm* algorithm = validateAsyncExecution(name, context);
     if (!algorithm) {
-        qWarning() << "[AlgorithmManager] executeAsync: 算法不存在:" << name;
         return QString();
     }
 
-    // 2. 验证上下文
-    if (!context) {
-        qWarning() << "[AlgorithmManager] executeAsync: 上下文为空";
-        return QString();
-    }
-
-    // 2.5. 设置 CurveManager 到上下文中（供算法访问其他曲线，如基线曲线）
-    if (!m_curveManager) {
-        qWarning() << "[AlgorithmManager] executeAsync: CurveManager 未设置";
-        return QString();
-    }
-    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
-
-    // 3. 调用 prepareContext() 验证数据完整性
-    if (!algorithm->prepareContext(context)) {
-        qWarning() << "[AlgorithmManager] executeAsync: prepareContext 失败，数据不完整";
-        return QString();
-    }
-
-    // 4. 创建上下文快照
     AlgorithmContext* contextSnapshot = context->clone();
     if (!contextSnapshot) {
-        qWarning() << "[AlgorithmManager] executeAsync: 上下文克隆失败";
+        qWarning() << "[AlgorithmManager] 上下文克隆失败";
         return QString();
     }
 
-    // 5. 创建任务（使用 QSharedPointer）
     AlgorithmTaskPtr task = QSharedPointer<AlgorithmTask>::create(name, contextSnapshot);
     QString taskId = task->taskId();
 
-    qDebug() << "[AlgorithmManager] executeAsync: 创建任务" << taskId
-             << "算法:" << name;
+    qDebug() << "[AlgorithmManager] 创建任务" << taskId << "算法:" << name;
 
-    // 6. 记录活跃任务
     m_activeTasks[taskId] = task;
 
-    // 7. 尝试获取工作线程
     auto [worker, thread] = m_threadManager->acquireWorker();
-    Q_UNUSED(thread);  // 标记未使用的变量（避免编译警告）
+    Q_UNUSED(thread);
 
     if (!worker) {
-        // 所有线程都忙，加入队列
         QueuedTask queuedTask{task, algorithm, name};
         m_taskQueue.enqueue(queuedTask);
 
@@ -339,7 +295,6 @@ QString AlgorithmManager::executeAsync(const QString& name, AlgorithmContext* co
         return taskId;
     }
 
-    // 8. 有空闲线程，立即执行
     submitTaskToWorker(task, algorithm, worker);
 
     return taskId;
@@ -351,10 +306,8 @@ void AlgorithmManager::submitTaskToWorker(AlgorithmTaskPtr task,
 {
     QString taskId = task->taskId();
 
-    qDebug() << "[AlgorithmManager] submitTaskToWorker: 任务" << taskId
-             << "提交给 worker" << worker;
+    qDebug() << "[AlgorithmManager] 提交任务" << taskId << "到 worker" << worker;
 
-    // 1. 确保信号已连接（只连接一次）
     if (!m_connectedWorkers.contains(worker)) {
         connect(worker, &AlgorithmWorker::taskStarted,
                 this, &AlgorithmManager::onWorkerStarted);
@@ -367,13 +320,11 @@ void AlgorithmManager::submitTaskToWorker(AlgorithmTaskPtr task,
 
         m_connectedWorkers.insert(worker);
 
-        qDebug() << "[AlgorithmManager] 已连接 worker" << worker << "的信号";
+        qDebug() << "[AlgorithmManager] 已连接 worker 信号" << worker;
     }
 
-    // 2. 记录任务-工作线程映射
     m_taskWorkers[taskId] = worker;
 
-    // 3. 异步调用 worker->executeTask()
     QMetaObject::invokeMethod(worker, "executeTask", Qt::QueuedConnection,
                              Q_ARG(AlgorithmTaskPtr, task),
                              Q_ARG(IThermalAlgorithm*, algorithm));
@@ -385,65 +336,55 @@ void AlgorithmManager::processQueue()
         return;
     }
 
-    qDebug() << "[AlgorithmManager] processQueue: 队列长度" << m_taskQueue.size();
+    qDebug() << "[AlgorithmManager] 处理队列，长度" << m_taskQueue.size();
 
-    // 尝试获取空闲线程
     auto [worker, thread] = m_threadManager->acquireWorker();
-    Q_UNUSED(thread);  // 标记未使用的变量（避免编译警告）
+    Q_UNUSED(thread);
 
     if (!worker) {
-        qDebug() << "[AlgorithmManager] processQueue: 没有空闲线程，等待下次";
+        qDebug() << "[AlgorithmManager] 没有空闲线程，等待下次";
         return;
     }
 
-    // 从队列中取出第一个任务
     QueuedTask queuedTask = m_taskQueue.dequeue();
 
-    qDebug() << "[AlgorithmManager] processQueue: 从队列取出任务"
-             << queuedTask.task->taskId()
+    qDebug() << "[AlgorithmManager] 取出任务" << queuedTask.task->taskId()
              << "剩余队列:" << m_taskQueue.size();
 
     emit queuedTaskCountChanged(m_taskQueue.size());
 
-    // 提交任务到工作线程
     submitTaskToWorker(queuedTask.task, queuedTask.algorithm, worker);
 }
 
 bool AlgorithmManager::cancelTask(const QString& taskId)
 {
-    // 1. 验证任务存在
     if (!m_activeTasks.contains(taskId)) {
-        qWarning() << "[AlgorithmManager] cancelTask: 任务不存在" << taskId;
+        qWarning() << "[AlgorithmManager] 任务不存在" << taskId;
         return false;
     }
 
     AlgorithmTaskPtr task = m_activeTasks[taskId];
     QString algorithmName = task->algorithmName();
 
-    qDebug() << "[AlgorithmManager] cancelTask: 取消任务" << taskId
-             << "算法:" << algorithmName;
+    qDebug() << "[AlgorithmManager] 取消任务" << taskId << "算法:" << algorithmName;
 
-    // 2. 检查任务是否正在执行
     if (m_taskWorkers.contains(taskId)) {
-        // 正在执行的任务：请求取消
         AlgorithmWorker* worker = m_taskWorkers[taskId];
         QMetaObject::invokeMethod(worker, "requestCancellation", Qt::QueuedConnection);
 
-        qDebug() << "[AlgorithmManager] 请求 worker" << worker << "取消任务" << taskId;
+        qDebug() << "[AlgorithmManager] 请求 worker 取消" << worker << taskId;
 
         emit algorithmCancelled(taskId, algorithmName);
         return true;
     }
 
-    // 3. 检查任务是否在队列中
     for (int i = 0; i < m_taskQueue.size(); ++i) {
         if (m_taskQueue[i].task->taskId() == taskId) {
-            // 从队列中移除
             m_taskQueue.removeAt(i);
             m_activeTasks.remove(taskId);
 
-            qDebug() << "[AlgorithmManager] 从队列中移除任务" << taskId
-                     << "剩余队列:" << m_taskQueue.size();
+            qDebug() << "[AlgorithmManager] 从队列移除" << taskId
+                     << "剩余:" << m_taskQueue.size();
 
             emit queuedTaskCountChanged(m_taskQueue.size());
             emit algorithmCancelled(taskId, algorithmName);
@@ -451,99 +392,80 @@ bool AlgorithmManager::cancelTask(const QString& taskId)
         }
     }
 
-    qWarning() << "[AlgorithmManager] cancelTask: 任务" << taskId << "既不在执行也不在队列中";
+    qWarning() << "[AlgorithmManager] 任务" << taskId << "既不在执行也不在队列中";
     return false;
+}
+
+QString AlgorithmManager::getTaskAlgorithmName(const QString& taskId)
+{
+    if (!m_activeTasks.contains(taskId)) {
+        qWarning() << "[AlgorithmManager] 任务不存在" << taskId;
+        return QString();
+    }
+
+    return m_activeTasks[taskId]->algorithmName();
+}
+
+void AlgorithmManager::cleanupTask(const QString& taskId)
+{
+    if (m_taskWorkers.contains(taskId)) {
+        AlgorithmWorker* worker = m_taskWorkers[taskId];
+        m_threadManager->releaseWorker(worker);
+        m_taskWorkers.remove(taskId);
+    }
+
+    m_activeTasks.remove(taskId);
+
+    qDebug() << "[AlgorithmManager] 任务" << taskId << "已清理，剩余活跃任务:" << m_activeTasks.size();
 }
 
 // ==================== 工作线程信号处理槽函数 ====================
 
 void AlgorithmManager::onWorkerStarted(const QString& taskId, const QString& algorithmName)
 {
-    qDebug() << "[AlgorithmManager] onWorkerStarted: 任务" << taskId
-             << "算法:" << algorithmName;
+    qDebug() << "[AlgorithmManager] 任务开始" << taskId << "算法:" << algorithmName;
 
     emit algorithmStarted(taskId, algorithmName);
 }
 
 void AlgorithmManager::onWorkerProgress(const QString& taskId, int percentage, const QString& message)
 {
-    // 转发进度信号
     emit algorithmProgress(taskId, percentage, message);
 }
 
 void AlgorithmManager::onWorkerFinished(const QString& taskId, const QVariant& result, qint64 elapsedMs)
 {
-    qDebug() << "[AlgorithmManager] onWorkerFinished: 任务" << taskId
-             << "耗时:" << elapsedMs << "ms";
+    qDebug() << "[AlgorithmManager] 任务完成" << taskId << "耗时:" << elapsedMs << "ms";
 
-    // 1. 获取任务信息
-    if (!m_activeTasks.contains(taskId)) {
-        qWarning() << "[AlgorithmManager] onWorkerFinished: 任务不存在" << taskId;
+    QString algorithmName = getTaskAlgorithmName(taskId);
+    if (algorithmName.isEmpty()) {
         return;
     }
 
-    AlgorithmTaskPtr task = m_activeTasks[taskId];
-    QString algorithmName = task->algorithmName();
-
-    // 2. 释放工作线程
-    if (m_taskWorkers.contains(taskId)) {
-        AlgorithmWorker* worker = m_taskWorkers[taskId];
-        m_threadManager->releaseWorker(worker);
-        m_taskWorkers.remove(taskId);
-    }
-
-    // 3. 处理结果
     AlgorithmResult algorithmResult = result.value<AlgorithmResult>();
 
     if (algorithmResult.isSuccess()) {
-        // 成功：处理结果并发出信号
         handleAlgorithmResult(algorithmResult);
-
-        // 发出异步执行完成信号
         emit algorithmFinished(taskId, algorithmName, algorithmResult, elapsedMs);
-
-        // 同时发出旧的兼容信号，供 AlgorithmCoordinator 监听
         emit algorithmResultReady(algorithmName, algorithmResult);
     } else {
-        // 失败：发出失败信号
         emit algorithmFailed(taskId, algorithmName, algorithmResult.errorMessage());
-
-        // 同时发出旧的兼容信号
         emit algorithmExecutionFailed(algorithmName, algorithmResult.errorMessage());
     }
 
-    // 4. 清理任务记录
-    m_activeTasks.remove(taskId);
-
-    qDebug() << "[AlgorithmManager] 任务" << taskId << "已清理，剩余活跃任务:" << m_activeTasks.size();
+    cleanupTask(taskId);
 }
 
 void AlgorithmManager::onWorkerFailed(const QString& taskId, const QString& errorMessage)
 {
-    qWarning() << "[AlgorithmManager] onWorkerFailed: 任务" << taskId
-               << "失败:" << errorMessage;
+    qWarning() << "[AlgorithmManager] 任务失败" << taskId << "错误:" << errorMessage;
 
-    // 1. 获取任务信息
-    if (!m_activeTasks.contains(taskId)) {
-        qWarning() << "[AlgorithmManager] onWorkerFailed: 任务不存在" << taskId;
+    QString algorithmName = getTaskAlgorithmName(taskId);
+    if (algorithmName.isEmpty()) {
         return;
     }
 
-    AlgorithmTaskPtr task = m_activeTasks[taskId];
-    QString algorithmName = task->algorithmName();
-
-    // 2. 释放工作线程
-    if (m_taskWorkers.contains(taskId)) {
-        AlgorithmWorker* worker = m_taskWorkers[taskId];
-        m_threadManager->releaseWorker(worker);
-        m_taskWorkers.remove(taskId);
-    }
-
-    // 3. 发出失败信号
     emit algorithmFailed(taskId, algorithmName, errorMessage);
 
-    // 4. 清理任务记录
-    m_activeTasks.remove(taskId);
-
-    qDebug() << "[AlgorithmManager] 任务" << taskId << "已清理，剩余活跃任务:" << m_activeTasks.size();
+    cleanupTask(taskId);
 }
