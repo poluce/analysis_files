@@ -5,6 +5,7 @@
 #include <QString>
 #include <QVariantMap>
 #include <QPointF>
+#include "domain/algorithm/algorithm_descriptor.h"
 
 // 前置声明
 class CurveManager;
