@@ -45,9 +45,15 @@ AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
 {
     AlgorithmDescriptor desc;
     desc.name = name();
-    desc.interaction = AlgorithmInteraction::PointSelection;
+    desc.displayName = displayName();
+    desc.category = category();
+
+    // 交互需求：需要点选（Phase 2 新 API）
+    desc.needsParameters = false;
+    desc.needsPointSelection = true;
     desc.requiredPointCount = 2;
     desc.pointSelectionHint = "请在曲线上选择两个点定义基线范围（起点和终点）";
+
     return desc;
 }
 

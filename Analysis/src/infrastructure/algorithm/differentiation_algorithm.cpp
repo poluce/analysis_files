@@ -43,7 +43,10 @@ AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
 {
     AlgorithmDescriptor desc;
     desc.name = name();
-    desc.interaction = AlgorithmInteraction::None;  // 简单算法，无需交互
+    desc.displayName = displayName();
+    desc.category = category();
+    desc.needsParameters = false;
+    desc.needsPointSelection = false;
     desc.parameters = {
         { "halfWin", "半窗口", QVariant::Int, m_halfWin, false, {{ "min", 1 }} },
         { "dt", "时间步长", QVariant::Double, m_dt, false, {{ "min", 1e-6 }} },

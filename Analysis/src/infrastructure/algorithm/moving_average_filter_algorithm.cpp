@@ -43,7 +43,10 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
 {
     AlgorithmDescriptor desc;
     desc.name = name();
-    desc.interaction = AlgorithmInteraction::ParameterDialog;
+    desc.displayName = displayName();
+    desc.category = category();
+    desc.needsParameters = true;
+    desc.needsPointSelection = false;
     desc.parameters = {
         { QStringLiteral("window"), QStringLiteral("窗口大小"), QVariant::Int, m_window, true, { { QStringLiteral("min"), 1 } } },
     };

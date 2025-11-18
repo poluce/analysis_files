@@ -60,21 +60,16 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
         descriptor.name = algorithmName;
     }
 
-    // 若交互类型未显式指定，则依据输入类型推断
-    // 注意：现在所有算法都应该明确定义 descriptor.interaction，
+    // 若交互需求未显式指定，则依据输入类型推断（向后兼容）
+    // 注意：现在所有算法都应该明确定义 needsParameters/needsPointSelection
     // 这里的推断逻辑仅作为向后兼容的兜底方案
-    if (descriptor.interaction == AlgorithmInteraction::None) {
+    if (!descriptor.needsParameters && !descriptor.needsPointSelection) {
         if (algorithm->inputType() == IThermalAlgorithm::InputType::PointSelection) {
-            descriptor.interaction = AlgorithmInteraction::PointSelection;
+            descriptor.needsPointSelection = true;
+            if (descriptor.requiredPointCount <= 0) {
+                descriptor.requiredPointCount = 2;  // 默认2个点
+            }
         }
-        // 其他情况保持 None，不再根据 parameters 自动推断
-        // 原因：算法明确设置 interaction = None 表示无需用户交互，
-        // descriptor.parameters 中的参数可能只是内部可选配置，不应强制弹窗
-    }
-
-    // 默认的点选提示/数量回退
-    if (descriptor.interaction == AlgorithmInteraction::PointSelection && descriptor.requiredPointCount <= 0) {
-        descriptor.requiredPointCount = 1;
     }
 
     // 注意：纯上下文驱动模式下，算法通过 descriptor() 提供所有元数据

@@ -38,8 +38,6 @@ SOURCES += \
     src/application/algorithm/algorithm_context.cpp \
     src/application/algorithm/algorithm_coordinator.cpp \
     src/application/algorithm/algorithm_task.cpp \
-    src/application/algorithm/metadata_descriptor_registry.cpp \
-    src/application/algorithm/register_metadata_descriptors.cpp \
     src/application/algorithm/algorithm_worker.cpp \
     src/application/algorithm/algorithm_thread_manager.cpp \
     src/application/history/history_manager.cpp \
@@ -83,10 +81,7 @@ HEADERS += \
     src/application/algorithm/algorithm_manager.h \
     src/application/algorithm/algorithm_context.h \
     src/application/algorithm/algorithm_coordinator.h \
-    src/application/algorithm/algorithm_descriptor.h \
     src/application/algorithm/algorithm_task.h \
-    src/application/algorithm/metadata_descriptor.h \
-    src/application/algorithm/metadata_descriptor_registry.h \
     src/application/algorithm/algorithm_worker.h \
     src/application/algorithm/algorithm_thread_manager.h \
     src/application/history/add_curve_command.h \

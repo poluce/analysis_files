@@ -259,19 +259,12 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 使用元数据驱动架构执行算法
-    if (!App::AlgorithmDescriptorRegistry::instance().has(algorithmName)) {
-        qWarning() << "MainController: 算法未在元数据注册表中注册：" << algorithmName;
-        QMessageBox::warning(
-            m_mainWindow,
-            tr("算法未注册"),
-            tr("算法 \"%1\" 未在元数据注册表中注册，请联系开发者。").arg(algorithmName)
-        );
-        return;
-    }
+    // TODO (Phase 3): 此方法使用旧的元数据注册表，已在 Phase 1 删除
+    // 当前使用 handleAlgorithmTriggered() 路径（基于算法自描述）
+    // Phase 3 将重构 AlgorithmCoordinator，实现新的 run() 方法
 
-    qDebug() << "MainController: 使用元数据驱动路径执行算法：" << algorithmName;
-    m_algorithmCoordinator->runByName(algorithmName);
+    qDebug() << "MainController: 使用 handleAlgorithmTriggered() 路径执行算法：" << algorithmName;
+    m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
 }
 
 
