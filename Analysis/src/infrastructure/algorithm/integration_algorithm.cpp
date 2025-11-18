@@ -43,7 +43,10 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
 {
     AlgorithmDescriptor desc;
     desc.name = name();
-    desc.interaction = AlgorithmInteraction::None;  // 简单算法，无需交互
+    desc.displayName = displayName();
+    desc.category = category();
+    desc.needsParameters = false;
+    desc.needsPointSelection = false;
     // 暂无可配置参数，预留扩展（如方法/归一化等）
     return desc;
 }

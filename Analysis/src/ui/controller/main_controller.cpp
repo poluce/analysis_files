@@ -3,10 +3,7 @@
 #include "domain/model/thermal_curve.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
-#include "ui/generic_algorithm_dialog.h"
 #include "ui/peak_area_dialog.h"
-#include "application/algorithm/metadata_descriptor.h"
-#include "application/algorithm/metadata_descriptor_registry.h"
 #include <QDebug>
 #include <QtGlobal>
 
@@ -18,6 +15,7 @@
 #include "application/history/clear_curves_command.h"
 #include "application/history/remove_curve_command.h"
 #include "application/history/history_manager.h"
+#include "domain/algorithm/algorithm_descriptor.h"  // 领域层描述符（Phase 1 迁移）
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "ui/chart_view.h"
 #include "ui/main_window.h"
@@ -26,6 +24,16 @@
 #include <QProgressDialog>
 #include <QInputDialog>
 #include <memory>
+
+// Phase 4: 动态参数对话框所需头文件
+#include <QDialog>
+#include <QFormLayout>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <QLineEdit>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
 
 MainController::MainController(CurveManager* curveManager,
                                AlgorithmManager* algorithmManager,
@@ -154,9 +162,11 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::requestPointSelection, this,
         &MainController::onCoordinatorRequestPointSelection, Qt::UniqueConnection);
+
+    // Phase 4: 连接新的 requestParameterDialog 信号（基于算法自描述）
     connect(
-        m_algorithmCoordinator, &AlgorithmCoordinator::requestGenericParameterDialog, this,
-        &MainController::onRequestGenericParameterDialog, Qt::UniqueConnection);
+        m_algorithmCoordinator, &AlgorithmCoordinator::requestParameterDialog, this,
+        &MainController::onRequestParameterDialog, Qt::UniqueConnection);
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::showMessage, this, &MainController::onCoordinatorShowMessage,
         Qt::UniqueConnection);
@@ -260,19 +270,13 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 使用元数据驱动架构执行算法
-    if (!App::AlgorithmDescriptorRegistry::instance().has(algorithmName)) {
-        qWarning() << "MainController: 算法未在元数据注册表中注册：" << algorithmName;
-        QMessageBox::warning(
-            m_mainWindow,
-            tr("算法未注册"),
-            tr("算法 \"%1\" 未在元数据注册表中注册，请联系开发者。").arg(algorithmName)
-        );
-        return;
-    }
+    // Phase 3: 使用新的 run() 方法，基于算法自描述自动编排执行流程
+    // 参数说明：params 参数暂时未使用，因为参数收集现在由 AlgorithmCoordinator
+    // 通过 requestParameterDialog 信号触发动态对话框完成
+    Q_UNUSED(params);
 
-    qDebug() << "MainController: 使用元数据驱动路径执行算法：" << algorithmName;
-    m_algorithmCoordinator->runByName(algorithmName);
+    qDebug() << "MainController: 调用 run() 执行算法：" << algorithmName;
+    m_algorithmCoordinator->run(algorithmName);
 }
 
 
@@ -397,50 +401,17 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
              << (cascadeDelete ? "（包括子曲线）" : "");
 }
 
-void MainController::onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor)
-{
-    Q_ASSERT(m_initialized);  // 确保依赖完整
-
-    qDebug() << "MainController::onRequestGenericParameterDialog - 算法:" << algorithmName;
-
-    // 从 QVariant 中提取 App::AlgorithmDescriptor
-    if (!descriptor.canConvert<App::AlgorithmDescriptor>()) {
-        qWarning() << "MainController: 无法转换描述符为 App::AlgorithmDescriptor";
-        return;
-    }
-
-    App::AlgorithmDescriptor desc = descriptor.value<App::AlgorithmDescriptor>();
-
-    // 创建通用参数对话框
-    auto* dialog = new GenericAlgorithmDialog(desc, m_mainWindow);
-
-    // 连接对话框的接受信号
-    connect(dialog, &QDialog::accepted, this, [=]() {
-        QVariantMap parameters = dialog->values();
-        qDebug() << "MainController: 用户提交参数:" << parameters;
-        m_algorithmCoordinator->handleGenericParameterSubmission(algorithmName, parameters);
-        dialog->deleteLater();
-    });
-
-    // 连接对话框的拒绝信号
-    connect(dialog, &QDialog::rejected, this, [=]() {
-        qDebug() << "MainController: 用户取消参数输入";
-        m_algorithmCoordinator->cancelPendingRequest();
-        dialog->deleteLater();
-    });
-
-    // 显示对话框
-    dialog->show();
-}
+// NOTE (Phase 6): onRequestGenericParameterDialog() 已删除
+// Phase 4 使用新的 onRequestParameterDialog() 替代（基于动态 QDialog + QFormLayout）
 
 void MainController::onCoordinatorRequestPointSelection(
-    const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint)
+    const QString& algorithmName, int requiredPoints, const QString& hint)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
     qDebug() << "MainController::onCoordinatorRequestPointSelection - 算法:" << algorithmName
-             << ", 曲线ID:" << curveId
              << ", 需要点数:" << requiredPoints;
+    // NOTE: Phase 3 移除了 curveId 参数，从 CurveManager 获取活动曲线
 
     // ==================== 使用新的活动算法状态机 ====================
     // 获取算法的显示名称
@@ -452,7 +423,17 @@ void MainController::onCoordinatorRequestPointSelection(
         qWarning() << "MainController: 无法找到算法" << algorithmName << "，使用名称作为显示名";
     }
 
-    // 启动算法交互状态机，传递曲线ID以确定选点标记应附着到哪个Y轴
+    // 启动算法交互状态机
+    // Phase 3 更新：从 CurveManager 获取活动曲线的 ID
+    QString curveId;
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (activeCurve) {
+        curveId = activeCurve->id();
+    } else {
+        qWarning() << "MainController: 没有活动曲线，无法启动点选";
+        return;
+    }
+
     m_plotWidget->startAlgorithmInteraction(algorithmName, displayName, qMax(1, requiredPoints), hint, curveId);
 
     // 显示提示信息（如果有）
@@ -657,4 +638,202 @@ void MainController::handleProgressDialogCancelled()
     if (m_algorithmCoordinator) {
         m_algorithmCoordinator->cancelPendingRequest();
     }
+}
+
+// ==================== Phase 4: 动态参数对话框实现 ====================
+
+void MainController::onRequestParameterDialog(const QString& algorithmName, const AlgorithmDescriptor& descriptor)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "[MainController] onRequestParameterDialog - 算法:" << algorithmName;
+    qDebug() << "  参数数量:" << descriptor.parameters.size();
+
+    // 创建对话框
+    QDialog* dlg = new QDialog(m_mainWindow);
+    dlg->setWindowTitle(descriptor.displayName + QStringLiteral(" - 参数设置"));
+    dlg->setMinimumWidth(400);
+
+    QFormLayout* form = new QFormLayout(dlg);
+
+    // 存储控件引用（参数名 → 控件指针）
+    QMap<QString, QWidget*> widgets;
+
+    // 动态创建参数控件
+    for (const auto& param : descriptor.parameters) {
+        QWidget* widget = createParameterWidget(param, dlg);
+        if (widget) {
+            QString label = param.label;
+            if (!label.isEmpty() && !label.endsWith(":")) {
+                label += ":";
+            }
+            form->addRow(label, widget);
+            widgets[param.key] = widget;
+        }
+    }
+
+    // 添加按钮
+    QDialogButtonBox* buttonBox = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    form->addRow(buttonBox);
+
+    connect(buttonBox, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+    // 显示对话框并处理结果
+    if (dlg->exec() == QDialog::Accepted) {
+        QVariantMap parameters = extractParameters(widgets, descriptor.parameters);
+        qDebug() << "[MainController] 用户提交参数:" << parameters;
+
+        // 调用 AlgorithmCoordinator::submitParameters()
+        if (m_algorithmCoordinator) {
+            m_algorithmCoordinator->submitParameters(parameters);
+        }
+    } else {
+        qDebug() << "[MainController] 用户取消参数输入";
+
+        // 调用 AlgorithmCoordinator::cancel()
+        if (m_algorithmCoordinator) {
+            m_algorithmCoordinator->cancel();
+        }
+    }
+
+    dlg->deleteLater();
+}
+
+QWidget* MainController::createParameterWidget(const AlgorithmParameterDefinition& param, QWidget* parent)
+{
+    switch (param.valueType) {
+
+    // ==================== 整数类型 ====================
+    case QVariant::Int:
+        {
+            QSpinBox* spinBox = new QSpinBox(parent);
+
+            // 设置范围（从 constraints 中读取）
+            int minValue = param.constraints.value("min", 0).toInt();
+            int maxValue = param.constraints.value("max", 100).toInt();
+            spinBox->setMinimum(minValue);
+            spinBox->setMaximum(maxValue);
+
+            // 设置默认值
+            spinBox->setValue(param.defaultValue.toInt());
+
+            return spinBox;
+        }
+
+    // ==================== 浮点类型 ====================
+    case QVariant::Double:
+        {
+            QDoubleSpinBox* spinBox = new QDoubleSpinBox(parent);
+
+            // 设置范围
+            double minValue = param.constraints.value("min", 0.0).toDouble();
+            double maxValue = param.constraints.value("max", 100.0).toDouble();
+            spinBox->setMinimum(minValue);
+            spinBox->setMaximum(maxValue);
+
+            // 设置精度
+            int decimals = param.constraints.value("decimals", 3).toInt();
+            spinBox->setDecimals(decimals);
+
+            // 设置步长
+            double step = param.constraints.value("step", 0.1).toDouble();
+            spinBox->setSingleStep(step);
+
+            // 设置默认值
+            spinBox->setValue(param.defaultValue.toDouble());
+
+            return spinBox;
+        }
+
+    // ==================== 字符串类型 ====================
+    case QVariant::String:
+        {
+            QLineEdit* lineEdit = new QLineEdit(parent);
+            lineEdit->setText(param.defaultValue.toString());
+            return lineEdit;
+        }
+
+    // ==================== 布尔类型 ====================
+    case QVariant::Bool:
+        {
+            QCheckBox* checkBox = new QCheckBox(parent);
+            checkBox->setChecked(param.defaultValue.toBool());
+            return checkBox;
+        }
+
+    // NOTE: Enum 类型需要特殊处理（使用 constraints["options"]）
+    default:
+        // 尝试检查是否是枚举类型（通过 constraints["options"] 判断）
+        if (param.constraints.contains("options")) {
+            QComboBox* comboBox = new QComboBox(parent);
+            QStringList options = param.constraints.value("options").toStringList();
+            comboBox->addItems(options);
+            comboBox->setCurrentIndex(param.defaultValue.toInt());
+            return comboBox;
+        }
+
+        qWarning() << "[MainController] 不支持的参数类型:" << param.valueType
+                   << "参数名:" << param.key;
+        return nullptr;
+    }
+}
+
+QVariantMap MainController::extractParameters(const QMap<QString, QWidget*>& widgets,
+                                              const QList<AlgorithmParameterDefinition>& paramDefs)
+{
+    QVariantMap parameters;
+
+    for (const auto& param : paramDefs) {
+        if (!widgets.contains(param.key)) {
+            qWarning() << "[MainController] 参数控件不存在:" << param.key;
+            continue;
+        }
+
+        QWidget* widget = widgets[param.key];
+        QVariant value;
+
+        switch (param.valueType) {
+        case QVariant::Int:
+            if (QSpinBox* spinBox = qobject_cast<QSpinBox*>(widget)) {
+                value = spinBox->value();
+            }
+            break;
+
+        case QVariant::Double:
+            if (QDoubleSpinBox* spinBox = qobject_cast<QDoubleSpinBox*>(widget)) {
+                value = spinBox->value();
+            }
+            break;
+
+        case QVariant::String:
+            if (QLineEdit* lineEdit = qobject_cast<QLineEdit*>(widget)) {
+                value = lineEdit->text();
+            }
+            break;
+
+        case QVariant::Bool:
+            if (QCheckBox* checkBox = qobject_cast<QCheckBox*>(widget)) {
+                value = checkBox->isChecked();
+            }
+            break;
+
+        default:
+            // 尝试枚举类型
+            if (QComboBox* comboBox = qobject_cast<QComboBox*>(widget)) {
+                value = comboBox->currentIndex();
+            }
+            break;
+        }
+
+        if (value.isValid()) {
+            parameters[param.key] = value;
+            qDebug() << "  提取参数:" << param.key << "=" << value;
+        } else {
+            qWarning() << "[MainController] 无法提取参数值:" << param.key;
+        }
+    }
+
+    return parameters;
 }

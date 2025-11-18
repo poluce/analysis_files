@@ -49,13 +49,6 @@ private:
      */
     void registerAlgorithms();
 
-    /**
-     * @brief 注册算法的元数据描述器到注册表（方案B）
-     *
-     * 包括：移动平均滤波、基线校正等的参数和交互描述
-     */
-    void registerMetadataDescriptors();
-
     // Infrastructure（基础设施层）
     AlgorithmThreadManager* m_threadManager { nullptr };
     HistoryManager* m_historyManager { nullptr };

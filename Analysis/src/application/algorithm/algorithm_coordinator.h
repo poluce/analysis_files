@@ -46,51 +46,61 @@ public:
     void cancelPendingRequest();
 
     /**
-     * @brief 元数据驱动的算法执行入口（方案B）
+     * @brief 算法执行的唯一入口（Phase 3 新架构）
      * @param algorithmName 算法名称
      *
-     * 从 MetadataDescriptorRegistry 获取算法描述，
-     * 根据描述驱动"参数窗→选点→执行"流程。
-     *
-     * 流程：
-     * 1. 从注册表获取 App::AlgorithmDescriptor
-     * 2. 如果需要参数，弹出 GenericAlgorithmDialog
-     * 3. 如果需要选点，请求用户选点
-     * 4. 执行算法
+     * 根据算法的自描述信息（descriptor()）自动编排执行流程：
+     * - 无需交互 → 直接执行
+     * - 需要参数 → requestParameterDialog → submitParameters → ...
+     * - 需要点选 → requestPointSelection → submitPoints → ...
+     * - 复合交互 → 按 interactionOrder 顺序执行
      */
-    void runByName(const QString& algorithmName);
+    void run(const QString& algorithmName);
 
     /**
-     * @brief 处理通用参数对话框提交结果（方案B）
-     * @param algorithmName 算法名称
-     * @param parameters 用户提交的参数
+     * @brief 用户提交参数后调用（Phase 3 新架构）
+     * @param parameters 用户输入的参数
      *
-     * 根据元数据描述决定下一步：
-     * - 如果需要选点，进入选点阶段
-     * - 否则直接执行算法
+     * 保存参数到待处理请求，然后继续下一个交互步骤
      */
-    void handleGenericParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
+    void submitParameters(const QVariantMap& parameters);
+
+    /**
+     * @brief 用户完成点选后调用（Phase 3 新架构）
+     * @param points 用户选择的点
+     *
+     * 验证点数量，保存到待处理请求，然后继续下一个交互步骤
+     */
+    void submitPoints(const QVector<ThermalDataPoint>& points);
+
+    /**
+     * @brief 取消当前算法执行（Phase 3 新架构）
+     *
+     * 清空待处理请求和正在执行的任务
+     */
+    void cancel();
 
 signals:
     /**
-     * @brief 请求用户在图表上选点
+     * @brief 请求弹出参数对话框（Phase 3 新架构）
      * @param algorithmName 算法名称
-     * @param curveId 目标曲线ID
-     * @param requiredPoints 所需点数
-     * @param hint 提示信息（如"请选择基线起点和终点"）
+     * @param descriptor 算法描述符（包含完整的参数定义）
+     *
+     * MainController 接收此信号后，根据 descriptor.parameters 动态创建
+     * QDialog + QFormLayout 对话框，用户提交后调用 submitParameters()
      */
-    void requestPointSelection(
-        const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+    void requestParameterDialog(const QString& algorithmName, const AlgorithmDescriptor& descriptor);
 
     /**
-     * @brief 请求弹出通用参数对话框（方案B）
+     * @brief 请求用户在图表上选点（Phase 3 新架构）
      * @param algorithmName 算法名称
-     * @param descriptor App::AlgorithmDescriptor 描述符
+     * @param requiredPoints 所需点数
+     * @param hint 提示信息（如"请选择基线起点和终点"）
      *
-     * 发出此信号后，UI 层应创建 GenericAlgorithmDialog 并显示。
-     * 用户提交后调用 handleGenericParameterSubmission()。
+     * MainController 接收此信号后，通知 ChartView 进入点选模式，
+     * 用户完成选点后调用 submitPoints()
      */
-    void requestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
+    void requestPointSelection(const QString& algorithmName, int requiredPoints, const QString& hint);
 
     /**
      * @brief 显示消息（用于状态提示）
@@ -156,66 +166,49 @@ private slots:
                                const QString& errorMessage);
 
 private:
-    enum class PendingPhase {
-        None,
-        AwaitParameters,
-        AwaitPoints
+    /**
+     * @brief 简化的待处理请求结构（Phase 3 新架构）
+     *
+     * 相比旧的 MetadataPendingRequest，删除了复杂的状态机：
+     * - 删除 PendingPhase 枚举
+     * - 删除 curveId（从 CurveManager 获取活动曲线）
+     * - 删除 needsPointSelection/requiredPointCount/pointSelectionHint（从 descriptor 获取）
+     * - 添加 descriptor（算法完整自描述信息）
+     * - 添加 currentStepIndex（当前交互步骤索引）
+     */
+    struct PendingRequest {
+        QString algorithmName;                  // 算法名称
+        AlgorithmDescriptor descriptor;         // 算法完整自描述信息
+        QVariantMap parameters;                 // 已收集的参数
+        QVector<ThermalDataPoint> points;       // 已收集的点
+        int currentStepIndex = 0;               // 当前交互步骤索引
     };
 
-    // 元数据驱动流程的待处理请求
-    struct MetadataPendingRequest {
-        QString algorithmName;
-        QString curveId;
-        QVariantMap parameters;
-        bool needsPointSelection = false;
-        int requiredPointCount = 0;
-        QString pointSelectionHint;
-        QVector<ThermalDataPoint> collectedPoints;
-        PendingPhase phase = PendingPhase::None;
-    };
+    /**
+     * @brief 处理下一个交互步骤（Phase 3 核心逻辑）
+     *
+     * 根据 descriptor.interactionOrder 或默认顺序执行交互流程：
+     * 1. 检查当前步骤索引是否超出范围，如果是则调用 execute()
+     * 2. 读取当前步骤类型（"parameters" 或 "points"）
+     * 3. 发出对应的请求信号（requestParameterDialog 或 requestPointSelection）
+     *
+     * 无判断逻辑，完全依赖算法的自描述信息。
+     */
+    void processNextStep();
 
     /**
-     * @brief 检查算法前置条件是否满足
-     * @param descriptor 算法描述符
-     * @param curve 目标曲线（预留参数）
-     * @return 如果所有前置条件都满足返回 true，否则返回 false
+     * @brief 执行算法（所有交互完成后调用）
      *
-     * 检查 descriptor.prerequisites 列出的所有上下文键是否存在。
+     * 将收集的参数和点注入到 AlgorithmContext，然后提交到异步队列执行。
      */
-    bool ensurePrerequisites(const AlgorithmDescriptor& descriptor, ThermalCurve* curve);
+    void execute();
 
-    /**
-     * @brief 填充默认参数
-     * @param descriptor 算法描述符
-     * @param parameters 参数映射表（输入/输出）
-     * @return 如果所有必需参数都已就绪返回 true，否则返回 false
-     *
-     * 对于 parameters 中不存在的参数键：
-     * - 如果 descriptor 提供了默认值，则填充
-     * - 如果参数是必需的但无默认值，返回 false
-     */
-    bool populateDefaultParameters(const AlgorithmDescriptor& descriptor, QVariantMap& parameters) const;
-
-    /**
-     * @brief 执行算法（核心方法）
-     * @param algorithmName 算法名称
-     * @param curve 目标曲线
-     * @param parameters 算法参数
-     * @param points 用户选择的点（可选）
-     *
-     * 执行流程：
-     * 1. 验证输入有效性
-     * 2. 注入数据到上下文（曲线、参数、选点）
-     * 3. 调用 AlgorithmManager::executeAsync() 提交任务
-     * 4. 保存任务ID
-     */
-    void executeAlgorithm(const QString& algorithmName, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
 
     /**
      * @brief 重置所有状态（统一状态清理入口）
      *
      * 清理所有运行时状态，包括：
-     * - 待处理请求 (m_metadataPending)
+     * - 待处理请求 (m_pending)
      * - 当前任务ID (m_currentTaskId)
      *
      * 在以下场景调用：
@@ -268,8 +261,8 @@ private:
     CurveManager* m_curveManager = nullptr;
     AlgorithmContext* m_context = nullptr;
 
-    // ==================== 元数据驱动流程状态 ====================
-    std::optional<MetadataPendingRequest> m_metadataPending;
+    // ==================== Phase 3 新架构状态 ====================
+    std::optional<PendingRequest> m_pending;  ///< 当前待处理的算法请求（如果有）
 
     // ==================== 异步执行状态 ====================
     QString m_currentTaskId;  ///< 当前正在执行的异步任务ID（用于取消）

@@ -13,7 +13,6 @@
 #include "infrastructure/algorithm/moving_average_filter_algorithm.h"
 #include "infrastructure/algorithm/temperature_extrapolation_algorithm.h"
 // 注：峰面积已改为视图层工具，不再作为算法注册
-#include "application/algorithm/metadata_descriptor_registry.h"
 #include "ui/chart_view.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/controller/main_controller.h"
@@ -94,9 +93,6 @@ ApplicationContext::ApplicationContext(QObject* parent)
 
     // 6. 注册算法（最后）
     registerAlgorithms();
-
-    // 7. 注册元数据描述器（方案B）
-    registerMetadataDescriptors();
 }
 
 ApplicationContext::~ApplicationContext()
@@ -116,14 +112,4 @@ void ApplicationContext::registerAlgorithms()
     m_algorithmManager->registerAlgorithm(new BaselineCorrectionAlgorithm());
     m_algorithmManager->registerAlgorithm(new TemperatureExtrapolationAlgorithm());
     // 注：峰面积已改为视图层工具，不再作为算法注册
-}
-
-// 前置声明（来自 register_metadata_descriptors.cpp）
-void registerDefaultDescriptors();
-
-void ApplicationContext::registerMetadataDescriptors()
-{
-    // 调用全局函数注册默认的元数据描述器
-    // 包括：移动平均滤波、基线校正等
-    registerDefaultDescriptors();
 }

@@ -51,7 +51,10 @@ AlgorithmDescriptor TemperatureExtrapolationAlgorithm::descriptor() const
 {
     AlgorithmDescriptor desc;
     desc.name = name();
-    desc.interaction = AlgorithmInteraction::PointSelection;
+    desc.displayName = displayName();
+    desc.category = category();
+    desc.needsParameters = false;
+    desc.needsPointSelection = true;
     desc.requiredPointCount = 2;  // 只需要2个点定义切线区域
     desc.pointSelectionHint = "请选择2个点定义切线区域（峰的前沿或后沿）";
     return desc;

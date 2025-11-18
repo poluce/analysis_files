@@ -135,18 +135,27 @@ public:
     {
         AlgorithmDescriptor desc;
         desc.name = name();
-        desc.interaction = [this]() {
-            switch (inputType()) {
-            case InputType::None:
-                return AlgorithmInteraction::None;
-            case InputType::PointSelection:
-                return AlgorithmInteraction::PointSelection;
-            default:
-                return AlgorithmInteraction::ParameterDialog;
-            }
-        }();
-        desc.requiredPointCount = 0;
-        desc.pointSelectionHint = QString();
+        desc.displayName = displayName();
+        desc.category = category();
+
+        // 基于 inputType() 设置交互需求（向后兼容旧 API）
+        switch (inputType()) {
+        case InputType::None:
+            desc.needsParameters = false;
+            desc.needsPointSelection = false;
+            break;
+        case InputType::PointSelection:
+            desc.needsParameters = false;
+            desc.needsPointSelection = true;
+            desc.requiredPointCount = 2;  // 默认2个点（子类应重写 descriptor()）
+            desc.pointSelectionHint = "请选择点";
+            break;
+        default:
+            desc.needsParameters = true;
+            desc.needsPointSelection = false;
+            break;
+        }
+
         return desc;
     }
 
