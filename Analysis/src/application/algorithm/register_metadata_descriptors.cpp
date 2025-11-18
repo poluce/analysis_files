@@ -137,11 +137,31 @@ static void registerTemperatureExtrapolation() {
     AlgorithmDescriptorRegistry::instance().registerDescriptor(d);
 }
 
+static void registerPeakArea() {
+    AlgorithmDescriptor d;
+    d.name = "peak_area";  // 必须与 PeakAreaAlgorithm::name() 返回值一致
+    d.displayName = QObject::tr("峰面积");
+
+    // 无参数，但需要选择2个点定义积分范围
+    d.params = {};
+
+    PointSelectionSpec pick;
+    pick.minCount = 2;
+    pick.maxCount = 2;
+    pick.hint = QObject::tr("请在曲线上选择两个点定义积分范围（起点和终点）");
+    d.pointSelection = pick;
+
+    d.meta.insert("output", "Composite");  // 输出混合结果（标注点 + 面积数值）
+
+    AlgorithmDescriptorRegistry::instance().registerDescriptor(d);
+}
+
 void registerDefaultDescriptors() {
     registerMovingAverage();
     registerBaselineCorrection();
     registerDifferentiation();
     registerIntegration();
     registerTemperatureExtrapolation();
+    registerPeakArea();
 }
 

@@ -515,28 +515,10 @@ void MainController::onPeakAreaToolRequested()
         return;
     }
 
-    // 显示峰面积参数对话框
-    PeakAreaDialog dialog(m_curveManager, m_mainWindow);
-    if (dialog.exec() != QDialog::Accepted) {
-        qDebug() << "MainController::onPeakAreaToolRequested - 用户取消";
-        return;
-    }
-
-    // 获取用户选择的参数
-    QString curveId = dialog.selectedCurveId();
-    PeakAreaDialog::BaselineType baselineType = dialog.baselineType();
-    QString referenceCurveId = dialog.referenceCurveId();
-
-    qDebug() << "MainController::onPeakAreaToolRequested - 用户选择:";
-    qDebug() << "  计算曲线:" << curveId;
-    qDebug() << "  基线类型:" << (baselineType == PeakAreaDialog::BaselineType::Linear ? "直线基线" : "参考曲线基线");
-    if (!referenceCurveId.isEmpty()) {
-        qDebug() << "  参考曲线:" << referenceCurveId;
-    }
-
-    // 启动峰面积工具（进入选点模式）
-    bool useLinearBaseline = (baselineType == PeakAreaDialog::BaselineType::Linear);
-    m_plotWidget->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
+    // 使用元数据驱动路径执行峰面积算法
+    // 峰面积算法会请求用户选择2个点定义积分范围
+    qDebug() << "MainController::onPeakAreaToolRequested - 切换到元数据驱动路径";
+    onAlgorithmRequested("peak_area", QVariantMap());
 }
 
 // ==================== 异步执行进度反馈槽函数实现 ====================
