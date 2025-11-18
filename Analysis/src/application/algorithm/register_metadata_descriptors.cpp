@@ -71,8 +71,77 @@ static void registerBaselineCorrection() {
     AlgorithmDescriptorRegistry::instance().registerDescriptor(d);
 }
 
+static void registerDifferentiation() {
+    AlgorithmDescriptor d;
+    d.name = "differentiation";  // 必须与 DifferentiationAlgorithm::name() 返回值一致
+    d.displayName = QObject::tr("微分");
+
+    // 微分算法有默认参数，但通常不需要用户修改，可以直接执行
+    // 如果需要高级用户可配置，可以取消下面的注释
+
+    // ParameterDescriptor halfWin;
+    // halfWin.name = "halfWin";  // 对应 ContextKeys::ParamHalfWin = "param.halfWin"
+    // halfWin.label = QObject::tr("半窗口大小");
+    // halfWin.type = ParamType::Integer;
+    // halfWin.required = false;
+    // halfWin.defaultValue = 50;
+    // halfWin.intConstraint = IntConstraint{1, 500, 1};
+    // halfWin.description = QObject::tr("用于平滑的半窗口大小");
+    //
+    // ParameterDescriptor dt;
+    // dt.name = "dt";  // 对应 ContextKeys::ParamDt = "param.dt"
+    // dt.label = QObject::tr("时间步长");
+    // dt.type = ParamType::Double;
+    // dt.required = false;
+    // dt.defaultValue = 0.1;
+    // dt.doubleConstraint = DoubleConstraint{0.001, 10.0, 0.01, "s"};
+    // dt.description = QObject::tr("虚拟时间步长");
+    //
+    // d.params = { halfWin, dt };
+
+    // 无参数，直接执行
+    d.params = {};
+    d.meta.insert("output", "AppendCurve");
+
+    AlgorithmDescriptorRegistry::instance().registerDescriptor(d);
+}
+
+static void registerIntegration() {
+    AlgorithmDescriptor d;
+    d.name = "integration";  // 必须与 IntegrationAlgorithm::name() 返回值一致
+    d.displayName = QObject::tr("积分");
+
+    // 积分算法无可配置参数，直接执行
+    d.params = {};
+    d.meta.insert("output", "AppendCurve");
+
+    AlgorithmDescriptorRegistry::instance().registerDescriptor(d);
+}
+
+static void registerTemperatureExtrapolation() {
+    AlgorithmDescriptor d;
+    d.name = "temperature_extrapolation";  // 必须与 TemperatureExtrapolationAlgorithm::name() 返回值一致
+    d.displayName = QObject::tr("温度外推");
+
+    // 无参数，但需要选择2个点定义切线区域
+    d.params = {};
+
+    PointSelectionSpec pick;
+    pick.minCount = 2;
+    pick.maxCount = 2;
+    pick.hint = QObject::tr("请在曲线上选择两个点定义切线区域（用于外推起始/终止温度）");
+    d.pointSelection = pick;
+
+    d.meta.insert("output", "Marker");  // 输出标注点（Onset/Endset温度）
+
+    AlgorithmDescriptorRegistry::instance().registerDescriptor(d);
+}
+
 void registerDefaultDescriptors() {
     registerMovingAverage();
     registerBaselineCorrection();
+    registerDifferentiation();
+    registerIntegration();
+    registerTemperatureExtrapolation();
 }
 
