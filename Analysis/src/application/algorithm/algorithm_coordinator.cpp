@@ -86,6 +86,10 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
 
 void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName, const QVariantMap& presetParameters)
 {
+    // ==================== 遗留路径入口（仅供工具类使用）====================
+    // 注意：所有常规算法应使用 runByName() 元数据驱动路径
+    // 此方法仅保留用于峰面积等需要点选交互的工具类
+
     if (algorithmName.isEmpty()) {
         return;
     }
@@ -112,35 +116,17 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
     QVariantMap parameters = presetParameters;
     const bool hasPresetParameters = !presetParameters.isEmpty();
 
+    // 注意：所有算法已迁移到元数据驱动路径（runByName），此处仅保留用于峰面积等工具类
     switch (descriptor.interaction) {
     case AlgorithmInteraction::None: {
+        // 无参数、无选点，直接执行
         QVariantMap effectiveParams = parameters;
         populateDefaultParameters(descriptor, effectiveParams);
         executeAlgorithm(descriptor, activeCurve, effectiveParams, {});
         break;
     }
-    case AlgorithmInteraction::ParameterDialog: {
-        QVariantMap effectiveParams = parameters;
-        populateDefaultParameters(descriptor, effectiveParams);
-
-        // ParameterDialog 类型：总是弹出对话框让用户确认/修改参数
-        // 除非用户明确预设了参数（通过代码调用）
-        if (hasPresetParameters) {
-            // 用户预设了参数，直接执行
-            executeAlgorithm(descriptor, activeCurve, effectiveParams, {});
-        } else {
-            // 弹出参数对话框让用户输入/确认
-            PendingRequest request;
-            request.descriptor = descriptor;
-            request.curveId = activeCurve->id();
-            request.parameters = effectiveParams;
-            request.phase = PendingPhase::AwaitParameters;
-            m_pending = request;
-            emit requestParameterDialog(descriptor.name, descriptor.parameters, effectiveParams);
-        }
-        break;
-    }
     case AlgorithmInteraction::PointSelection: {
+        // 需要选点（如峰面积工具）
         PendingRequest request;
         request.descriptor = descriptor;
         request.curveId = activeCurve->id();
@@ -151,59 +137,16 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
         emit requestPointSelection(descriptor.name, request.curveId, request.pointsRequired, descriptor.pointSelectionHint);
         break;
     }
-    case AlgorithmInteraction::ParameterThenPoint: {
-        PendingRequest request;
-        request.descriptor = descriptor;
-        request.curveId = activeCurve->id();
-        request.parameters = parameters;
-        request.pointsRequired = qMax(1, descriptor.requiredPointCount);
-
-        populateDefaultParameters(descriptor, request.parameters);
-
-        // 如果用户预设了参数，直接进入点选阶段
-        // 否则先弹出参数对话框
-        if (hasPresetParameters) {
-            request.phase = PendingPhase::AwaitPoints;
-            m_pending = request;
-            emit requestPointSelection(descriptor.name, request.curveId, request.pointsRequired, descriptor.pointSelectionHint);
-        } else {
-            // 需要用户输入参数
-            request.phase = PendingPhase::AwaitParameters;
-            m_pending = request;
-            emit requestParameterDialog(descriptor.name, descriptor.parameters, request.parameters);
-        }
+    case AlgorithmInteraction::ParameterDialog:
+    case AlgorithmInteraction::ParameterThenPoint:
+        // 这两种交互类型已废弃，所有算法应使用元数据驱动路径（runByName）
+        qWarning() << "AlgorithmCoordinator::handleAlgorithmTriggered - 废弃的交互类型" << static_cast<int>(descriptor.interaction)
+                   << "，算法应迁移到元数据驱动路径（runByName）";
+        handleError(descriptor.name, QStringLiteral("不支持的交互类型，请联系开发者"));
         break;
     }
-    }
 }
 
-void AlgorithmCoordinator::handleParameterSubmission(const QString& algorithmName, const QVariantMap& parameters)
-{
-    if (!m_pending.has_value() || m_pending->descriptor.name != algorithmName) {
-        qWarning() << "AlgorithmCoordinator::handleParameterSubmission - 没有匹配的待处理请求";
-        return;
-    }
-
-    m_pending->parameters = parameters;
-
-    if (m_pending->descriptor.interaction == AlgorithmInteraction::ParameterDialog) {
-        ThermalCurve* curve = m_curveManager->getCurve(m_pending->curveId);
-        if (!curve) {
-            handleError(algorithmName, QStringLiteral("无法获取曲线，算法终止"));
-            return;
-        }
-        executeAlgorithm(m_pending->descriptor, curve, parameters, {});
-        resetState();
-        return;
-    }
-
-    if (m_pending->descriptor.interaction == AlgorithmInteraction::ParameterThenPoint) {
-        m_pending->phase = PendingPhase::AwaitPoints;
-        emit requestPointSelection(
-            m_pending->descriptor.name, m_pending->curveId, m_pending->pointsRequired, m_pending->descriptor.pointSelectionHint);
-        return;
-    }
-}
 
 void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataPoint>& points)
 {

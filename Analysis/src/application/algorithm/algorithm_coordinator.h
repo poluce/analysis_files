@@ -28,29 +28,25 @@ class AlgorithmCoordinator : public QObject {
 public:
     explicit AlgorithmCoordinator(AlgorithmManager* manager, CurveManager* curveManager, AlgorithmContext* context, QObject* parent = nullptr);
 
+    // ==================== 遗留路径（旧算法链路，仅供工具类使用）====================
+
     /**
-     * @brief 处理算法触发请求（主入口）
+     * @brief 处理算法触发请求（遗留路径）
      * @param algorithmName 算法名称
      * @param presetParameters 预设参数（可选）
      *
-     * 根据算法描述符的交互类型分发处理：
+     * @deprecated 仅供峰面积等工具类使用，新算法应使用 runByName()
+     *
+     * 支持的交互类型（仅用于工具类）：
      * - None: 直接执行
-     * - ParameterDialog: 弹出参数对话框
-     * - PointSelection: 请求用户选点
-     * - ParameterThenPoint: 先参数后选点
+     * - PointSelection: 请求用户选点（用于峰面积工具）
+     *
+     * 已废弃的交互类型（会报错）：
+     * - ParameterDialog: 已被元数据驱动路径替代
+     * - ParameterThenPoint: 已被元数据驱动路径替代
      */
     void handleAlgorithmTriggered(const QString& algorithmName, const QVariantMap& presetParameters = {});
 
-    /**
-     * @brief 处理参数提交结果
-     * @param algorithmName 算法名称
-     * @param parameters 用户提交的参数
-     *
-     * 根据待处理请求的交互类型决定下一步：
-     * - ParameterDialog: 执行算法
-     * - ParameterThenPoint: 进入点选阶段
-     */
-    void handleParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
 
     /**
      * @brief 处理点选结果
@@ -96,15 +92,6 @@ public:
     void handleGenericParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
 
 signals:
-    /**
-     * @brief 请求弹出参数对话框
-     * @param algorithmName 算法名称
-     * @param parameters 参数定义列表
-     * @param initialValues 初始值（默认值或历史值）
-     */
-    void requestParameterDialog(
-        const QString& algorithmName, const QList<AlgorithmParameterDefinition>& parameters, const QVariantMap& initialValues);
-
     /**
      * @brief 请求用户在图表上选点
      * @param algorithmName 算法名称
