@@ -3,7 +3,10 @@
 #include "domain/model/thermal_curve.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
+#include "ui/generic_algorithm_dialog.h"
 #include "ui/peak_area_dialog.h"
+#include "application/algorithm/metadata_descriptor.h"
+#include "application/algorithm/metadata_descriptor_registry.h"
 #include <QDebug>
 #include <QtGlobal>
 
@@ -152,8 +155,8 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
         m_algorithmCoordinator, &AlgorithmCoordinator::requestPointSelection, this,
         &MainController::onCoordinatorRequestPointSelection, Qt::UniqueConnection);
     connect(
-        m_algorithmCoordinator, &AlgorithmCoordinator::requestParameterDialog, this,
-        &MainController::onRequestParameterDialog, Qt::UniqueConnection);
+        m_algorithmCoordinator, &AlgorithmCoordinator::requestGenericParameterDialog, this,
+        &MainController::onRequestGenericParameterDialog, Qt::UniqueConnection);
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::showMessage, this, &MainController::onCoordinatorShowMessage,
         Qt::UniqueConnection);
@@ -257,9 +260,19 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 统一使用 AlgorithmCoordinator 架构（依赖已保证非空）
+    // 使用元数据驱动架构执行算法
+    if (!App::AlgorithmDescriptorRegistry::instance().has(algorithmName)) {
+        qWarning() << "MainController: 算法未在元数据注册表中注册：" << algorithmName;
+        QMessageBox::warning(
+            m_mainWindow,
+            tr("算法未注册"),
+            tr("算法 \"%1\" 未在元数据注册表中注册，请联系开发者。").arg(algorithmName)
+        );
+        return;
+    }
 
-    m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
+    qDebug() << "MainController: 使用元数据驱动路径执行算法：" << algorithmName;
+    m_algorithmCoordinator->runByName(algorithmName);
 }
 
 
@@ -384,55 +397,40 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
              << (cascadeDelete ? "（包括子曲线）" : "");
 }
 
-void MainController::onRequestParameterDialog(
-    const QString& algorithmName,
-    const QList<AlgorithmParameterDefinition>& parameters,
-    const QVariantMap& initialValues)
+void MainController::onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
-    qDebug() << "MainController::onRequestParameterDialog - 算法:" << algorithmName
-             << ", 参数数量:" << parameters.size();
+    qDebug() << "MainController::onRequestGenericParameterDialog - 算法:" << algorithmName;
 
-    // 统一入口：弹出参数对话框
-    if (parameters.isEmpty()) {
-        qWarning() << "MainController::onRequestParameterDialog - 参数列表为空，跳过对话框";
+    // 从 QVariant 中提取 App::AlgorithmDescriptor
+    if (!descriptor.canConvert<App::AlgorithmDescriptor>()) {
+        qWarning() << "MainController: 无法转换描述符为 App::AlgorithmDescriptor";
         return;
     }
 
-    // 简化版：只处理单个整数参数（如移动平均的窗口大小）
-    // 未来可扩展为通用参数对话框
-    if (parameters.size() == 1 && parameters[0].valueType == QVariant::Int) {
-        const auto& param = parameters[0];
-        bool ok = false;
-        int minValue = param.constraints.value("min", 1).toInt();
-        int maxValue = param.constraints.value("max", 999).toInt();
-        int defaultValue = initialValues.value(param.key, param.defaultValue).toInt();
+    App::AlgorithmDescriptor desc = descriptor.value<App::AlgorithmDescriptor>();
 
-        int value = QInputDialog::getInt(
-            m_mainWindow,
-            param.label,
-            param.label + ":",
-            defaultValue,
-            minValue,
-            maxValue,
-            1,
-            &ok
-        );
+    // 创建通用参数对话框
+    auto* dialog = new GenericAlgorithmDialog(desc, m_mainWindow);
 
-        if (ok) {
-            QVariantMap result;
-            result.insert(param.key, value);
-            m_algorithmCoordinator->handleParameterSubmission(algorithmName, result);
-            qDebug() << "MainController: 用户提交参数 -" << param.key << "=" << value;
-        } else {
-            qDebug() << "MainController: 用户取消参数输入";
-            m_algorithmCoordinator->cancelPendingRequest();
-        }
-    } else {
-        // 未来扩展：通用参数对话框
-        qWarning() << "MainController::onRequestParameterDialog - 暂不支持多参数或非整数参数";
-    }
+    // 连接对话框的接受信号
+    connect(dialog, &QDialog::accepted, this, [=]() {
+        QVariantMap parameters = dialog->values();
+        qDebug() << "MainController: 用户提交参数:" << parameters;
+        m_algorithmCoordinator->handleGenericParameterSubmission(algorithmName, parameters);
+        dialog->deleteLater();
+    });
+
+    // 连接对话框的拒绝信号
+    connect(dialog, &QDialog::rejected, this, [=]() {
+        qDebug() << "MainController: 用户取消参数输入";
+        m_algorithmCoordinator->cancelPendingRequest();
+        dialog->deleteLater();
+    });
+
+    // 显示对话框
+    dialog->show();
 }
 
 void MainController::onCoordinatorRequestPointSelection(
@@ -522,27 +520,29 @@ void MainController::onPeakAreaToolRequested()
         return;
     }
 
-    // 显示峰面积参数对话框
+    // 显示峰面积参数对话框，让用户选择：
+    // 1. 计算曲线
+    // 2. 基线类型（直线基线 或 参考曲线基线）
+    // 3. 参考曲线（如果选择参考基线）
     PeakAreaDialog dialog(m_curveManager, m_mainWindow);
     if (dialog.exec() != QDialog::Accepted) {
         qDebug() << "MainController::onPeakAreaToolRequested - 用户取消";
         return;
     }
 
-    // 获取用户选择的参数
+    // 获取用户选择
     QString curveId = dialog.selectedCurveId();
-    PeakAreaDialog::BaselineType baselineType = dialog.baselineType();
+    bool useLinearBaseline = (dialog.baselineType() == PeakAreaDialog::BaselineType::Linear);
     QString referenceCurveId = dialog.referenceCurveId();
 
-    qDebug() << "MainController::onPeakAreaToolRequested - 用户选择:";
+    qDebug() << "MainController::onPeakAreaToolRequested - 启动峰面积视图工具";
     qDebug() << "  计算曲线:" << curveId;
-    qDebug() << "  基线类型:" << (baselineType == PeakAreaDialog::BaselineType::Linear ? "直线基线" : "参考曲线基线");
+    qDebug() << "  基线类型:" << (useLinearBaseline ? "直线基线" : "参考曲线基线");
     if (!referenceCurveId.isEmpty()) {
         qDebug() << "  参考曲线:" << referenceCurveId;
     }
 
-    // 启动峰面积工具（进入选点模式）
-    bool useLinearBaseline = (baselineType == PeakAreaDialog::BaselineType::Linear);
+    // 启动峰面积工具
     m_plotWidget->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
 }
 

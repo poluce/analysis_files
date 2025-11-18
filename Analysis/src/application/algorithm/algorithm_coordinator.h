@@ -29,31 +29,7 @@ public:
     explicit AlgorithmCoordinator(AlgorithmManager* manager, CurveManager* curveManager, AlgorithmContext* context, QObject* parent = nullptr);
 
     /**
-     * @brief 处理算法触发请求（主入口）
-     * @param algorithmName 算法名称
-     * @param presetParameters 预设参数（可选）
-     *
-     * 根据算法描述符的交互类型分发处理：
-     * - None: 直接执行
-     * - ParameterDialog: 弹出参数对话框
-     * - PointSelection: 请求用户选点
-     * - ParameterThenPoint: 先参数后选点
-     */
-    void handleAlgorithmTriggered(const QString& algorithmName, const QVariantMap& presetParameters = {});
-
-    /**
-     * @brief 处理参数提交结果
-     * @param algorithmName 算法名称
-     * @param parameters 用户提交的参数
-     *
-     * 根据待处理请求的交互类型决定下一步：
-     * - ParameterDialog: 执行算法
-     * - ParameterThenPoint: 进入点选阶段
-     */
-    void handleParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
-
-    /**
-     * @brief 处理点选结果
+     * @brief 处理点选结果（元数据驱动路径）
      * @param points 用户选择的点集合
      *
      * 验证点数量是否满足要求，然后执行算法。
@@ -69,16 +45,33 @@ public:
      */
     void cancelPendingRequest();
 
-signals:
     /**
-     * @brief 请求弹出参数对话框
+     * @brief 元数据驱动的算法执行入口（方案B）
      * @param algorithmName 算法名称
-     * @param parameters 参数定义列表
-     * @param initialValues 初始值（默认值或历史值）
+     *
+     * 从 MetadataDescriptorRegistry 获取算法描述，
+     * 根据描述驱动"参数窗→选点→执行"流程。
+     *
+     * 流程：
+     * 1. 从注册表获取 App::AlgorithmDescriptor
+     * 2. 如果需要参数，弹出 GenericAlgorithmDialog
+     * 3. 如果需要选点，请求用户选点
+     * 4. 执行算法
      */
-    void requestParameterDialog(
-        const QString& algorithmName, const QList<AlgorithmParameterDefinition>& parameters, const QVariantMap& initialValues);
+    void runByName(const QString& algorithmName);
 
+    /**
+     * @brief 处理通用参数对话框提交结果（方案B）
+     * @param algorithmName 算法名称
+     * @param parameters 用户提交的参数
+     *
+     * 根据元数据描述决定下一步：
+     * - 如果需要选点，进入选点阶段
+     * - 否则直接执行算法
+     */
+    void handleGenericParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
+
+signals:
     /**
      * @brief 请求用户在图表上选点
      * @param algorithmName 算法名称
@@ -88,6 +81,16 @@ signals:
      */
     void requestPointSelection(
         const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+
+    /**
+     * @brief 请求弹出通用参数对话框（方案B）
+     * @param algorithmName 算法名称
+     * @param descriptor App::AlgorithmDescriptor 描述符
+     *
+     * 发出此信号后，UI 层应创建 GenericAlgorithmDialog 并显示。
+     * 用户提交后调用 handleGenericParameterSubmission()。
+     */
+    void requestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
 
     /**
      * @brief 显示消息（用于状态提示）
@@ -159,11 +162,14 @@ private:
         AwaitPoints
     };
 
-    struct PendingRequest {
-        AlgorithmDescriptor descriptor;
+    // 元数据驱动流程的待处理请求
+    struct MetadataPendingRequest {
+        QString algorithmName;
         QString curveId;
         QVariantMap parameters;
-        int pointsRequired = 0;
+        bool needsPointSelection = false;
+        int requiredPointCount = 0;
+        QString pointSelectionHint;
         QVector<ThermalDataPoint> collectedPoints;
         PendingPhase phase = PendingPhase::None;
     };
@@ -192,7 +198,7 @@ private:
 
     /**
      * @brief 执行算法（核心方法）
-     * @param descriptor 算法描述符
+     * @param algorithmName 算法名称
      * @param curve 目标曲线
      * @param parameters 算法参数
      * @param points 用户选择的点（可选）
@@ -203,13 +209,13 @@ private:
      * 3. 调用 AlgorithmManager::executeAsync() 提交任务
      * 4. 保存任务ID
      */
-    void executeAlgorithm(const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
+    void executeAlgorithm(const QString& algorithmName, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
 
     /**
      * @brief 重置所有状态（统一状态清理入口）
      *
      * 清理所有运行时状态，包括：
-     * - 待处理请求 (m_pending)
+     * - 待处理请求 (m_metadataPending)
      * - 当前任务ID (m_currentTaskId)
      *
      * 在以下场景调用：
@@ -261,7 +267,9 @@ private:
     AlgorithmManager* m_algorithmManager = nullptr;
     CurveManager* m_curveManager = nullptr;
     AlgorithmContext* m_context = nullptr;
-    std::optional<PendingRequest> m_pending;
+
+    // ==================== 元数据驱动流程状态 ====================
+    std::optional<MetadataPendingRequest> m_metadataPending;
 
     // ==================== 异步执行状态 ====================
     QString m_currentTaskId;  ///< 当前正在执行的异步任务ID（用于取消）

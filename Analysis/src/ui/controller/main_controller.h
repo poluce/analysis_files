@@ -98,7 +98,7 @@ private slots:
      */
     void onImportTriggered();
     void onCoordinatorRequestPointSelection(const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
-    void onRequestParameterDialog(const QString& algorithmName, const QList<AlgorithmParameterDefinition>& parameters, const QVariantMap& initialValues);
+    void onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
     void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);
