@@ -425,7 +425,17 @@ void MainController::onCoordinatorRequestPointSelection(
         qWarning() << "MainController: 无法找到算法" << algorithmName << "，使用名称作为显示名";
     }
 
-    // 启动算法交互状态机，传递曲线ID以确定选点标记应附着到哪个Y轴
+    // 启动算法交互状态机
+    // Phase 3 更新：从 CurveManager 获取活动曲线的 ID
+    QString curveId;
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (activeCurve) {
+        curveId = activeCurve->id();
+    } else {
+        qWarning() << "MainController: 没有活动曲线，无法启动点选";
+        return;
+    }
+
     m_plotWidget->startAlgorithmInteraction(algorithmName, displayName, qMax(1, requiredPoints), hint, curveId);
 
     // 显示提示信息（如果有）
