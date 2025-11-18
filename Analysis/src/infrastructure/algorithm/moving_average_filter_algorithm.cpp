@@ -47,9 +47,17 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
     desc.category = category();
     desc.needsParameters = true;
     desc.needsPointSelection = false;
-    desc.parameters = {
-        { QStringLiteral("window"), QStringLiteral("窗口大小"), QVariant::Int, m_window, true, { { QStringLiteral("min"), 1 } } },
-    };
+
+    // Qt 5.14.2 不支持 QList 的初始化列表赋值，需要逐个添加
+    AlgorithmParameterDefinition windowParam;
+    windowParam.key = "window";
+    windowParam.label = "窗口大小";
+    windowParam.valueType = QVariant::Int;
+    windowParam.defaultValue = m_window;
+    windowParam.required = true;
+    windowParam.constraints["min"] = 1;
+    desc.parameters.append(windowParam);
+
     return desc;
 }
 
