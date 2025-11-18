@@ -268,7 +268,7 @@ void ThermalChart::updateSeriesStyle(QLineSeries* series, bool selected)
 }
 
 // ==================== 坐标轴管理辅助函数（占位符）====================
-// 重新调节指定轴的缩放
+// 重新调节指定轴的缩放（只对可见曲线进行调整）
 void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
 {
     if (!axis) {
@@ -285,6 +285,11 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
     }
 
     for (auto lineSeries : attachedSeries) {
+        // 跳过不可见的系列（只对可见曲线进行适应视图）
+        if (!lineSeries->isVisible()) {
+            continue;
+        }
+
         const auto points = lineSeries->pointsVector();
         for (const QPointF& point : points) {
             if (axis->orientation() == Qt::Horizontal) {
