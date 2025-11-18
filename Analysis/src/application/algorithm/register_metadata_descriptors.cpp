@@ -8,22 +8,24 @@ static void registerMovingAverage() {
     d.name = "moving_average";  // 必须与 MovingAverageFilterAlgorithm::name() 返回值一致
     d.displayName = QObject::tr("移动平均滤波");
 
+    // 参数1：窗口大小（必须与算法期望的键名一致：param.window）
     ParameterDescriptor win;
-    win.name = "windowSize";
+    win.name = "window";  // 对应 ContextKeys::ParamWindow = "param.window"
     win.label = QObject::tr("窗口尺寸");
     win.type = ParamType::Integer;
     win.required = true;
     win.defaultValue = 5;
     win.intConstraint = IntConstraint{1, 999, 2};
-    win.description = QObject::tr("建议使用奇数窗口以获得中心对齐效果");
+    // 移除描述字段，避免对话框中显示额外文本
 
+    // 参数2：迭代次数（可选）
     ParameterDescriptor passes;
     passes.name = "passes";
     passes.label = QObject::tr("迭代次数");
     passes.type = ParamType::Integer;
     passes.required = false;
     passes.defaultValue = 1;
-    passes.intConstraint = IntConstraint{1, 10, 1};
+    passes.intConstraint = IntConstraint{1, 999, 1};  // 修正最大值为999
 
     d.params = { win, passes };
     d.meta.insert("output", "AppendCurve");

@@ -28,10 +28,13 @@ void GenericAlgorithmDialog::buildUi(const AlgorithmDescriptor& desc) {
         descMap_[p.name] = p;
         QWidget* editor = createEditor(p);
         editors_[p.name] = editor;
-        form_->addRow(p.label, editor);
+
+        // 如果有描述信息，设置为 tooltip 而非额外的 label
         if (!p.description.isEmpty()) {
-            form_->addRow(new QLabel(p.description, this));
+            editor->setToolTip(p.description);
         }
+
+        form_->addRow(p.label, editor);
     }
 
     if (desc.pointSelection.has_value()) {
