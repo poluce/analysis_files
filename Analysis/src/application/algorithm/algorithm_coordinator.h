@@ -198,7 +198,7 @@ private:
 
     /**
      * @brief 执行算法（核心方法）
-     * @param descriptor 算法描述符
+     * @param algorithmName 算法名称
      * @param curve 目标曲线
      * @param parameters 算法参数
      * @param points 用户选择的点（可选）
@@ -209,7 +209,7 @@ private:
      * 3. 调用 AlgorithmManager::executeAsync() 提交任务
      * 4. 保存任务ID
      */
-    void executeAlgorithm(const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
+    void executeAlgorithm(const QString& algorithmName, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points);
 
     /**
      * @brief 重置所有状态（统一状态清理入口）

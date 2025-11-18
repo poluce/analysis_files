@@ -116,16 +116,8 @@ void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataP
         return;
     }
 
-    // 获取算法描述符
-    auto descriptor = descriptorFor(m_metadataPending->algorithmName);
-    if (!descriptor.has_value()) {
-        handleError(m_metadataPending->algorithmName, "无法获取算法描述符");
-        m_metadataPending.reset();
-        return;
-    }
-
     // 执行算法
-    executeAlgorithm(descriptor.value(), curve, m_metadataPending->parameters, m_metadataPending->collectedPoints);
+    executeAlgorithm(m_metadataPending->algorithmName, curve, m_metadataPending->parameters, m_metadataPending->collectedPoints);
 
     // 清除待处理请求
     m_metadataPending.reset();
@@ -206,17 +198,17 @@ bool AlgorithmCoordinator::populateDefaultParameters(const AlgorithmDescriptor& 
 }
 
 void AlgorithmCoordinator::executeAlgorithm(
-    const AlgorithmDescriptor& descriptor, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points)
+    const QString& algorithmName, ThermalCurve* curve, const QVariantMap& parameters, const QVector<ThermalDataPoint>& points)
 {
     if (!curve) {
-        handleError(descriptor.name, QStringLiteral("曲线数据无效"));
+        handleError(algorithmName, QStringLiteral("曲线数据无效"));
         return;
     }
 
     // 验证算法是否注册
-    if (!m_algorithmManager->getAlgorithm(descriptor.name)) {
-        qWarning() << "AlgorithmCoordinator::executeAlgorithm - 找不到算法实例:" << descriptor.name;
-        handleError(descriptor.name, QStringLiteral("算法未注册"));
+    if (!m_algorithmManager->getAlgorithm(algorithmName)) {
+        qWarning() << "AlgorithmCoordinator::executeAlgorithm - 找不到算法实例:" << algorithmName;
+        handleError(algorithmName, QStringLiteral("算法未注册"));
         return;
     }
 
@@ -248,22 +240,22 @@ void AlgorithmCoordinator::executeAlgorithm(
     }
 
     // 保存历史记录
-    m_context->setValue(QStringLiteral("history/%1/lastParameters").arg(descriptor.name), parameters, "AlgorithmCoordinator");
+    m_context->setValue(QStringLiteral("history/%1/lastParameters").arg(algorithmName), parameters, "AlgorithmCoordinator");
     if (!points.isEmpty()) {
-        m_context->setValue(QStringLiteral("history/%1/lastPoints").arg(descriptor.name), QVariant::fromValue(points), "AlgorithmCoordinator");
+        m_context->setValue(QStringLiteral("history/%1/lastPoints").arg(algorithmName), QVariant::fromValue(points), "AlgorithmCoordinator");
     }
 
-    qDebug() << "[AlgorithmCoordinator] 提交算法" << descriptor.name;
+    qDebug() << "[AlgorithmCoordinator] 提交算法" << algorithmName;
     qDebug() << "  上下文包含:" << m_context->keys().size() << "个键";
     qDebug() << "  参数数量:" << parameters.size();
     qDebug() << "  选点数量:" << points.size();
 
     // 使用异步执行接口（单线程模式，FIFO队列）
-    QString taskId = m_algorithmManager->executeAsync(descriptor.name, m_context);
+    QString taskId = m_algorithmManager->executeAsync(algorithmName, m_context);
 
     if (taskId.isEmpty()) {
         qCritical() << "[AlgorithmCoordinator] executeAsync 返回空 taskId，执行失败！";
-        handleError(descriptor.name, QStringLiteral("算法提交失败"));
+        handleError(algorithmName, QStringLiteral("算法提交失败"));
         return;
     }
 
@@ -403,14 +395,7 @@ void AlgorithmCoordinator::runByName(const QString& algorithmName)
         QVariantMap emptyParams;
         QVector<ThermalDataPoint> emptyPoints;
 
-        // 使用现有的 executeAlgorithm，但需要构造一个 AlgorithmDescriptor
-        // 从 AlgorithmManager 获取算法的 descriptor
-        auto descriptor = descriptorFor(algorithmName);
-        if (!descriptor.has_value()) {
-            handleError(algorithmName, "无法获取算法描述符");
-            return;
-        }
-        executeAlgorithm(descriptor.value(), curve, emptyParams, emptyPoints);
+        executeAlgorithm(algorithmName, curve, emptyParams, emptyPoints);
     }
 }
 
@@ -450,17 +435,9 @@ void AlgorithmCoordinator::handleGenericParameterSubmission(const QString& algor
             return;
         }
 
-        // 获取算法描述符
-        auto descriptor = descriptorFor(algorithmName);
-        if (!descriptor.has_value()) {
-            handleError(algorithmName, "无法获取算法描述符");
-            m_metadataPending.reset();
-            return;
-        }
-
         // 执行算法
         QVector<ThermalDataPoint> emptyPoints;
-        executeAlgorithm(descriptor.value(), curve, m_metadataPending->parameters, emptyPoints);
+        executeAlgorithm(algorithmName, curve, m_metadataPending->parameters, emptyPoints);
 
         // 清除待处理请求
         m_metadataPending.reset();
