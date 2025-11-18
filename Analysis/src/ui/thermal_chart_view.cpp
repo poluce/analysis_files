@@ -287,6 +287,9 @@ void ThermalChartView::wheelEvent(QWheelEvent* event)
         zoomXAxisAtPoint(chartPos, factor);
         zoomAllYAxesAtPoint(chartPos, factor);
 
+        // 坐标轴变化后，通知所有工具更新（避免工具位置显示错误）
+        m_thermalChart->updateAllTools();
+
         event->accept();
     } else {
         QChartView::wheelEvent(event);
@@ -817,6 +820,9 @@ void ThermalChartView::handleRightDrag(const QPointF& currentPos)
             yAxis->setRange(yMin + yDataDelta, yMax + yDataDelta);
         }
     }
+
+    // 坐标轴变化后，通知所有工具更新（避免工具位置显示错误）
+    m_thermalChart->updateAllTools();
 
     // 更新起始位置
     m_rightDragStartPos = currentPos;

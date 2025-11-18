@@ -160,6 +160,15 @@ public:
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
 
+    // ==================== 工具更新（坐标轴变化时）====================
+    /**
+     * @brief 更新所有工具（测量工具、峰面积工具）
+     *
+     * 当坐标轴范围改变时（如缩放、平移），需要调用此方法通知所有工具重绘。
+     * 工具使用数据坐标存储位置，坐标系变化时需要更新场景坐标映射。
+     */
+    void updateAllTools();
+
     // ==================== 选中点管理（用于算法交互）====================
     void rebindSelectedPointsSeries(QValueAxis* targetYAxis);
     void addSelectedPoint(const QPointF& point);

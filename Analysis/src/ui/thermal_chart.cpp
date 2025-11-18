@@ -564,6 +564,9 @@ void ThermalChart::rescaleAxes()
     updateAxisRangeForAttachedSeries(m_axisX);
     updateAxisRangeForAttachedSeries(m_axisY_mass);
     updateAxisRangeForAttachedSeries(m_axisY_diff);
+
+    // 坐标轴变化后，通知所有工具更新（避免工具位置显示错误）
+    updateAllTools();
 }
 
 void ThermalChart::setXAxisMode(XAxisMode mode)
@@ -918,6 +921,23 @@ void ThermalChart::clearAllPeakAreaTools()
     m_peakAreaTools.clear();
 
     qDebug() << "ThermalChart::clearAllPeakAreaTools - 清空所有峰面积工具";
+}
+
+void ThermalChart::updateAllTools()
+{
+    // 更新所有测量工具
+    for (QGraphicsObject* tool : m_massLossTools) {
+        if (tool) {
+            tool->update();
+        }
+    }
+
+    // 更新所有峰面积工具
+    for (QGraphicsObject* tool : m_peakAreaTools) {
+        if (tool) {
+            tool->update();
+        }
+    }
 }
 
 void ThermalChart::removeCurvePeakAreaTools(const QString& curveId)
