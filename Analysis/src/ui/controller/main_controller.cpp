@@ -402,17 +402,17 @@ void MainController::onRequestParameterDialog(
 
     // 简化版：只处理单个整数参数（如移动平均的窗口大小）
     // 未来可扩展为通用参数对话框
-    if (parameters.size() == 1 && parameters[0].type == QVariant::Int) {
+    if (parameters.size() == 1 && parameters[0].valueType == QVariant::Int) {
         const auto& param = parameters[0];
         bool ok = false;
         int minValue = param.constraints.value("min", 1).toInt();
         int maxValue = param.constraints.value("max", 999).toInt();
-        int defaultValue = initialValues.value(param.name, param.defaultValue).toInt();
+        int defaultValue = initialValues.value(param.key, param.defaultValue).toInt();
 
         int value = QInputDialog::getInt(
             m_mainWindow,
-            param.displayName,
-            param.displayName + ":",
+            param.label,
+            param.label + ":",
             defaultValue,
             minValue,
             maxValue,
@@ -422,9 +422,9 @@ void MainController::onRequestParameterDialog(
 
         if (ok) {
             QVariantMap result;
-            result.insert(param.name, value);
+            result.insert(param.key, value);
             m_algorithmCoordinator->handleParameterSubmission(algorithmName, result);
-            qDebug() << "MainController: 用户提交参数 -" << param.name << "=" << value;
+            qDebug() << "MainController: 用户提交参数 -" << param.key << "=" << value;
         } else {
             qDebug() << "MainController: 用户取消参数输入";
             m_algorithmCoordinator->cancelPendingRequest();
