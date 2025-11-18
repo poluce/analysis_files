@@ -6,6 +6,7 @@
 #include "ui/peak_area_dialog.h"
 #include "ui/generic_algorithm_dialog.h"
 #include "application/algorithm/metadata_descriptor.h"
+#include "application/algorithm/metadata_descriptor_registry.h"
 #include <QDebug>
 #include <QtGlobal>
 
@@ -262,9 +263,14 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 统一使用 AlgorithmCoordinator 架构（依赖已保证非空）
-
-    m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
+    // 优先使用元数据驱动架构（方案B），若无注册则回退到旧链路
+    if (App::AlgorithmDescriptorRegistry::instance().has(algorithmName)) {
+        qDebug() << "MainController: 使用元数据驱动路径执行算法：" << algorithmName;
+        m_algorithmCoordinator->runByName(algorithmName);
+    } else {
+        qDebug() << "MainController: 使用传统路径执行算法：" << algorithmName;
+        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
+    }
 }
 
 

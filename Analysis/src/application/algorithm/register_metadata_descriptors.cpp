@@ -5,7 +5,7 @@ using namespace App;
 
 static void registerMovingAverage() {
     AlgorithmDescriptor d;
-    d.name = "MovingAverageFilter";
+    d.name = "moving_average";  // 必须与 MovingAverageFilterAlgorithm::name() 返回值一致
     d.displayName = QObject::tr("移动平均滤波");
 
     ParameterDescriptor win;
@@ -33,7 +33,7 @@ static void registerMovingAverage() {
 
 static void registerBaselineCorrection() {
     AlgorithmDescriptor d;
-    d.name = "BaselineCorrection";
+    d.name = "baseline_correction";  // 必须与 BaselineCorrectionAlgorithm::name() 返回值一致
     d.displayName = QObject::tr("基线校正");
 
     ParameterDescriptor method;
