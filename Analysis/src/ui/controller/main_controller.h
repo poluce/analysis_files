@@ -97,8 +97,33 @@ private slots:
      * @brief 处理最终的数据导入请求。
      */
     void onImportTriggered();
-    void onCoordinatorRequestPointSelection(const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+    /**
+     * @brief 处理点选请求（Phase 3/4 更新）
+     * @param algorithmName 算法名称
+     * @param requiredPoints 所需点数
+     * @param hint 提示信息
+     *
+     * Phase 3 移除了 curveId 参数（从 CurveManager 获取活动曲线）
+     */
+    void onCoordinatorRequestPointSelection(const QString& algorithmName, int requiredPoints, const QString& hint);
+
+    /**
+     * @brief 处理参数对话框请求（Phase 4 新架构）
+     * @param algorithmName 算法名称
+     * @param descriptor 算法描述符（包含完整的参数定义）
+     *
+     * 根据 descriptor.parameters 动态创建 QDialog + QFormLayout，
+     * 用户提交后调用 AlgorithmCoordinator::submitParameters()
+     */
+    void onRequestParameterDialog(const QString& algorithmName, const AlgorithmDescriptor& descriptor);
+
+    /**
+     * @brief 旧的参数对话框请求处理（向后兼容）- 已废弃
+     *
+     * Phase 4 后使用 onRequestParameterDialog() 替代
+     */
     void onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
+
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
     void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);
@@ -135,6 +160,34 @@ private:
     void cleanupProgressDialog();
     QProgressDialog* ensureProgressDialog();
     void handleProgressDialogCancelled();
+
+    // ==================== Phase 4: 动态参数对话框辅助方法 ====================
+
+    /**
+     * @brief 根据参数定义创建对应的 QWidget 控件
+     * @param param 参数定义
+     * @param parent 父控件
+     * @return 创建的控件（QSpinBox, QDoubleSpinBox, QLineEdit, QCheckBox, QComboBox）
+     *
+     * 支持的参数类型：
+     * - Integer → QSpinBox
+     * - Double → QDoubleSpinBox
+     * - String → QLineEdit
+     * - Boolean → QCheckBox
+     * - Enum → QComboBox
+     */
+    QWidget* createParameterWidget(const AlgorithmParameterDefinition& param, QWidget* parent);
+
+    /**
+     * @brief 从控件中提取参数值
+     * @param widgets 控件映射表（参数名 → 控件指针）
+     * @param paramDefs 参数定义列表
+     * @return 参数值映射表（参数名 → 值）
+     *
+     * 通过 qobject_cast 判断控件类型，提取对应的值。
+     */
+    QVariantMap extractParameters(const QMap<QString, QWidget*>& widgets,
+                                  const QList<AlgorithmParameterDefinition>& paramDefs);
 };
 
 #endif // MAINCONTROLLER_H
