@@ -4,6 +4,8 @@
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
 #include "ui/peak_area_dialog.h"
+#include "ui/generic_algorithm_dialog.h"
+#include "application/algorithm/metadata_descriptor.h"
 #include <QDebug>
 #include <QtGlobal>
 
@@ -154,6 +156,9 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::requestParameterDialog, this,
         &MainController::onRequestParameterDialog, Qt::UniqueConnection);
+    connect(
+        m_algorithmCoordinator, &AlgorithmCoordinator::requestGenericParameterDialog, this,
+        &MainController::onRequestGenericParameterDialog, Qt::UniqueConnection);
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::showMessage, this, &MainController::onCoordinatorShowMessage,
         Qt::UniqueConnection);
@@ -433,6 +438,42 @@ void MainController::onRequestParameterDialog(
         // 未来扩展：通用参数对话框
         qWarning() << "MainController::onRequestParameterDialog - 暂不支持多参数或非整数参数";
     }
+}
+
+void MainController::onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "MainController::onRequestGenericParameterDialog - 算法:" << algorithmName;
+
+    // 从 QVariant 中提取 App::AlgorithmDescriptor
+    if (!descriptor.canConvert<App::AlgorithmDescriptor>()) {
+        qWarning() << "MainController: 无法转换描述符为 App::AlgorithmDescriptor";
+        return;
+    }
+
+    App::AlgorithmDescriptor desc = descriptor.value<App::AlgorithmDescriptor>();
+
+    // 创建通用参数对话框
+    auto* dialog = new GenericAlgorithmDialog(desc, m_mainWindow);
+
+    // 连接对话框的接受信号
+    connect(dialog, &QDialog::accepted, this, [=]() {
+        QVariantMap parameters = dialog->values();
+        qDebug() << "MainController: 用户提交参数:" << parameters;
+        m_algorithmCoordinator->handleGenericParameterSubmission(algorithmName, parameters);
+        dialog->deleteLater();
+    });
+
+    // 连接对话框的拒绝信号
+    connect(dialog, &QDialog::rejected, this, [=]() {
+        qDebug() << "MainController: 用户取消参数输入";
+        m_algorithmCoordinator->cancelPendingRequest();
+        dialog->deleteLater();
+    });
+
+    // 显示对话框
+    dialog->show();
 }
 
 void MainController::onCoordinatorRequestPointSelection(

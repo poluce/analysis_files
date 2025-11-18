@@ -69,6 +69,32 @@ public:
      */
     void cancelPendingRequest();
 
+    /**
+     * @brief 元数据驱动的算法执行入口（方案B）
+     * @param algorithmName 算法名称
+     *
+     * 从 MetadataDescriptorRegistry 获取算法描述，
+     * 根据描述驱动"参数窗→选点→执行"流程。
+     *
+     * 流程：
+     * 1. 从注册表获取 App::AlgorithmDescriptor
+     * 2. 如果需要参数，弹出 GenericAlgorithmDialog
+     * 3. 如果需要选点，请求用户选点
+     * 4. 执行算法
+     */
+    void runByName(const QString& algorithmName);
+
+    /**
+     * @brief 处理通用参数对话框提交结果（方案B）
+     * @param algorithmName 算法名称
+     * @param parameters 用户提交的参数
+     *
+     * 根据元数据描述决定下一步：
+     * - 如果需要选点，进入选点阶段
+     * - 否则直接执行算法
+     */
+    void handleGenericParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
+
 signals:
     /**
      * @brief 请求弹出参数对话框
@@ -88,6 +114,16 @@ signals:
      */
     void requestPointSelection(
         const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+
+    /**
+     * @brief 请求弹出通用参数对话框（方案B）
+     * @param algorithmName 算法名称
+     * @param descriptor App::AlgorithmDescriptor 描述符
+     *
+     * 发出此信号后，UI 层应创建 GenericAlgorithmDialog 并显示。
+     * 用户提交后调用 handleGenericParameterSubmission()。
+     */
+    void requestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
 
     /**
      * @brief 显示消息（用于状态提示）
@@ -164,6 +200,18 @@ private:
         QString curveId;
         QVariantMap parameters;
         int pointsRequired = 0;
+        QVector<ThermalDataPoint> collectedPoints;
+        PendingPhase phase = PendingPhase::None;
+    };
+
+    // 元数据驱动流程的待处理请求（方案B）
+    struct MetadataPendingRequest {
+        QString algorithmName;
+        QString curveId;
+        QVariantMap parameters;
+        bool needsPointSelection = false;
+        int requiredPointCount = 0;
+        QString pointSelectionHint;
         QVector<ThermalDataPoint> collectedPoints;
         PendingPhase phase = PendingPhase::None;
     };
@@ -262,6 +310,9 @@ private:
     CurveManager* m_curveManager = nullptr;
     AlgorithmContext* m_context = nullptr;
     std::optional<PendingRequest> m_pending;
+
+    // ==================== 元数据驱动流程状态（方案B）====================
+    std::optional<MetadataPendingRequest> m_metadataPending;
 
     // ==================== 异步执行状态 ====================
     QString m_currentTaskId;  ///< 当前正在执行的异步任务ID（用于取消）
