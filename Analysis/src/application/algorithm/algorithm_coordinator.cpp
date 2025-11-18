@@ -59,19 +59,16 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
         descriptor.name = algorithmName;
     }
 
-    // 若交互类型未显式指定，则依据输入类型/参数回退
+    // 若交互类型未显式指定，则依据输入类型推断
+    // 注意：现在所有算法都应该明确定义 descriptor.interaction，
+    // 这里的推断逻辑仅作为向后兼容的兜底方案
     if (descriptor.interaction == AlgorithmInteraction::None) {
-        switch (algorithm->inputType()) {
-        case IThermalAlgorithm::InputType::PointSelection:
+        if (algorithm->inputType() == IThermalAlgorithm::InputType::PointSelection) {
             descriptor.interaction = AlgorithmInteraction::PointSelection;
-            break;
-        case IThermalAlgorithm::InputType::None:
-            descriptor.interaction = descriptor.parameters.isEmpty() ? AlgorithmInteraction::None : AlgorithmInteraction::ParameterDialog;
-            break;
-        default:
-            descriptor.interaction = AlgorithmInteraction::ParameterDialog;
-            break;
         }
+        // 其他情况保持 None，不再根据 parameters 自动推断
+        // 原因：算法明确设置 interaction = None 表示无需用户交互，
+        // descriptor.parameters 中的参数可能只是内部可选配置，不应强制弹窗
     }
 
     // 默认的点选提示/数量回退
@@ -122,13 +119,15 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
     }
     case AlgorithmInteraction::ParameterDialog: {
         QVariantMap effectiveParams = parameters;
-        const bool autoExecutable = populateDefaultParameters(descriptor, effectiveParams);
+        populateDefaultParameters(descriptor, effectiveParams);
 
-        // 如果参数就绪（自动填充或预设），直接执行
-        if ((autoExecutable && !hasPresetParameters) || hasPresetParameters) {
+        // ParameterDialog 类型：总是弹出对话框让用户确认/修改参数
+        // 除非用户明确预设了参数（通过代码调用）
+        if (hasPresetParameters) {
+            // 用户预设了参数，直接执行
             executeAlgorithm(descriptor, activeCurve, effectiveParams, {});
         } else {
-            // 需要用户输入参数
+            // 弹出参数对话框让用户输入/确认
             PendingRequest request;
             request.descriptor = descriptor;
             request.curveId = activeCurve->id();
@@ -157,10 +156,11 @@ void AlgorithmCoordinator::handleAlgorithmTriggered(const QString& algorithmName
         request.parameters = parameters;
         request.pointsRequired = qMax(1, descriptor.requiredPointCount);
 
-        const bool paramsReady = populateDefaultParameters(descriptor, request.parameters);
+        populateDefaultParameters(descriptor, request.parameters);
 
-        // 如果参数就绪（自动填充或预设），进入点选阶段
-        if ((paramsReady && !hasPresetParameters) || hasPresetParameters) {
+        // 如果用户预设了参数，直接进入点选阶段
+        // 否则先弹出参数对话框
+        if (hasPresetParameters) {
             request.phase = PendingPhase::AwaitPoints;
             m_pending = request;
             emit requestPointSelection(descriptor.name, request.curveId, request.pointsRequired, descriptor.pointSelectionHint);

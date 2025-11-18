@@ -73,7 +73,6 @@ public:
     // ==================== 坐标轴管理 ====================
     void rescaleAxes();
     void setXAxisMode(XAxisMode mode);
-    void toggleXAxisMode(); // 切换横轴模式（温度 ↔ 时间）
     XAxisMode xAxisMode() const { return m_xAxisMode; }
 
     // ==================== 标题配置（自定义标题）====================
@@ -161,6 +160,15 @@ public:
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
 
+    // ==================== 工具更新（坐标轴变化时）====================
+    /**
+     * @brief 更新所有工具（测量工具、峰面积工具）
+     *
+     * 当坐标轴范围改变时（如缩放、平移），需要调用此方法通知所有工具重绘。
+     * 工具使用数据坐标存储位置，坐标系变化时需要更新场景坐标映射。
+     */
+    void updateAllTools();
+
     // ==================== 选中点管理（用于算法交互）====================
     void rebindSelectedPointsSeries(QValueAxis* targetYAxis);
     void addSelectedPoint(const QPointF& point);
@@ -198,14 +206,6 @@ private:
 
     // ==================== 框选缩放辅助函数 ====================
     /**
-     * @brief 自适应 Y 轴到指定 X 范围内的数据
-     * @param yAxis Y 轴指针
-     * @param xMin X 轴最小值
-     * @param xMax X 轴最大值
-     */
-    void rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax);
-
-    /**
      * @brief 检查系列是否绑定到指定 Y 轴
      * @param series 曲线系列
      * @param yAxis Y 轴指针
@@ -223,6 +223,19 @@ private:
      * @return true=找到数据，false=未找到数据
      */
     bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const;
+
+    // ==================== 工具清理辅助函数 ====================
+    /**
+     * @brief 删除特定曲线关联的所有测量工具
+     * @param curveId 曲线ID
+     */
+    void removeCurveMassLossTools(const QString& curveId);
+
+    /**
+     * @brief 删除特定曲线关联的所有峰面积工具
+     * @param curveId 曲线ID
+     */
+    void removeCurvePeakAreaTools(const QString& curveId);
 
 private:
     // ==================== 初始化状态标记 ====================

@@ -219,7 +219,9 @@ QToolBar* MainWindow::createMathToolBar()
 
     QAction* diffAction = toolbar->addAction(tr("微分算法"));
     diffAction->setData("differentiation");
+
     QAction* movAvgAction = toolbar->addAction(tr("移动平均滤波..."));
+    movAvgAction->setData("moving_average");  // 统一路径：设置 data
 
     QAction* integAction = toolbar->addAction(tr("积分"));
     integAction->setData("integration");
@@ -238,7 +240,9 @@ QToolBar* MainWindow::createMathToolBar()
     // 添加质量损失测量工具按钮
     QAction* massLossAction = toolbar->addAction(tr("质量损失"));
     connect(massLossAction, &QAction::triggered, this, &MainWindow::onMassLossToolRequested);
-    connect(movAvgAction, &QAction::triggered, this, &MainWindow::onMovingAverageAction);
+
+    // 统一路径：所有算法使用统一触发器
+    connect(movAvgAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(baselineAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(tempExtrapolationAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
     connect(diffAction, &QAction::triggered, this, &MainWindow::onAlgorithmActionTriggered);
@@ -278,18 +282,6 @@ void MainWindow::onAlgorithmActionTriggered()
     if (!algorithmName.isEmpty()) {
         emit algorithmRequested(algorithmName);
     }
-}
-
-void MainWindow::onMovingAverageAction()
-{
-    bool ok = false;
-    int window = QInputDialog::getInt(this, tr("移动平均滤波"), tr("窗口大小 (点数):"), 5, 1, 999, 1, &ok);
-    if (!ok) {
-        return;
-    }
-    QVariantMap params;
-    params.insert("window", window);
-    emit algorithmRequestedWithParams("moving_average", params);
 }
 
 void MainWindow::onMassLossToolRequested()

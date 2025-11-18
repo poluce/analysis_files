@@ -103,16 +103,6 @@ public:
     void setReferenceCurve(const QString& curveId);
 
     /**
-     * @brief 获取第一个测量点
-     */
-    const ThermalDataPoint& point1() const { return m_point1; }
-
-    /**
-     * @brief 获取第二个测量点
-     */
-    const ThermalDataPoint& point2() const { return m_point2; }
-
-    /**
      * @brief 获取峰面积
      */
     qreal peakArea() const { return m_cachedArea; }
@@ -123,9 +113,9 @@ public:
     QString peakAreaText() const;
 
     /**
-     * @brief 获取区域多边形（用于绘制）
+     * @brief 获取关联的曲线ID
      */
-    QPolygonF areaPolygon() const { return m_cachedPolygon; }
+    QString curveId() const { return m_curveId; }
 
 signals:
     /**

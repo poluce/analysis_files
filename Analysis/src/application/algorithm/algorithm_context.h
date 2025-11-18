@@ -304,13 +304,6 @@ public:
      */
     bool contains(const QString& key) const;
 
-    /**
-     * @brief 获取指定键的值（QVariant 类型）
-     * @param key 键名
-     * @param defaultValue 默认值（如果键不存在）
-     * @return 键对应的值，如果不存在则返回默认值
-     */
-    QVariant value(const QString& key, const QVariant& defaultValue = QVariant()) const;
 
     /**
      * @brief 获取指定键的值（类型安全的模板方法）
@@ -353,23 +346,11 @@ public:
     void remove(const QString& key);
 
     /**
-     * @brief 清空所有键值对
-     */
-    void clear();
-
-    /**
      * @brief 获取所有键的列表（可选按前缀过滤）
      * @param prefix 键名前缀（可选，如 "param." 获取所有参数键）
      * @return 键名列表
      */
     QStringList keys(const QString& prefix = QString()) const;
-
-    /**
-     * @brief 获取所有键值对（可选按前缀过滤）
-     * @param prefix 键名前缀（可选）
-     * @return 键值对映射表
-     */
-    QVariantMap values(const QString& prefix = QString()) const;
 
     /**
      * @brief 创建上下文的深拷贝（用于异步任务快照）

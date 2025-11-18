@@ -81,13 +81,11 @@ public:
     const QVector<ThermalDataPoint>& getProcessedData() const;
     const CurveMetadata& getMetadata() const;
     QString parentId() const;
-    PlotStyle plotStyle() const;
     bool isAuxiliaryCurve() const;
     bool isStronglyBound() const;
     bool isMainCurve() const;
 
     // --- 设置器 ---
-    void setName(const QString& name);
     void setProjectName(const QString& projectName);
     void setInstrumentType(InstrumentType type);
     void setSignalType(SignalType type);
@@ -95,7 +93,6 @@ public:
     void setProcessedData(const QVector<ThermalDataPoint>& data);
     void setMetadata(const CurveMetadata& metadata);
     void setParentId(const QString& parentId);
-    void setPlotStyle(PlotStyle style);
     void setIsAuxiliaryCurve(bool isAuxiliary);
     void setIsStronglyBound(bool isStronglyBound);
     void setIsMainCurve(bool isMainCurve);
@@ -112,11 +109,6 @@ public:
      * @return 物理量名称，例如 "质量" 或 "热流"
      */
     QString getPhysicalQuantityName() const;
-
-    /**
-     * @brief 将处理后的数据重置为原始数据。
-     */
-    void resetToRaw();
 
 private:
     QString m_id;                            // 唯一标识

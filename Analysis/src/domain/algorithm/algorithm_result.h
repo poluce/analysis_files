@@ -82,24 +82,6 @@ namespace OutputKeys {
         return QString(ResultPrefix) + algorithmName + QString(ResultTypeSuffix);
     }
 
-    /**
-     * @brief 生成算法历史结果键名
-     * @param algorithmName 算法名称
-     * @param index 历史记录索引（0为最新）
-     * @return 完整键名 (格式: "result/{algorithmName}/history/{index}")
-     *
-     * 使用示例:
-     * @code
-     * // 存储历史结果（第2次执行）
-     * context->setValue(OutputKeys::historyResult("differentiation", 1), result);
-     *
-     * // 读取历史结果
-     * auto oldResult = context->get<AlgorithmResult>(OutputKeys::historyResult("differentiation", 1));
-     * @endcode
-     */
-    inline QString historyResult(const QString& algorithmName, int index) {
-        return QString(ResultPrefix) + algorithmName + QString(HistoryInfix) + QString::number(index);
-    }
 }
 
 /**
@@ -253,13 +235,6 @@ public:
     // ==================== 曲线输出 ====================
 
     /**
-     * @brief 添加输出曲线
-     */
-    void addCurve(const ThermalCurve& curve) {
-        m_curves.append(curve);
-    }
-
-    /**
      * @brief 设置单条输出曲线（便捷方法）
      */
     void setCurve(const ThermalCurve& curve) {
@@ -271,14 +246,6 @@ public:
      * @brief 获取所有输出曲线
      */
     QList<ThermalCurve> curves() const { return m_curves; }
-
-    /**
-     * @brief 获取第一条曲线（用于单曲线输出）
-     * @return 如果有曲线返回第一条，否则返回空指针
-     */
-    const ThermalCurve* primaryCurve() const {
-        return m_curves.isEmpty() ? nullptr : &m_curves.first();
-    }
 
     bool hasCurves() const { return !m_curves.isEmpty(); }
     int curveCount() const { return m_curves.size(); }
@@ -292,7 +259,6 @@ public:
         }
     }
 
-    void setMarkers(const QList<QPointF>& markers) { m_markers = markers; }
     QList<QPointF> markers() const { return m_markers; }
     bool hasMarkers() const { return !m_markers.isEmpty(); }
     int markerCount() const { return m_markers.size(); }
@@ -306,8 +272,6 @@ public:
         }
     }
 
-    void setRegions(const QList<QPolygonF>& regions) { m_regions = regions; }
-    QList<QPolygonF> regions() const { return m_regions; }
     bool hasRegions() const { return !m_regions.isEmpty(); }
     int regionCount() const { return m_regions.size(); }
 
@@ -360,20 +324,8 @@ public:
 
     double area() const { return metaValue<double>(MetaKeys::Area, 0.0); }
 
-    void setPeakPosition(const QPointF& pos) {
-        m_meta[MetaKeys::PeakPosition] = pos;
-    }
-
-    QPointF peakPosition() const {
-        return metaValue<QPointF>(MetaKeys::PeakPosition, QPointF());
-    }
-
     void setSignalType(SignalType type) {
         m_meta[MetaKeys::SignalType] = QVariant::fromValue(type);
-    }
-
-    SignalType signalType() const {
-        return metaValue<SignalType>(MetaKeys::SignalType, SignalType::Raw);
     }
 
     // ==================== 调试输出 ====================

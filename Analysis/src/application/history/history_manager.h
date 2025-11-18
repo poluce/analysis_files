@@ -63,18 +63,6 @@ public:
     bool canRedo() const;
 
     /**
-     * @brief 获取撤销栈的当前大小。
-     * @return 撤销栈中命令的数量。
-     */
-    int undoCount() const;
-
-    /**
-     * @brief 获取重做栈的当前大小。
-     * @return 重做栈中命令的数量。
-     */
-    int redoCount() const;
-
-    /**
      * @brief 清空所有历史记录。
      */
     void clear();

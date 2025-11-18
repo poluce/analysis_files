@@ -5,6 +5,7 @@
 #include <QString>
 #include <QVariantMap>
 #include <QPointF>
+#include "domain/algorithm/algorithm_descriptor.h"
 
 // 前置声明
 class CurveManager;
@@ -97,6 +98,7 @@ private slots:
      */
     void onImportTriggered();
     void onCoordinatorRequestPointSelection(const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
+    void onRequestParameterDialog(const QString& algorithmName, const QList<AlgorithmParameterDefinition>& parameters, const QVariantMap& initialValues);
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
     void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);

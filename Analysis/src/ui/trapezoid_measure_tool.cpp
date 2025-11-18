@@ -394,12 +394,6 @@ void TrapezoidMeasureTool::paintMeasureText(QPainter* painter)
     painter->drawText(textRect, Qt::AlignCenter, text);
 }
 
-void TrapezoidMeasureTool::updatePosition()
-{
-    prepareGeometryChange();
-    update();
-}
-
 bool TrapezoidMeasureTool::isPointInCloseButton(const QPointF& pos) const
 {
     return m_closeButtonRect.contains(pos);

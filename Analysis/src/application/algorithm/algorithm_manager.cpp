@@ -48,76 +48,7 @@ IThermalAlgorithm* AlgorithmManager::getAlgorithm(const QString& name)
     return m_algorithms.value(name, nullptr);
 }
 
-// ==================== 上下文驱动执行实现 ====================
-
-void AlgorithmManager::executeWithContext(const QString& name, AlgorithmContext* context)
-{
-    if (!context) {
-        qWarning() << "算法执行失败：上下文为空。";
-        return;
-    }
-
-    if (!m_curveManager) {
-        qWarning() << "算法执行失败：CurveManager 未设置。";
-        return;
-    }
-
-    IThermalAlgorithm* algorithm = getAlgorithm(name);
-    if (!algorithm) {
-        qWarning() << "算法执行失败：找不到算法" << name;
-        return;
-    }
-
-    // 从上下文获取活动曲线
-    auto activeCurve = context->get<ThermalCurve*>(ContextKeys::ActiveCurve);
-    if (!activeCurve.has_value()) {
-        qWarning() << "算法执行失败：上下文中缺少活动曲线 (activeCurve)。";
-        return;
-    }
-
-    ThermalCurve* curve = activeCurve.value();
-    if (!curve) {
-        qWarning() << "算法执行失败：活动曲线为空指针。";
-        return;
-    }
-
-    qDebug() << "正在执行算法" << name << "（上下文驱动）于曲线" << curve->name();
-    qDebug() << "输入类型:" << static_cast<int>(algorithm->inputType());
-    qDebug() << "输出类型:" << static_cast<int>(algorithm->outputType());
-
-    // 设置 CurveManager 到上下文中（供算法访问其他曲线，如基线曲线）
-    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
-
-    // ==================== 两阶段执行机制 ====================
-    // 阶段1：准备上下文并验证数据完整性
-    bool isReady = algorithm->prepareContext(context);
-
-    if (!isReady) {
-        qWarning() << "算法" << name << "数据不完整，无法执行";
-        qWarning() << "  可能原因：缺少必需的用户交互数据（如选点、参数）";
-        return;
-    }
-
-    qDebug() << "算法" << name << "数据就绪，开始执行";
-
-    // 阶段2：执行算法（算法从上下文拉取完整数据）
-    AlgorithmResult result = algorithm->executeWithContext(context);
-
-    // 检查执行状态
-    if (result.hasError()) {
-        qWarning() << "算法" << name << "执行失败:" << result.errorMessage();
-        emit algorithmExecutionFailed(name, result.errorMessage());
-        return;
-    }
-
-    qDebug() << result.toString();
-
-    // 根据输出类型处理结果
-    handleAlgorithmResult(result);
-
-    // 发出成功信号
-    emit algorithmResultReady(name, result);
-}
+// ==================== 算法结果处理 ====================
 
 void AlgorithmManager::handleAlgorithmResult(const AlgorithmResult& result)
 {

@@ -766,19 +766,19 @@ int PeakAreaTool::getHandleAtPosition(const QPointF& pos) const
 
 void PeakAreaTool::updateCache()
 {
-    // 优化：脏检查 - 只在数据改变时才重新计算
-    if (!m_isDirty) {
-        return;  // 数据未变，跳过重新计算
-    }
-
-    qreal oldArea = m_cachedArea;
-    m_cachedArea = calculateArea();
+    // 无论是否脏，始终重建多边形（因为缩放/平移会改变数据→像素的映射）
     m_cachedPolygon = buildAreaPolygon();
-    m_isDirty = false;  // 清除脏标记
 
-    // 发出面积变化信号（如果变化显著）
-    if (qAbs(m_cachedArea - oldArea) > 0.001) {
-        emit areaChanged(m_cachedArea);
+    // 只在数据脏时重新计算面积（避免平移/缩放时重复计算面积数值）
+    if (m_isDirty) {
+        qreal oldArea = m_cachedArea;
+        m_cachedArea = calculateArea();
+        m_isDirty = false;  // 清除脏标记
+
+        // 发出面积变化信号（如果变化显著）
+        if (qAbs(m_cachedArea - oldArea) > 0.001) {
+            emit areaChanged(m_cachedArea);
+        }
     }
 }
 

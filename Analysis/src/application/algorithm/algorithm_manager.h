@@ -21,12 +21,12 @@ class AlgorithmThreadManager;
 /**
  * @brief 算法服务类 - 管理算法注册和执行
  *
- * 纯上下文驱动设计：所有算法通过 executeWithContext() 执行。
+ * 纯上下文驱动设计：所有算法通过 executeAsync() 异步执行。
  *
  * 设计要点：
  * - 通过 ApplicationContext 管理生命周期（依赖注入）
  * - 所有依赖（ThreadManager、HistoryManager）通过构造函数或 setter 注入
- * - 支持同步执行（executeWithContext）和异步执行（executeAsync）
+ * - 异步执行：在工作线程中执行算法，不阻塞UI
  */
 class AlgorithmManager : public QObject {
     Q_OBJECT
@@ -44,16 +44,6 @@ public:
     void setCurveManager(CurveManager* manager);
     void registerAlgorithm(IThermalAlgorithm* algorithm);
     IThermalAlgorithm* getAlgorithm(const QString& name);
-
-    /**
-     * @brief 上下文驱动的算法执行（同步，在主线程执行）
-     *
-     * 算法从上下文中拉取所需数据，执行后返回结果。
-     *
-     * @param name 算法名称
-     * @param context 算法上下文（包含曲线、参数、选择的点等）
-     */
-    void executeWithContext(const QString& name, AlgorithmContext* context);
 
     /**
      * @brief 异步执行算法（在工作线程中执行）

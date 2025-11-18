@@ -443,6 +443,12 @@ void ThermalChart::removeCurve(const QString& curveId)
     // 清除该曲线的标注点（如果有）
     removeCurveMarkers(curveId);
 
+    // 清除该曲线关联的测量工具（防止悬空指针导致崩溃）
+    removeCurveMassLossTools(curveId);
+
+    // 清除该曲线关联的峰面积工具（防止悬空指针导致崩溃）
+    removeCurvePeakAreaTools(curveId);
+
     unregisterSeriesMapping(curveId);
     series->deleteLater();
 
@@ -558,6 +564,9 @@ void ThermalChart::rescaleAxes()
     updateAxisRangeForAttachedSeries(m_axisX);
     updateAxisRangeForAttachedSeries(m_axisY_mass);
     updateAxisRangeForAttachedSeries(m_axisY_diff);
+
+    // 坐标轴变化后，通知所有工具更新（避免工具位置显示错误）
+    updateAllTools();
 }
 
 void ThermalChart::setXAxisMode(XAxisMode mode)
@@ -641,12 +650,6 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
 
     // 发出信号通知叠加物更新
     emit xAxisModeChanged(m_xAxisMode);
-}
-
-void ThermalChart::toggleXAxisMode()
-{
-    XAxisMode newMode = (m_xAxisMode == XAxisMode::Temperature) ? XAxisMode::Time : XAxisMode::Temperature;
-    setXAxisMode(newMode);
 }
 
 // ==================== Phase 3: 标注点（Markers）管理实现 ====================
@@ -825,6 +828,30 @@ void ThermalChart::clearAllMassLossTools()
     qDebug() << "ThermalChart::clearAllMassLossTools - 清空所有测量工具";
 }
 
+void ThermalChart::removeCurveMassLossTools(const QString& curveId)
+{
+    if (curveId.isEmpty()) {
+        return;
+    }
+
+    // 逆序遍历，避免删除时索引错乱
+    for (int i = m_massLossTools.size() - 1; i >= 0; --i) {
+        QGraphicsObject* obj = m_massLossTools[i];
+        if (!obj) {
+            continue;
+        }
+
+        // 尝试转换为 TrapezoidMeasureTool 并检查 curveId
+        TrapezoidMeasureTool* tool = qobject_cast<TrapezoidMeasureTool*>(obj);
+        if (tool && tool->curveId() == curveId) {
+            qDebug() << "ThermalChart::removeCurveMassLossTools - 删除曲线" << curveId << "的测量工具";
+            m_massLossTools.removeAt(i);
+            scene()->removeItem(obj);
+            obj->deleteLater();
+        }
+    }
+}
+
 // ==================== 峰面积工具实现 ====================
 
 PeakAreaTool*
@@ -894,6 +921,47 @@ void ThermalChart::clearAllPeakAreaTools()
     m_peakAreaTools.clear();
 
     qDebug() << "ThermalChart::clearAllPeakAreaTools - 清空所有峰面积工具";
+}
+
+void ThermalChart::updateAllTools()
+{
+    // 更新所有测量工具
+    for (QGraphicsObject* tool : m_massLossTools) {
+        if (tool) {
+            tool->update();
+        }
+    }
+
+    // 更新所有峰面积工具
+    for (QGraphicsObject* tool : m_peakAreaTools) {
+        if (tool) {
+            tool->update();
+        }
+    }
+}
+
+void ThermalChart::removeCurvePeakAreaTools(const QString& curveId)
+{
+    if (curveId.isEmpty()) {
+        return;
+    }
+
+    // 逆序遍历，避免删除时索引错乱
+    for (int i = m_peakAreaTools.size() - 1; i >= 0; --i) {
+        QGraphicsObject* obj = m_peakAreaTools[i];
+        if (!obj) {
+            continue;
+        }
+
+        // 尝试转换为 PeakAreaTool 并检查 curveId
+        PeakAreaTool* tool = qobject_cast<PeakAreaTool*>(obj);
+        if (tool && tool->curveId() == curveId) {
+            qDebug() << "ThermalChart::removeCurvePeakAreaTools - 删除曲线" << curveId << "的峰面积工具";
+            m_peakAreaTools.removeAt(i);
+            scene()->removeItem(obj);
+            obj->deleteLater();
+        }
+    }
 }
 
 // ==================== 标题配置（自定义标题）====================
@@ -1045,45 +1113,3 @@ bool ThermalChart::calculateYRangeInXRange(QLineSeries* series, qreal xMin, qrea
     return hasData;
 }
 
-void ThermalChart::rescaleYAxisForXRange(QValueAxis* yAxis, qreal xMin, qreal xMax)
-{
-    if (!yAxis) {
-        return;
-    }
-
-    qreal yMin = std::numeric_limits<qreal>::max();
-    qreal yMax = std::numeric_limits<qreal>::lowest();
-    bool hasData = false;
-
-    // 遍历所有系列，找出绑定到该 Y 轴的系列
-    for (QAbstractSeries* abstractSeries : series()) {
-        QLineSeries* lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
-        if (!lineSeries) {
-            continue;
-        }
-
-        // 检查该系列是否绑定到当前 Y 轴
-        if (!isSeriesAttachedToYAxis(lineSeries, yAxis)) {
-            continue;
-        }
-
-        // 计算该系列在 X 范围内的 Y 值范围
-        qreal seriesYMin, seriesYMax;
-        if (calculateYRangeInXRange(lineSeries, xMin, xMax, seriesYMin, seriesYMax)) {
-            yMin = qMin(yMin, seriesYMin);
-            yMax = qMax(yMax, seriesYMax);
-            hasData = true;
-        }
-    }
-
-    // 如果找到数据，设置 Y 轴范围
-    if (hasData) {
-        // 添加 5% 的边距，避免曲线贴边
-        qreal margin = (yMax - yMin) * 0.05;
-        yAxis->setRange(yMin - margin, yMax + margin);
-
-        qDebug() << "ThermalChart::rescaleYAxisForXRange - Y轴自适应到范围:" << (yMin - margin) << "~" << (yMax + margin);
-    } else {
-        qDebug() << "ThermalChart::rescaleYAxisForXRange - 在X范围内未找到数据";
-    }
-}
