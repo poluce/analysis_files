@@ -28,28 +28,8 @@ class AlgorithmCoordinator : public QObject {
 public:
     explicit AlgorithmCoordinator(AlgorithmManager* manager, CurveManager* curveManager, AlgorithmContext* context, QObject* parent = nullptr);
 
-    // ==================== 遗留路径（旧算法链路，仅供工具类使用）====================
-
     /**
-     * @brief 处理算法触发请求（遗留路径）
-     * @param algorithmName 算法名称
-     * @param presetParameters 预设参数（可选）
-     *
-     * @deprecated 仅供峰面积等工具类使用，新算法应使用 runByName()
-     *
-     * 支持的交互类型（仅用于工具类）：
-     * - None: 直接执行
-     * - PointSelection: 请求用户选点（用于峰面积工具）
-     *
-     * 已废弃的交互类型（会报错）：
-     * - ParameterDialog: 已被元数据驱动路径替代
-     * - ParameterThenPoint: 已被元数据驱动路径替代
-     */
-    void handleAlgorithmTriggered(const QString& algorithmName, const QVariantMap& presetParameters = {});
-
-
-    /**
-     * @brief 处理点选结果
+     * @brief 处理点选结果（元数据驱动路径）
      * @param points 用户选择的点集合
      *
      * 验证点数量是否满足要求，然后执行算法。
@@ -182,16 +162,7 @@ private:
         AwaitPoints
     };
 
-    struct PendingRequest {
-        AlgorithmDescriptor descriptor;
-        QString curveId;
-        QVariantMap parameters;
-        int pointsRequired = 0;
-        QVector<ThermalDataPoint> collectedPoints;
-        PendingPhase phase = PendingPhase::None;
-    };
-
-    // 元数据驱动流程的待处理请求（方案B）
+    // 元数据驱动流程的待处理请求
     struct MetadataPendingRequest {
         QString algorithmName;
         QString curveId;
@@ -244,7 +215,7 @@ private:
      * @brief 重置所有状态（统一状态清理入口）
      *
      * 清理所有运行时状态，包括：
-     * - 待处理请求 (m_pending)
+     * - 待处理请求 (m_metadataPending)
      * - 当前任务ID (m_currentTaskId)
      *
      * 在以下场景调用：
@@ -296,9 +267,8 @@ private:
     AlgorithmManager* m_algorithmManager = nullptr;
     CurveManager* m_curveManager = nullptr;
     AlgorithmContext* m_context = nullptr;
-    std::optional<PendingRequest> m_pending;
 
-    // ==================== 元数据驱动流程状态（方案B）====================
+    // ==================== 元数据驱动流程状态 ====================
     std::optional<MetadataPendingRequest> m_metadataPending;
 
     // ==================== 异步执行状态 ====================

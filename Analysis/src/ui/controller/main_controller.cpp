@@ -3,7 +3,6 @@
 #include "domain/model/thermal_curve.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
-#include "ui/peak_area_dialog.h"
 #include "ui/generic_algorithm_dialog.h"
 #include "application/algorithm/metadata_descriptor.h"
 #include "application/algorithm/metadata_descriptor_registry.h"
@@ -260,14 +259,19 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // 优先使用元数据驱动架构（方案B），若无注册则回退到旧链路
-    if (App::AlgorithmDescriptorRegistry::instance().has(algorithmName)) {
-        qDebug() << "MainController: 使用元数据驱动路径执行算法：" << algorithmName;
-        m_algorithmCoordinator->runByName(algorithmName);
-    } else {
-        qDebug() << "MainController: 使用传统路径执行算法：" << algorithmName;
-        m_algorithmCoordinator->handleAlgorithmTriggered(algorithmName, params);
+    // 使用元数据驱动架构执行算法
+    if (!App::AlgorithmDescriptorRegistry::instance().has(algorithmName)) {
+        qWarning() << "MainController: 算法未在元数据注册表中注册：" << algorithmName;
+        QMessageBox::warning(
+            m_mainWindow,
+            tr("算法未注册"),
+            tr("算法 \"%1\" 未在元数据注册表中注册，请联系开发者。").arg(algorithmName)
+        );
+        return;
     }
+
+    qDebug() << "MainController: 使用元数据驱动路径执行算法：" << algorithmName;
+    m_algorithmCoordinator->runByName(algorithmName);
 }
 
 
