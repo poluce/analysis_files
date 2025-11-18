@@ -3,8 +3,6 @@
 #include "domain/model/thermal_curve.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
-// Phase 6: 删除 GenericAlgorithmDialog 包含（改用动态 QDialog + QFormLayout）
-// #include "ui/generic_algorithm_dialog.h"
 #include "ui/peak_area_dialog.h"
 #include <QDebug>
 #include <QtGlobal>

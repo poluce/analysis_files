@@ -27,7 +27,6 @@ SOURCES += \
     src/ui/trapezoid_measure_tool.cpp \
     src/ui/peak_area_tool.cpp \
     src/ui/peak_area_dialog.cpp \
-    src/ui/generic_algorithm_dialog.cpp \
     src/ui/controller/main_controller.cpp \
     src/ui/controller/curve_view_controller.cpp \
     \
@@ -71,7 +70,6 @@ HEADERS += \
     src/ui/trapezoid_measure_tool.h \
     src/ui/peak_area_tool.h \
     src/ui/peak_area_dialog.h \
-    src/ui/generic_algorithm_dialog.h \
     src/ui/controller/main_controller.h \
     src/ui/controller/curve_view_controller.h \
     \
