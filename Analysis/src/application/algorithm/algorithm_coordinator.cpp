@@ -59,19 +59,16 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
         descriptor.name = algorithmName;
     }
 
-    // 若交互类型未显式指定，则依据输入类型/参数回退
+    // 若交互类型未显式指定，则依据输入类型推断
+    // 注意：现在所有算法都应该明确定义 descriptor.interaction，
+    // 这里的推断逻辑仅作为向后兼容的兜底方案
     if (descriptor.interaction == AlgorithmInteraction::None) {
-        switch (algorithm->inputType()) {
-        case IThermalAlgorithm::InputType::PointSelection:
+        if (algorithm->inputType() == IThermalAlgorithm::InputType::PointSelection) {
             descriptor.interaction = AlgorithmInteraction::PointSelection;
-            break;
-        case IThermalAlgorithm::InputType::None:
-            descriptor.interaction = descriptor.parameters.isEmpty() ? AlgorithmInteraction::None : AlgorithmInteraction::ParameterDialog;
-            break;
-        default:
-            descriptor.interaction = AlgorithmInteraction::ParameterDialog;
-            break;
         }
+        // 其他情况保持 None，不再根据 parameters 自动推断
+        // 原因：算法明确设置 interaction = None 表示无需用户交互，
+        // descriptor.parameters 中的参数可能只是内部可选配置，不应强制弹窗
     }
 
     // 默认的点选提示/数量回退
