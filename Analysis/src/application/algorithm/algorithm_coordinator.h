@@ -46,28 +46,24 @@ public:
     void cancelPendingRequest();
 
     /**
-     * @brief 元数据驱动的算法执行入口（方案B）
+     * @brief 元数据驱动的算法执行入口（方案B）- 已禁用，等待 Phase 3 重构
      * @param algorithmName 算法名称
      *
-     * 从 MetadataDescriptorRegistry 获取算法描述，
-     * 根据描述驱动"参数窗→选点→执行"流程。
+     * TODO (Phase 3): 此方法将被重写为基于算法自描述的新架构
+     * - 使用 IThermalAlgorithm::descriptor() 获取算法描述
+     * - 实现 run() 和 processNextStep() 方法
+     * - 删除 PendingPhase 枚举，简化为 PendingRequest 结构体
      *
-     * 流程：
-     * 1. 从注册表获取 App::AlgorithmDescriptor
-     * 2. 如果需要参数，弹出 GenericAlgorithmDialog
-     * 3. 如果需要选点，请求用户选点
-     * 4. 执行算法
+     * 当前使用 handleAlgorithmTriggered() 执行算法
      */
     void runByName(const QString& algorithmName);
 
     /**
-     * @brief 处理通用参数对话框提交结果（方案B）
+     * @brief 处理通用参数对话框提交结果（方案B）- 已禁用，等待 Phase 3 重构
      * @param algorithmName 算法名称
      * @param parameters 用户提交的参数
      *
-     * 根据元数据描述决定下一步：
-     * - 如果需要选点，进入选点阶段
-     * - 否则直接执行算法
+     * TODO (Phase 3): 此方法将被 submitParameters() 替代
      */
     void handleGenericParameterSubmission(const QString& algorithmName, const QVariantMap& parameters);
 
@@ -83,12 +79,12 @@ signals:
         const QString& algorithmName, const QString& curveId, int requiredPoints, const QString& hint);
 
     /**
-     * @brief 请求弹出通用参数对话框（方案B）
+     * @brief 请求弹出通用参数对话框（方案B）- 已禁用，等待 Phase 4 重构
      * @param algorithmName 算法名称
-     * @param descriptor App::AlgorithmDescriptor 描述符
+     * @param descriptor AlgorithmDescriptor 描述符（领域层）
      *
-     * 发出此信号后，UI 层应创建 GenericAlgorithmDialog 并显示。
-     * 用户提交后调用 handleGenericParameterSubmission()。
+     * TODO (Phase 4): 此信号将被 requestParameterDialog() 替代
+     * 新架构使用动态参数对话框（QDialog + QFormLayout）
      */
     void requestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
 

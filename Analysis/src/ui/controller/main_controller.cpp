@@ -5,8 +5,6 @@
 #include "ui/data_import_widget.h"
 #include "ui/generic_algorithm_dialog.h"
 #include "ui/peak_area_dialog.h"
-#include "application/algorithm/metadata_descriptor.h"
-#include "application/algorithm/metadata_descriptor_registry.h"
 #include <QDebug>
 #include <QtGlobal>
 
@@ -18,6 +16,7 @@
 #include "application/history/clear_curves_command.h"
 #include "application/history/remove_curve_command.h"
 #include "application/history/history_manager.h"
+#include "domain/algorithm/algorithm_descriptor.h"  // 领域层描述符（Phase 1 迁移）
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "ui/chart_view.h"
 #include "ui/main_window.h"
@@ -403,13 +402,16 @@ void MainController::onRequestGenericParameterDialog(const QString& algorithmNam
 
     qDebug() << "MainController::onRequestGenericParameterDialog - 算法:" << algorithmName;
 
-    // 从 QVariant 中提取 App::AlgorithmDescriptor
-    if (!descriptor.canConvert<App::AlgorithmDescriptor>()) {
-        qWarning() << "MainController: 无法转换描述符为 App::AlgorithmDescriptor";
+    // TODO (Phase 4): 此方法将被重构，使用新的动态参数对话框实现
+    // 当前使用领域层 AlgorithmDescriptor
+
+    // 从 QVariant 中提取 AlgorithmDescriptor（领域层）
+    if (!descriptor.canConvert<AlgorithmDescriptor>()) {
+        qWarning() << "MainController: 无法转换描述符为 AlgorithmDescriptor";
         return;
     }
 
-    App::AlgorithmDescriptor desc = descriptor.value<App::AlgorithmDescriptor>();
+    AlgorithmDescriptor desc = descriptor.value<AlgorithmDescriptor>();
 
     // 创建通用参数对话框
     auto* dialog = new GenericAlgorithmDialog(desc, m_mainWindow);

@@ -9,13 +9,14 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include "application/algorithm/metadata_descriptor.h"
+#include "domain/algorithm/algorithm_descriptor.h"
 
-using namespace App;
+// TODO (Phase 4): 此实现将被重构，使用增强后的领域层 AlgorithmDescriptor
+// 当前简化版本仅支持基础参数类型
 
 GenericAlgorithmDialog::GenericAlgorithmDialog(const AlgorithmDescriptor& desc, QWidget* parent)
     : QDialog(parent) {
-    setWindowTitle(desc.displayName);
+    setWindowTitle(desc.name);  // 领域层使用 name 而非 displayName
     buildUi(desc);
 }
 
@@ -24,25 +25,20 @@ void GenericAlgorithmDialog::buildUi(const AlgorithmDescriptor& desc) {
     form_ = new QFormLayout();
     vbox->addLayout(form_);
 
-    for (const auto& p : desc.params) {
-        descMap_[p.name] = p;
+    // 领域层使用 parameters 而非 params，使用 key 而非 name
+    for (const auto& p : desc.parameters) {
+        descMap_[p.key] = p;
         QWidget* editor = createEditor(p);
-        editors_[p.name] = editor;
-
-        // 如果有描述信息，设置为 tooltip 而非额外的 label
-        if (!p.description.isEmpty()) {
-            editor->setToolTip(p.description);
-        }
+        editors_[p.key] = editor;
 
         form_->addRow(p.label, editor);
     }
 
-    if (desc.pointSelection.has_value()) {
-        const auto& spec = desc.pointSelection.value();
-        auto* hint = new QLabel(tr("需要选点：%1-%2 个。%3")
-            .arg(spec.minCount)
-            .arg(spec.maxCount < 0 ? tr("∞") : QString::number(spec.maxCount))
-            .arg(spec.hint), this);
+    // 领域层使用 requiredPointCount 和 pointSelectionHint
+    if (desc.requiredPointCount > 0) {
+        auto* hint = new QLabel(tr("需要选点：%1 个。%2")
+            .arg(desc.requiredPointCount)
+            .arg(desc.pointSelectionHint), this);
         hint->setStyleSheet("color: gray;");
         form_->addRow(hint);
     }
@@ -53,81 +49,66 @@ void GenericAlgorithmDialog::buildUi(const AlgorithmDescriptor& desc) {
     vbox->addWidget(buttons);
 }
 
-QWidget* GenericAlgorithmDialog::createEditor(const ParameterDescriptor& p) {
-    switch (p.type) {
-    case ParamType::Integer: {
+QWidget* GenericAlgorithmDialog::createEditor(const AlgorithmParameterDefinition& p) {
+    // 领域层使用 QVariant::Type 和通用 constraints QVariantMap
+    switch (p.valueType) {
+    case QVariant::Int: {
         auto* w = new QSpinBox(this);
-        if (p.intConstraint.has_value()) {
-            w->setMinimum(p.intConstraint->min);
-            w->setMaximum(p.intConstraint->max);
-            w->setSingleStep(p.intConstraint->step);
+        if (p.constraints.contains("min")) {
+            w->setMinimum(p.constraints.value("min").toInt());
+        }
+        if (p.constraints.contains("max")) {
+            w->setMaximum(p.constraints.value("max").toInt());
+        }
+        if (p.constraints.contains("step")) {
+            w->setSingleStep(p.constraints.value("step").toInt());
         }
         w->setValue(p.defaultValue.isValid() ? p.defaultValue.toInt() : 0);
         return w;
     }
-    case ParamType::Double: {
+    case QVariant::Double: {
         auto* w = new QDoubleSpinBox(this);
         w->setDecimals(6);
-        if (p.doubleConstraint.has_value()) {
-            w->setMinimum(p.doubleConstraint->min);
-            w->setMaximum(p.doubleConstraint->max);
-            w->setSingleStep(p.doubleConstraint->step);
-            if (!p.doubleConstraint->unit.isEmpty())
-                w->setSuffix(" " + p.doubleConstraint->unit);
+        if (p.constraints.contains("min")) {
+            w->setMinimum(p.constraints.value("min").toDouble());
+        }
+        if (p.constraints.contains("max")) {
+            w->setMaximum(p.constraints.value("max").toDouble());
+        }
+        if (p.constraints.contains("step")) {
+            w->setSingleStep(p.constraints.value("step").toDouble());
+        }
+        if (p.constraints.contains("unit")) {
+            w->setSuffix(" " + p.constraints.value("unit").toString());
         }
         w->setValue(p.defaultValue.isValid() ? p.defaultValue.toDouble() : 0.0);
         return w;
     }
-    case ParamType::Boolean: {
+    case QVariant::Bool: {
         auto* w = new QCheckBox(this);
         w->setChecked(p.defaultValue.isValid() ? p.defaultValue.toBool() : false);
         return w;
     }
-    case ParamType::String: {
+    case QVariant::String: {
         auto* w = new QLineEdit(this);
         w->setText(p.defaultValue.toString());
         return w;
     }
-    case ParamType::Enum: {
+    case QVariant::StringList: {
+        // 用于枚举类型（选项列表）
         auto* w = new QComboBox(this);
-        int idx = 0, defIdx = -1;
-        for (const auto& opt : p.enumOptions) {
-            w->addItem(opt.label, opt.value);
-            if (defIdx < 0 && p.defaultValue.isValid() && p.defaultValue.toString() == opt.value) {
-                defIdx = idx;
-            }
-            ++idx;
+        if (p.constraints.contains("options")) {
+            QStringList options = p.constraints.value("options").toStringList();
+            w->addItems(options);
         }
-        w->setCurrentIndex(defIdx >= 0 ? defIdx : 0);
+        if (p.defaultValue.isValid()) {
+            w->setCurrentText(p.defaultValue.toString());
+        }
         return w;
     }
-    case ParamType::DoubleRange: {
-        auto* container = new QWidget(this);
-        auto* layout = new QHBoxLayout(container);
-        layout->setContentsMargins(0,0,0,0);
-        auto* a = new QDoubleSpinBox(container);
-        auto* b = new QDoubleSpinBox(container);
-        a->setDecimals(6); b->setDecimals(6);
-        if (p.doubleConstraint.has_value()) {
-            for (auto* w : {a,b}) {
-                w->setMinimum(p.doubleConstraint->min);
-                w->setMaximum(p.doubleConstraint->max);
-                w->setSingleStep(p.doubleConstraint->step);
-                if (!p.doubleConstraint->unit.isEmpty())
-                    w->setSuffix(" " + p.doubleConstraint->unit);
-            }
-        }
-        if (p.defaultValue.canConvert<QVariantList>()) {
-            auto lst = p.defaultValue.toList();
-            if (lst.size() >= 2) { a->setValue(lst[0].toDouble()); b->setValue(lst[1].toDouble()); }
-        }
-        layout->addWidget(a); layout->addWidget(new QLabel(" ~ ", container)); layout->addWidget(b);
-        return container;
+    default:
+        return new QLabel(tr("不支持的参数类型"), this);
     }
-    case ParamType::PointsOnChart:
-        return new QLabel(tr("执行前将进入选点模式"), this);
-    }
-    return new QLabel(tr("未知参数类型"), this);
 }
 
 QMap<QString, QVariant> GenericAlgorithmDialog::values() const {
@@ -142,43 +123,31 @@ QVariant GenericAlgorithmDialog::readEditorValue(const QString& name) const {
     const auto p = descMap_.value(name);
     QWidget* w = editors_.value(name);
 
-    switch (p.type) {
-    case ParamType::Integer: return qobject_cast<QSpinBox*>(w)->value();
-    case ParamType::Double:  return qobject_cast<QDoubleSpinBox*>(w)->value();
-    case ParamType::Boolean: return qobject_cast<QCheckBox*>(w)->isChecked();
-    case ParamType::String:  return qobject_cast<QLineEdit*>(w)->text();
-    case ParamType::Enum: {
+    switch (p.valueType) {
+    case QVariant::Int:
+        return qobject_cast<QSpinBox*>(w)->value();
+    case QVariant::Double:
+        return qobject_cast<QDoubleSpinBox*>(w)->value();
+    case QVariant::Bool:
+        return qobject_cast<QCheckBox*>(w)->isChecked();
+    case QVariant::String:
+        return qobject_cast<QLineEdit*>(w)->text();
+    case QVariant::StringList: {
         auto* cb = qobject_cast<QComboBox*>(w);
-        return cb->currentData();
+        return cb->currentText();
     }
-    case ParamType::DoubleRange: {
-        auto* container = w;
-        auto spins = container->findChildren<QDoubleSpinBox*>();
-        if (spins.size() >= 2) {
-            return QVariantList{ spins[0]->value(), spins[1]->value() };
-        }
-        return QVariantList{};
-    }
-    case ParamType::PointsOnChart:
+    default:
         return QVariant();
     }
-    return QVariant();
 }
 
 bool GenericAlgorithmDialog::validateAll(QString* msg) const {
     for (auto it = descMap_.cbegin(); it != descMap_.cend(); ++it) {
         const auto& p = it.value();
         if (p.required) {
-            const auto v = readEditorValue(p.name);
-            if (!v.isValid() || (p.type == ParamType::String && v.toString().trimmed().isEmpty())) {
+            const auto v = readEditorValue(p.key);
+            if (!v.isValid() || (p.valueType == QVariant::String && v.toString().trimmed().isEmpty())) {
                 if (msg) *msg = tr("参数 [%1] 为必填").arg(p.label);
-                return false;
-            }
-        }
-        if (p.type == ParamType::DoubleRange) {
-            auto lst = readEditorValue(p.name).toList();
-            if (lst.size() >= 2 && lst[0].toDouble() > lst[1].toDouble()) {
-                if (msg) *msg = tr("参数 [%1] 的最小值应不大于最大值").arg(p.label);
                 return false;
             }
         }

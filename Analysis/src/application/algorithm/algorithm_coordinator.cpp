@@ -2,7 +2,6 @@
 
 #include "application/algorithm/algorithm_context.h"
 #include "application/algorithm/algorithm_manager.h"
-#include "application/algorithm/metadata_descriptor_registry.h"
 #include "application/curve/curve_manager.h"
 #include "domain/algorithm/algorithm_result.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
@@ -335,7 +334,11 @@ void AlgorithmCoordinator::onAsyncAlgorithmFailed(
 }
 
 // ==================== 元数据驱动流程实现（方案B）====================
+// TODO (Phase 3): 以下方法使用已删除的 App::AlgorithmDescriptorRegistry
+// Phase 3 将完全重构 AlgorithmCoordinator，删除 PendingPhase 枚举，简化为 PendingRequest 结构体
+// 当前注释掉以避免编译错误
 
+/*
 void AlgorithmCoordinator::runByName(const QString& algorithmName)
 {
     qDebug() << "[AlgorithmCoordinator] 元数据驱动执行算法:" << algorithmName;
@@ -442,4 +445,21 @@ void AlgorithmCoordinator::handleGenericParameterSubmission(const QString& algor
         // 清除待处理请求
         m_metadataPending.reset();
     }
+}
+*/
+
+// TODO (Phase 3): 实现新的 run() 方法和 processNextStep() 方法
+// 新架构将基于算法自描述（IThermalAlgorithm::descriptor()）
+void AlgorithmCoordinator::runByName(const QString& algorithmName)
+{
+    qWarning() << "[AlgorithmCoordinator] runByName 方法已在 Phase 1 禁用，等待 Phase 3 重构";
+    qWarning() << "                      当前使用 handleAlgorithmTriggered() 执行算法";
+    Q_UNUSED(algorithmName);
+}
+
+void AlgorithmCoordinator::handleGenericParameterSubmission(const QString& algorithmName, const QVariantMap& parameters)
+{
+    qWarning() << "[AlgorithmCoordinator] handleGenericParameterSubmission 方法已在 Phase 1 禁用，等待 Phase 3 重构";
+    Q_UNUSED(algorithmName);
+    Q_UNUSED(parameters);
 }
