@@ -519,10 +519,20 @@ void MainController::onPeakAreaToolRequested()
         return;
     }
 
-    // 使用元数据驱动路径执行峰面积算法
-    // 峰面积算法会请求用户选择2个点定义积分范围
-    qDebug() << "MainController::onPeakAreaToolRequested - 切换到元数据驱动路径";
-    onAlgorithmRequested("peak_area", QVariantMap());
+    // 峰面积工具作为视图层工具，直接调用 ChartView 的方法
+    // 使用活动曲线，默认使用直线基线
+    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
+    if (!activeCurve) {
+        QMessageBox::warning(
+            m_mainWindow,
+            tr("无活动曲线"),
+            tr("请先选择一条曲线。")
+        );
+        return;
+    }
+
+    qDebug() << "MainController::onPeakAreaToolRequested - 启动峰面积视图工具";
+    m_plotWidget->startPeakAreaTool(activeCurve->id(), true, QString());
 }
 
 // ==================== 异步执行进度反馈槽函数实现 ====================
