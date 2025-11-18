@@ -117,13 +117,6 @@ private slots:
      */
     void onRequestParameterDialog(const QString& algorithmName, const AlgorithmDescriptor& descriptor);
 
-    /**
-     * @brief 旧的参数对话框请求处理（向后兼容）- 已废弃
-     *
-     * Phase 4 后使用 onRequestParameterDialog() 替代
-     */
-    void onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor);
-
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
     void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);

@@ -3,7 +3,8 @@
 #include "domain/model/thermal_curve.h"
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
-#include "ui/generic_algorithm_dialog.h"
+// Phase 6: 删除 GenericAlgorithmDialog 包含（改用动态 QDialog + QFormLayout）
+// #include "ui/generic_algorithm_dialog.h"
 #include "ui/peak_area_dialog.h"
 #include <QDebug>
 #include <QtGlobal>
@@ -402,44 +403,8 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
              << (cascadeDelete ? "（包括子曲线）" : "");
 }
 
-void MainController::onRequestGenericParameterDialog(const QString& algorithmName, const QVariant& descriptor)
-{
-    Q_ASSERT(m_initialized);  // 确保依赖完整
-
-    qDebug() << "MainController::onRequestGenericParameterDialog - 算法:" << algorithmName;
-
-    // TODO (Phase 4): 此方法将被重构，使用新的动态参数对话框实现
-    // 当前使用领域层 AlgorithmDescriptor
-
-    // 从 QVariant 中提取 AlgorithmDescriptor（领域层）
-    if (!descriptor.canConvert<AlgorithmDescriptor>()) {
-        qWarning() << "MainController: 无法转换描述符为 AlgorithmDescriptor";
-        return;
-    }
-
-    AlgorithmDescriptor desc = descriptor.value<AlgorithmDescriptor>();
-
-    // 创建通用参数对话框
-    auto* dialog = new GenericAlgorithmDialog(desc, m_mainWindow);
-
-    // 连接对话框的接受信号
-    connect(dialog, &QDialog::accepted, this, [=]() {
-        QVariantMap parameters = dialog->values();
-        qDebug() << "MainController: 用户提交参数:" << parameters;
-        m_algorithmCoordinator->handleGenericParameterSubmission(algorithmName, parameters);
-        dialog->deleteLater();
-    });
-
-    // 连接对话框的拒绝信号
-    connect(dialog, &QDialog::rejected, this, [=]() {
-        qDebug() << "MainController: 用户取消参数输入";
-        m_algorithmCoordinator->cancelPendingRequest();
-        dialog->deleteLater();
-    });
-
-    // 显示对话框
-    dialog->show();
-}
+// NOTE (Phase 6): onRequestGenericParameterDialog() 已删除
+// Phase 4 使用新的 onRequestParameterDialog() 替代（基于动态 QDialog + QFormLayout）
 
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, int requiredPoints, const QString& hint)
