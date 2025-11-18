@@ -4,6 +4,7 @@
 #include "ui/controller/curve_view_controller.h"
 #include "ui/data_import_widget.h"
 #include "ui/generic_algorithm_dialog.h"
+#include "ui/peak_area_dialog.h"
 #include "application/algorithm/metadata_descriptor.h"
 #include "application/algorithm/metadata_descriptor_registry.h"
 #include <QDebug>
@@ -519,20 +520,30 @@ void MainController::onPeakAreaToolRequested()
         return;
     }
 
-    // 峰面积工具作为视图层工具，直接调用 ChartView 的方法
-    // 使用活动曲线，默认使用直线基线
-    ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
-    if (!activeCurve) {
-        QMessageBox::warning(
-            m_mainWindow,
-            tr("无活动曲线"),
-            tr("请先选择一条曲线。")
-        );
+    // 显示峰面积参数对话框，让用户选择：
+    // 1. 计算曲线
+    // 2. 基线类型（直线基线 或 参考曲线基线）
+    // 3. 参考曲线（如果选择参考基线）
+    PeakAreaDialog dialog(m_curveManager, m_mainWindow);
+    if (dialog.exec() != QDialog::Accepted) {
+        qDebug() << "MainController::onPeakAreaToolRequested - 用户取消";
         return;
     }
 
+    // 获取用户选择
+    QString curveId = dialog.selectedCurveId();
+    bool useLinearBaseline = (dialog.baselineType() == PeakAreaDialog::BaselineType::Linear);
+    QString referenceCurveId = dialog.referenceCurveId();
+
     qDebug() << "MainController::onPeakAreaToolRequested - 启动峰面积视图工具";
-    m_plotWidget->startPeakAreaTool(activeCurve->id(), true, QString());
+    qDebug() << "  计算曲线:" << curveId;
+    qDebug() << "  基线类型:" << (useLinearBaseline ? "直线基线" : "参考曲线基线");
+    if (!referenceCurveId.isEmpty()) {
+        qDebug() << "  参考曲线:" << referenceCurveId;
+    }
+
+    // 启动峰面积工具
+    m_plotWidget->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
 }
 
 // ==================== 异步执行进度反馈槽函数实现 ====================
