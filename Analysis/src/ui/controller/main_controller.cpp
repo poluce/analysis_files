@@ -259,12 +259,13 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // TODO (Phase 3): runByName() 方法已在 Phase 1 禁用（使用旧的元数据注册表）
-    // Phase 3 将重构 AlgorithmCoordinator，实现基于算法自描述的新 run() 方法
-    // 当前仍使用 runByName() 作为临时方案（虽然它只打印警告）
+    // Phase 3: 使用新的 run() 方法，基于算法自描述自动编排执行流程
+    // 参数说明：params 参数暂时未使用，因为参数收集现在由 AlgorithmCoordinator
+    // 通过 requestParameterDialog 信号触发动态对话框完成
+    Q_UNUSED(params);
 
-    qDebug() << "MainController: 调用 runByName() 执行算法：" << algorithmName;
-    m_algorithmCoordinator->runByName(algorithmName);
+    qDebug() << "MainController: 调用 run() 执行算法：" << algorithmName;
+    m_algorithmCoordinator->run(algorithmName);
 }
 
 
