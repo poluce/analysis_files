@@ -3,10 +3,9 @@
 #include <QDialog>
 #include <QMap>
 #include <QVariant>
+#include "application/algorithm/metadata_descriptor.h"
 
 class QFormLayout;
-
-namespace App { struct AlgorithmDescriptor; struct ParameterDescriptor; }
 
 class GenericAlgorithmDialog : public QDialog {
     Q_OBJECT
