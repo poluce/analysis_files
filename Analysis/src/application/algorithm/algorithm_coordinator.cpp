@@ -547,7 +547,7 @@ void AlgorithmCoordinator::handleGenericParameterSubmission(const QString& algor
         qDebug() << "[AlgorithmCoordinator] 参数已收集，无需选点，直接执行";
 
         // 获取曲线
-        ThermalCurve* curve = m_curveManager->getCurveById(m_metadataPending->curveId);
+        ThermalCurve* curve = m_curveManager->getCurve(m_metadataPending->curveId);
         if (!curve) {
             handleError(algorithmName, "找不到目标曲线");
             m_metadataPending.reset();
