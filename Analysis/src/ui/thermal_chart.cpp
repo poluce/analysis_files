@@ -821,6 +821,8 @@ void ThermalChart::removeMassLossTool(QGraphicsObject* tool)
     // 从场景中移除
     scene()->removeItem(tool);
 
+    // 阻止信号发射（删除已由命令模式触发，无需再发出 removeRequested）
+    tool->blockSignals(true);
     tool->deleteLater();
 
     qDebug() << "ThermalChart::removeMassLossTool - 移除测量工具";
@@ -859,6 +861,9 @@ void ThermalChart::removeCurveMassLossTools(const QString& curveId)
             qDebug() << "ThermalChart::removeCurveMassLossTools - 删除曲线" << curveId << "的测量工具";
             m_massLossTools.removeAt(i);
             scene()->removeItem(obj);
+
+            // 阻止信号发射，防止删除时触发 removeRequested 信号导致 "pure virtual method called" 崩溃
+            obj->blockSignals(true);
             obj->deleteLater();
         }
     }
@@ -920,6 +925,8 @@ void ThermalChart::removePeakAreaTool(QGraphicsObject* tool)
 
     scene()->removeItem(tool);
 
+    // 阻止信号发射（删除已由命令模式触发，无需再发出 removeRequested）
+    tool->blockSignals(true);
     tool->deleteLater();
 
     qDebug() << "ThermalChart::removePeakAreaTool - 移除峰面积工具";
@@ -975,6 +982,9 @@ void ThermalChart::removeCurvePeakAreaTools(const QString& curveId)
             qDebug() << "ThermalChart::removeCurvePeakAreaTools - 删除曲线" << curveId << "的峰面积工具";
             m_peakAreaTools.removeAt(i);
             scene()->removeItem(obj);
+
+            // 阻止信号发射，防止删除时触发 removeRequested 信号导致 "pure virtual method called" 崩溃
+            obj->blockSignals(true);
             obj->deleteLater();
         }
     }
