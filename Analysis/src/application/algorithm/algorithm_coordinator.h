@@ -80,6 +80,41 @@ public:
      */
     void cancel();
 
+    // ========== 工作流 API ==========
+
+    /**
+     * @brief 工作流状态枚举
+     */
+    enum class WorkflowStatus {
+        Idle,       // 空闲
+        Running,    // 运行中
+        Completed,  // 已完成
+        Failed,     // 失败
+        Cancelled   // 已取消
+    };
+
+    /**
+     * @brief 运行线性工作流（自动链式执行多个算法）
+     * @param steps 算法步骤列表（按顺序执行）
+     * @param curveIds 初始输入曲线ID列表
+     * @return 工作流实例ID
+     *
+     * 使用示例:
+     * @code
+     * QString wfId = coordinator->runWorkflow(
+     *     {"movingAverage", "differentiation", "peakDetection"},
+     *     {"curve-001"}
+     * );
+     * @endcode
+     */
+    QString runWorkflow(const QStringList& steps, const QStringList& curveIds);
+
+    /**
+     * @brief 取消工作流
+     * @param workflowId 工作流实例ID
+     */
+    void cancelWorkflow(const QString& workflowId);
+
 signals:
     /**
      * @brief 请求弹出参数对话框
@@ -116,10 +151,33 @@ signals:
     void algorithmFailed(const QString& algorithmName, const QString& reason);
 
     /**
-     * @brief 算法执行成功
+     * @brief 算法执行完成（携带完整结果信息）
+     * @param taskId 任务ID（全局唯一）
      * @param algorithmName 算法名称
+     * @param parentCurveId 来源曲线ID
+     * @param result 算法执行结果
+     *
+     * 这是唯一的算法完成信号，替代旧的 algorithmSucceeded。
+     * 携带完整的结果信息，避免下游必须访问 Context 内部实现。
      */
-    void algorithmSucceeded(const QString& algorithmName);
+    void algorithmCompleted(const QString& taskId,
+                           const QString& algorithmName,
+                           const QString& parentCurveId,
+                           const AlgorithmResult& result);
+
+    /**
+     * @brief 工作流执行完成
+     * @param workflowId 工作流实例ID
+     * @param outputCurveIds 最终输出曲线ID列表
+     */
+    void workflowCompleted(const QString& workflowId, const QStringList& outputCurveIds);
+
+    /**
+     * @brief 工作流执行失败
+     * @param workflowId 工作流实例ID
+     * @param errorMessage 错误信息
+     */
+    void workflowFailed(const QString& workflowId, const QString& errorMessage);
 
     /**
      * @brief 算法开始执行（异步模式）
@@ -137,7 +195,18 @@ signals:
     void algorithmProgress(const QString& taskId, int percentage, const QString& message);
 
 private slots:
-    void onAlgorithmResultReady(const QString& algorithmName, const AlgorithmResult& result);
+    /**
+     * @brief 同步算法执行完成
+     * @param algorithmName 算法名称
+     * @param result 算法执行结果
+     *
+     * 处理同步执行的算法结果：
+     * 1. 生成 taskId
+     * 2. 调用 context->saveResult() 保存结果
+     * 3. 发射 algorithmCompleted 信号
+     * 4. 调用 advanceWorkflow() 推进工作流（如有）
+     */
+    void onSyncAlgorithmResultReady(const QString& algorithmName, const AlgorithmResult& result);
 
     /**
      * @brief 异步任务开始执行
@@ -242,16 +311,35 @@ private:
     void handleError(const QString& algorithmName, const QString& reason);
 
     /**
-     * @brief 保存算法结果到上下文
-     * @param algorithmName 算法名称
-     * @param result 算法执行结果
+     * @brief 推进工作流到下一步
+     * @param taskId 当前完成的任务ID
+     * @param algorithmName 当前完成的算法名称
+     * @param result 当前算法的执行结果
      *
-     * 将算法结果保存到上下文中，供后续查询和使用。
-     * 保存两个键值对：
-     * - latestResult(algorithmName): 完整的 AlgorithmResult 对象
-     * - resultType(algorithmName): 结果类型（int）
+     * 工作流推进逻辑：
+     * 1. 检查是否有活动工作流
+     * 2. 验证算法名匹配当前步骤
+     * 3. 记录当前步骤的输出曲线ID
+     * 4. 推进到下一步或完成工作流
      */
-    void saveResultToContext(const QString& algorithmName, const AlgorithmResult& result);
+    void advanceWorkflow(const QString& taskId,
+                        const QString& algorithmName,
+                        const AlgorithmResult& result);
+
+    // ========== 工作流结构 ==========
+
+    /**
+     * @brief 待处理工作流结构
+     */
+    struct PendingWorkflow {
+        QString id;                         // 工作流实例ID
+        QStringList steps;                  // 算法步骤列表
+        int currentStepIndex = 0;           // 当前执行到第几步
+        QStringList inputCurveIds;          // 初始输入曲线
+        QHash<int, QStringList> stepOutputs; // 每步的输出曲线ID
+        WorkflowStatus status = WorkflowStatus::Idle;
+        QString errorMessage;
+    };
 
     AlgorithmManager* m_algorithmManager = nullptr;
     CurveManager* m_curveManager = nullptr;
@@ -259,6 +347,7 @@ private:
 
     std::optional<PendingRequest> m_pending;
     QString m_currentTaskId;
+    std::optional<PendingWorkflow> m_currentWorkflow;  // 当前活动工作流
 };
 
 #endif // APPLICATION_ALGORITHM_COORDINATOR_H
