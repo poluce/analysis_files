@@ -28,12 +28,13 @@ enum class ResultType {
  * 与输入键名（ContextKeys）分离，专门用于算法输出结果的存储和检索。
  *
  * @code
- * // 推荐使用：
- * context->setValue(OutputKeys::latestResult("differentiation"), result);
- * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
+ * // 推荐使用（通过 AlgorithmContext 高层API）：
+ * context->saveResult("task-001", "differentiation", "curve-001", result);
+ * auto latest = context->latestResult("differentiation", "curve-001");
  *
- * // 避免使用：
- * context->setValue("result/differentiation/latest", result);  // 容易拼写错误
+ * // 或使用底层键名（仅用于特殊场景）：
+ * QString key = OutputKeys::byTask("differentiation", "task-001");
+ * context->setValue(key, QVariant::fromValue(result));
  * @endcode
  */
 namespace OutputKeys {
