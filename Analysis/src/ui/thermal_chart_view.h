@@ -17,6 +17,7 @@ class QContextMenuEvent;
 class CurveManager;
 class ThermalCurve;
 class PeakAreaTool;
+class HistoryManager;
 struct ThermalDataPoint;
 
 /**
@@ -53,6 +54,7 @@ public:
 
     // ==================== 外部依赖注入 ====================
     void setCurveManager(CurveManager* manager);
+    void setHistoryManager(HistoryManager* manager) { m_historyManager = manager; }
 
     /**
      * @brief 完整性校验与状态标记
@@ -256,6 +258,7 @@ private:
     // ==================== 依赖注入 ====================
     ThermalChart* m_thermalChart = nullptr;  // 构造函数注入（调用方保证非空）
     CurveManager* m_curveManager = nullptr;  // Setter 注入（initialize() 时断言非空）
+    HistoryManager* m_historyManager = nullptr;  // Setter 注入（可选，用于工具命令）
 
     // ==================== 交互模式 ====================
     InteractionMode m_mode = InteractionMode::View;

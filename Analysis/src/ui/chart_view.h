@@ -153,6 +153,13 @@ public slots:
     // ==================== 坐标轴管理（转发给 ThermalChart）====================
     void rescaleAxes();
 
+    // ==================== 内部组件访问（用于信号连接）====================
+    /**
+     * @brief 获取内部 ThermalChart 实例
+     * @return ThermalChart 指针（保证非空，构造时创建）
+     */
+    ThermalChart* chart() const { return m_chart; }
+
     // ==================== 十字线控制（转发给 ThermalChart）====================
     void setVerticalCrosshairEnabled(bool enabled);
     void setHorizontalCrosshairEnabled(bool enabled);

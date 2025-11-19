@@ -55,6 +55,7 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 4. 表示层（UI）
     m_chartView = new ChartView();
     m_chartView->setCurveManager(m_curveManager);  // 设置曲线管理器，用于获取曲线数据
+    m_chartView->setHistoryManager(m_historyManager);  // 设置历史管理器，用于工具命令
 
     m_projectExplorerView = new ProjectExplorerView();
 

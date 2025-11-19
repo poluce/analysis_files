@@ -14,11 +14,16 @@
 #include "application/history/add_curve_command.h"
 #include "application/history/clear_curves_command.h"
 #include "application/history/remove_curve_command.h"
+#include "application/history/remove_mass_loss_tool_command.h"  // Phase 3
+#include "application/history/remove_peak_area_tool_command.h"  // Phase 3
 #include "application/history/history_manager.h"
 #include "domain/algorithm/algorithm_descriptor.h"  // 领域层描述符（Phase 1 迁移）
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "ui/chart_view.h"
 #include "ui/main_window.h"
+#include "ui/thermal_chart.h"                // Phase 3: 访问 ThermalChart 信号
+#include "ui/trapezoid_measure_tool.h"      // Phase 3: 工具删除命令
+#include "ui/peak_area_tool.h"              // Phase 3: 工具删除命令
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QProgressDialog>
@@ -109,6 +114,19 @@ void MainController::setPlotWidget(ChartView* plotWidget)
                 }
                 qDebug() << "ChartView 交互状态变化:" << stateName;
             }, Qt::UniqueConnection);
+
+    // ==================== Phase 3: 连接视图工具删除请求信号 ====================
+    // 获取 ThermalChart 实例并连接工具删除请求信号
+    ThermalChart* thermalChart = m_plotWidget->chart();
+    if (thermalChart) {
+        connect(thermalChart, &ThermalChart::massLossToolRemoveRequested,
+                this, &MainController::onMassLossToolRemoveRequested, Qt::UniqueConnection);
+
+        connect(thermalChart, &ThermalChart::peakAreaToolRemoveRequested,
+                this, &MainController::onPeakAreaToolRemoveRequested, Qt::UniqueConnection);
+
+        qDebug() << "MainController: 已连接视图工具删除请求信号";
+    }
 
 }
 
@@ -836,4 +854,90 @@ QVariantMap MainController::extractParameters(const QMap<QString, QWidget*>& wid
     }
 
     return parameters;
+}
+
+// ==================== Phase 3: 视图工具删除请求槽函数实现 ====================
+
+void MainController::onMassLossToolRemoveRequested(QGraphicsObject* tool)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "MainController::onMassLossToolRemoveRequested - 收到删除请求";
+
+    if (!tool) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - 工具指针为空";
+        return;
+    }
+
+    // 转换为 TrapezoidMeasureTool 以验证类型
+    auto* measureTool = qobject_cast<TrapezoidMeasureTool*>(tool);
+    if (!measureTool) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - 工具类型转换失败";
+        return;
+    }
+
+    // 获取 ThermalChart 实例
+    ThermalChart* thermalChart = m_plotWidget->chart();
+    if (!thermalChart) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - ThermalChart 为空";
+        return;
+    }
+
+    // 创建删除命令
+    auto* command = new RemoveMassLossToolCommand(
+        thermalChart,
+        tool,
+        "移除质量损失测量工具"
+    );
+
+    // 通过 HistoryManager 执行命令（支持撤销/重做）
+    if (!m_historyManager->executeCommand(command)) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - 命令执行失败";
+        delete command;
+        return;
+    }
+
+    qDebug() << "MainController::onMassLossToolRemoveRequested - 成功删除工具";
+}
+
+void MainController::onPeakAreaToolRemoveRequested(QGraphicsObject* tool)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "MainController::onPeakAreaToolRemoveRequested - 收到删除请求";
+
+    if (!tool) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - 工具指针为空";
+        return;
+    }
+
+    // 转换为 PeakAreaTool 以验证类型
+    auto* peakAreaTool = qobject_cast<PeakAreaTool*>(tool);
+    if (!peakAreaTool) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - 工具类型转换失败";
+        return;
+    }
+
+    // 获取 ThermalChart 实例
+    ThermalChart* thermalChart = m_plotWidget->chart();
+    if (!thermalChart) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - ThermalChart 为空";
+        return;
+    }
+
+    // 创建删除命令
+    auto* command = new RemovePeakAreaToolCommand(
+        thermalChart,
+        peakAreaTool,
+        "移除峰面积工具"
+    );
+
+    // 通过 HistoryManager 执行命令（支持撤销/重做）
+    if (!m_historyManager->executeCommand(command)) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - 命令执行失败";
+        delete command;
+        return;
+    }
+
+    qDebug() << "MainController::onPeakAreaToolRemoveRequested - 成功删除工具";
 }

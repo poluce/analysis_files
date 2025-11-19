@@ -125,6 +125,23 @@ private slots:
     void onAlgorithmStarted(const QString& taskId, const QString& algorithmName);
     void onAlgorithmProgress(const QString& taskId, int percentage, const QString& message);
 
+    // ==================== 视图工具删除请求槽函数 (Phase 3) ====================
+    /**
+     * @brief 处理质量损失工具删除请求
+     * @param tool 待删除的工具对象
+     *
+     * 创建 RemoveMassLossToolCommand 并通过 HistoryManager 执行
+     */
+    void onMassLossToolRemoveRequested(QGraphicsObject* tool);
+
+    /**
+     * @brief 处理峰面积工具删除请求
+     * @param tool 待删除的工具对象
+     *
+     * 创建 RemovePeakAreaToolCommand 并通过 HistoryManager 执行
+     */
+    void onPeakAreaToolRemoveRequested(QGraphicsObject* tool);
+
 private:
     // ==================== 初始化状态标记 ====================
     bool m_initialized = false;  // 防止"半初始化对象"的运行时错误
