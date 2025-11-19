@@ -14,6 +14,7 @@ class ThermalChart;
 class ThermalChartView;
 class ThermalCurve;
 class CurveManager;
+class HistoryManager;  // Phase 3: 工具命令撤销/重做
 class QGraphicsObject;
 class QPen;
 
@@ -76,6 +77,14 @@ public:
      * @param manager CurveManager 指针
      */
     void setCurveManager(CurveManager* manager);
+
+    /**
+     * @brief 设置历史管理器（用于工具命令的撤销/重做）
+     * @param manager HistoryManager 指针
+     *
+     * Phase 3: 转发给 ThermalChartView
+     */
+    void setHistoryManager(HistoryManager* manager);
 
     // ==================== 交互配置（转发给 ThermalChartView）====================
     void setInteractionMode(int type);  // 使用 int 避免枚举冲突

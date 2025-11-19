@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QGraphicsLineItem>
 #include <QGraphicsScene>
+#include <QPointer>  // Phase 3: QPointer for lambda capture
 #include <QSignalBlocker>
 #include <QtCharts/QLegend>
 #include <QtCharts/QLegendMarker>

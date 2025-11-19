@@ -51,6 +51,12 @@ void ChartView::setCurveManager(CurveManager* manager)
     m_chartView->initialize();  // 统一初始化（断言完整性）
 }
 
+void ChartView::setHistoryManager(HistoryManager* manager)
+{
+    // Phase 3: 转发给 ThermalChartView（用于工具命令）
+    m_chartView->setHistoryManager(manager);
+}
+
 // ==================== 交互配置（转发给 ThermalChartView）====================
 void ChartView::setInteractionMode(int type)
 {

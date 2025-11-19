@@ -14,6 +14,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
 #include <QtMath>
+#include <memory>  // Phase 3: std::make_unique for commands
 
 ThermalChartView::ThermalChartView(ThermalChart* chart, QWidget* parent)
     : QChartView(chart, parent)
@@ -453,21 +454,26 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
     qDebug() << "ThermalChartView::handleMassLossToolClick - 自动延伸范围: ±" << rangeExtension;
 
     // 6. 通过命令模式创建测量工具
-    auto* command = new AddMassLossToolCommand(
-        m_thermalChart,
-        point1,
-        point2,
-        activeCurve->id(),
-        "添加质量损失测量工具"
-    );
-
     if (m_historyManager) {
-        m_historyManager->executeCommand(command);
+        auto command = std::make_unique<AddMassLossToolCommand>(
+            m_thermalChart,
+            point1,
+            point2,
+            activeCurve->id(),
+            "添加质量损失测量工具"
+        );
+        m_historyManager->executeCommand(std::move(command));
     } else {
         // 降级处理：如果 HistoryManager 未注入，直接执行（不可撤销）
         qWarning() << "ThermalChartView::handleMassLossToolClick - HistoryManager 未注入，工具不可撤销";
+        auto command = std::make_unique<AddMassLossToolCommand>(
+            m_thermalChart,
+            point1,
+            point2,
+            activeCurve->id(),
+            "添加质量损失测量工具"
+        );
         command->execute();
-        delete command;
     }
 
     // 7. 重置状态
@@ -619,23 +625,30 @@ bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
     qDebug() << "ThermalChartView::handlePeakAreaToolClick - 自动延伸范围: ±" << rangeExtension;
 
     // 7. 通过命令模式创建峰面积测量工具
-    auto* command = new AddPeakAreaToolCommand(
-        m_thermalChart,
-        point1,
-        point2,
-        targetCurve->id(),
-        m_peakAreaUseLinearBaseline,
-        m_peakAreaReferenceCurveId,
-        "添加峰面积测量工具"
-    );
-
     if (m_historyManager) {
-        m_historyManager->executeCommand(command);
+        auto command = std::make_unique<AddPeakAreaToolCommand>(
+            m_thermalChart,
+            point1,
+            point2,
+            targetCurve->id(),
+            m_peakAreaUseLinearBaseline,
+            m_peakAreaReferenceCurveId,
+            "添加峰面积测量工具"
+        );
+        m_historyManager->executeCommand(std::move(command));
     } else {
         // 降级处理：如果 HistoryManager 未注入，直接执行（不可撤销）
         qWarning() << "ThermalChartView::handlePeakAreaToolClick - HistoryManager 未注入，工具不可撤销";
+        auto command = std::make_unique<AddPeakAreaToolCommand>(
+            m_thermalChart,
+            point1,
+            point2,
+            targetCurve->id(),
+            m_peakAreaUseLinearBaseline,
+            m_peakAreaReferenceCurveId,
+            "添加峰面积测量工具"
+        );
         command->execute();
-        delete command;
     }
 
     // 8. 重置状态

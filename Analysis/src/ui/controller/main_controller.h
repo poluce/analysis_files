@@ -18,6 +18,7 @@ class HistoryManager;
 class ChartView;
 class MainWindow;
 class CurveViewController;
+class QGraphicsObject;  // Phase 3: 工具删除请求槽函数参数类型
 
 /**
  * @brief MainController 协调UI和应用服务。
