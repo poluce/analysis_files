@@ -57,6 +57,14 @@ AlgorithmDescriptor TemperatureExtrapolationAlgorithm::descriptor() const
     desc.needsPointSelection = true;
     desc.requiredPointCount = 2;  // 只需要2个点定义切线区域
     desc.pointSelectionHint = "请选择2个点定义切线区域（峰的前沿或后沿）";
+
+    // 依赖声明（工作流支持）
+    desc.prerequisites.append(ContextKeys::ActiveCurve);
+    desc.prerequisites.append(ContextKeys::SelectedPoints);
+    // 注：当前实现使用CurveManager查找基线，未来应改为使用ContextKeys::BaselineCurves
+    desc.produces.append("markers");
+    desc.produces.append("scalar");
+
     return desc;
 }
 

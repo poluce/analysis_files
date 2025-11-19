@@ -58,6 +58,10 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
     windowParam.constraints["min"] = 1;
     desc.parameters.append(windowParam);
 
+    // 依赖声明（工作流支持）
+    desc.prerequisites.append(ContextKeys::ActiveCurve);
+    desc.produces.append("curve");
+
     return desc;
 }
 

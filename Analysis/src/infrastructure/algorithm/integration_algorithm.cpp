@@ -48,6 +48,11 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
     desc.needsParameters = false;
     desc.needsPointSelection = false;
     // 暂无可配置参数，预留扩展（如方法/归一化等）
+
+    // 依赖声明（工作流支持）
+    desc.prerequisites.append(ContextKeys::ActiveCurve);
+    desc.produces.append("curve");
+
     return desc;
 }
 

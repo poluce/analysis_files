@@ -364,6 +364,12 @@ void AlgorithmCoordinator::execute()
                            QVariant::fromValue(pending.points), "AlgorithmCoordinator");
     }
 
+    // 检查算法依赖（工作流支持）
+    if (!checkPrerequisites(pending.algorithmName)) {
+        handleError(pending.algorithmName, "依赖检查失败");
+        return;
+    }
+
     // 提交到异步队列
     QString taskId = m_algorithmManager->executeAsync(pending.algorithmName, m_context);
 
@@ -545,4 +551,33 @@ void AlgorithmCoordinator::advanceWorkflow(
             << "输入曲线=" << nextInputCurve;
 
     run(nextAlgorithm);
+}
+
+bool AlgorithmCoordinator::checkPrerequisites(const QString& algorithmName)
+{
+    // 1. 获取算法描述符
+    auto descriptor = descriptorFor(algorithmName);
+    if (!descriptor.has_value()) {
+        qWarning() << "[AlgorithmCoordinator] checkPrerequisites - 算法不存在:" << algorithmName;
+        emit showMessage(QStringLiteral("算法 %1 不存在").arg(algorithmName));
+        return false;
+    }
+
+    const AlgorithmDescriptor& desc = descriptor.value();
+
+    // 2. 检查每个 prerequisite
+    for (const QString& prerequisite : desc.prerequisites) {
+        if (!m_context->contains(prerequisite)) {
+            QString message = QStringLiteral("算法 %1 缺少必需依赖: %2")
+                                .arg(algorithmName)
+                                .arg(prerequisite);
+            qWarning() << "[AlgorithmCoordinator] checkPrerequisites -" << message;
+            emit showMessage(message);
+            return false;
+        }
+    }
+
+    qDebug() << "[AlgorithmCoordinator] checkPrerequisites - 算法" << algorithmName
+             << "的所有依赖已满足，共" << desc.prerequisites.size() << "项";
+    return true;
 }

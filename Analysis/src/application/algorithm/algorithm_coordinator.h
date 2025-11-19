@@ -326,6 +326,19 @@ private:
                         const QString& algorithmName,
                         const AlgorithmResult& result);
 
+    /**
+     * @brief 检查算法依赖是否满足（工作流支持）
+     * @param algorithmName 算法名称
+     * @return 如果所有依赖满足返回 true，否则返回 false
+     *
+     * 校验逻辑：
+     * 1. 获取算法描述符
+     * 2. 检查 prerequisites 列表中的每个键
+     * 3. 验证上下文中是否存在该键
+     * 4. 缺失依赖时发出 showMessage 信号提示用户
+     */
+    [[nodiscard]] bool checkPrerequisites(const QString& algorithmName);
+
     // ========== 工作流结构 ==========
 
     /**
