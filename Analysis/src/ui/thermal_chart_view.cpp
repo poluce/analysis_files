@@ -14,7 +14,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
 #include <QtMath>
-#include <memory>  // Phase 3: std::make_unique for commands
+#include <memory>
 
 ThermalChartView::ThermalChartView(ThermalChart* chart, QWidget* parent)
     : QChartView(chart, parent)
@@ -111,8 +111,6 @@ void ThermalChartView::startPeakAreaTool(const QString& curveId, bool useLinearB
     setInteractionMode(InteractionMode::Pick);
     m_peakAreaToolActive = true;
 }
-
-// ==================== Phase 4: 事件处理实现 ====================
 
 void ThermalChartView::mousePressEvent(QMouseEvent* event)
 {
@@ -707,8 +705,6 @@ bool ThermalChartView::eventFilter(QObject* watched, QEvent* event)
 
     return QChartView::eventFilter(watched, event);
 }
-
-// ==================== Phase 4: 交互辅助函数实现 ====================
 
 void ThermalChartView::handleCurveSelectionClick(const QPointF& viewportPos)
 {

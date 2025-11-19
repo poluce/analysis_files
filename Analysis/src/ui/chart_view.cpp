@@ -53,7 +53,6 @@ void ChartView::setCurveManager(CurveManager* manager)
 
 void ChartView::setHistoryManager(HistoryManager* manager)
 {
-    // Phase 3: 转发给 ThermalChartView（用于工具命令）
     m_chartView->setHistoryManager(manager);
 }
 

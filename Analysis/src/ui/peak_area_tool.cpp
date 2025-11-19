@@ -635,14 +635,6 @@ void PeakAreaTool::contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
     QAction* zeroBaseline = menu.addAction("零基线 (Y=0)");
     QAction* linearBaseline = menu.addAction("直线基线（两端点连线）");
 
-    // TODO: 参考曲线基线模式需要在 ThermalCurve 中添加 baselineCurveId 追踪功能
-    // 暂时禁用此功能，只保留零基线和直线基线模式
-    // QAction* refCurveBaseline = nullptr;
-    // if (m_curveManager && !m_curveId.isEmpty()) {
-    //     // 需要查找所有 signalType == SignalType::Baseline 的子曲线
-    //     refCurveBaseline = menu.addAction("参考曲线基线");
-    // }
-
     // 标记当前选中的模式
     if (m_baselineMode == BaselineMode::Zero) {
         zeroBaseline->setCheckable(true);
@@ -651,10 +643,6 @@ void PeakAreaTool::contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
         linearBaseline->setCheckable(true);
         linearBaseline->setChecked(true);
     }
-    // else if (m_baselineMode == BaselineMode::ReferenceCurve && refCurveBaseline) {
-    //     refCurveBaseline->setCheckable(true);
-    //     refCurveBaseline->setChecked(true);
-    // }
 
     QAction* selected = menu.exec(event->screenPos());
 
@@ -663,13 +651,6 @@ void PeakAreaTool::contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
     } else if (selected == linearBaseline) {
         setBaselineMode(BaselineMode::Linear);
     }
-    // else if (selected == refCurveBaseline) {
-    //     ThermalCurve* parentCurve = m_curveManager->getCurve(m_curveId);
-    //     if (parentCurve) {
-    //         setBaselineMode(BaselineMode::ReferenceCurve);
-    //         // setReferenceCurve(parentCurve->baselineCurveId());
-    //     }
-    // }
 
     event->accept();
 }

@@ -8,7 +8,7 @@
 #include <QDebug>
 #include <QGraphicsLineItem>
 #include <QGraphicsScene>
-#include <QPointer>  // Phase 3: QPointer for lambda capture
+#include <QPointer>
 #include <QSignalBlocker>
 #include <QtCharts/QLegend>
 #include <QtCharts/QLegendMarker>
@@ -400,8 +400,6 @@ ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoi
     return curveData[nearestIdx];
 }
 
-// ==================== Phase 2: 曲线管理实现 ====================
-
 void ThermalChart::addCurve(const ThermalCurve& curve)
 {
     QLineSeries* series = createSeriesForThermalCurve(curve);
@@ -658,8 +656,6 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     emit xAxisModeChanged(m_xAxisMode);
 }
 
-// ==================== Phase 3: 标注点（Markers）管理实现 ====================
-
 void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color, qreal size)
 {
     Q_ASSERT(m_initialized); // 确保依赖完整
@@ -774,8 +770,6 @@ void ThermalChart::clearAllMarkers()
 
     qDebug() << "ThermalChart::clearAllMarkers - 清空所有标注点";
 }
-
-// ==================== Phase 3: 测量工具管理实现 ====================
 
 QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {

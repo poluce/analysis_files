@@ -114,12 +114,6 @@ void AlgorithmCoordinator::onAlgorithmResultReady(
     emit algorithmSucceeded(algorithmName);
 }
 
-// NOTE (Phase 3): ensurePrerequisites 和 populateDefaultParameters 已删除
-// 新架构不再需要这些方法，算法通过 descriptor() 提供完整的参数定义和默认值
-
-// NOTE (Phase 3): executeAlgorithm 已被 execute() 替代
-// 旧方法接收曲线、参数、点作为参数，新方法从 m_pending 中读取这些数据
-
 void AlgorithmCoordinator::resetState()
 {
     m_pending.reset();
@@ -132,8 +126,6 @@ void AlgorithmCoordinator::handleError(const QString& algorithmName, const QStri
     resetState();  // 自动清理所有状态
     emit algorithmFailed(algorithmName, reason);
 }
-
-// ==================== 异步执行槽函数实现 ====================
 
 void AlgorithmCoordinator::onAsyncAlgorithmStarted(const QString& taskId, const QString& algorithmName)
 {
@@ -189,15 +181,9 @@ void AlgorithmCoordinator::onAsyncAlgorithmFailed(
     emit algorithmFailed(algorithmName, errorMessage);
 }
 
-// NOTE (Phase 3): 旧的元数据驱动流程实现已删除
-// 旧实现依赖 App::AlgorithmDescriptorRegistry（已在 Phase 1 删除）
-// 新实现见上方的 run(), processNextStep(), submitParameters(), submitPoints(), execute()
-
-// ==================== Phase 3 新架构实现 ====================
-
 void AlgorithmCoordinator::run(const QString& algorithmName)
 {
-    qDebug() << "[AlgorithmCoordinator] Phase 3 - 执行算法:" << algorithmName;
+    qDebug() << "[AlgorithmCoordinator] 执行算法:" << algorithmName;
 
     // 1. 获取算法的自描述信息
     auto descriptorOpt = descriptorFor(algorithmName);
