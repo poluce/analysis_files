@@ -884,16 +884,15 @@ void MainController::onMassLossToolRemoveRequested(QGraphicsObject* tool)
     }
 
     // 创建删除命令
-    auto* command = new RemoveMassLossToolCommand(
+    auto command = std::make_unique<RemoveMassLossToolCommand>(
         thermalChart,
         tool,
         "移除质量损失测量工具"
     );
 
     // 通过 HistoryManager 执行命令（支持撤销/重做）
-    if (!m_historyManager->executeCommand(command)) {
+    if (!m_historyManager->executeCommand(std::move(command))) {
         qWarning() << "MainController::onMassLossToolRemoveRequested - 命令执行失败";
-        delete command;
         return;
     }
 
@@ -926,16 +925,15 @@ void MainController::onPeakAreaToolRemoveRequested(QGraphicsObject* tool)
     }
 
     // 创建删除命令
-    auto* command = new RemovePeakAreaToolCommand(
+    auto command = std::make_unique<RemovePeakAreaToolCommand>(
         thermalChart,
         peakAreaTool,
         "移除峰面积工具"
     );
 
     // 通过 HistoryManager 执行命令（支持撤销/重做）
-    if (!m_historyManager->executeCommand(command)) {
+    if (!m_historyManager->executeCommand(std::move(command))) {
         qWarning() << "MainController::onPeakAreaToolRemoveRequested - 命令执行失败";
-        delete command;
         return;
     }
 
