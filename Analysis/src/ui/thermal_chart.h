@@ -150,7 +150,7 @@ public:
     void clearAllMarkers();
 
     // ==================== 测量工具管理 ====================
-    void addMassLossTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
+    QGraphicsObject* addMassLossTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
     void removeMassLossTool(QGraphicsObject* tool);
     void clearAllMassLossTools();
 

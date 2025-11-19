@@ -44,6 +44,8 @@ SOURCES += \
     src/application/history/algorithm_command.cpp \
     src/application/history/clear_curves_command.cpp \
     src/application/history/remove_curve_command.cpp \
+    src/application/history/add_mass_loss_tool_command.cpp \
+    src/application/history/add_peak_area_tool_command.cpp \
     src/application/project/project_tree_manager.cpp \
     \
     # Domain Layer
@@ -87,6 +89,8 @@ HEADERS += \
     src/application/history/algorithm_command.h \
     src/application/history/clear_curves_command.h \
     src/application/history/remove_curve_command.h \
+    src/application/history/add_mass_loss_tool_command.h \
+    src/application/history/add_peak_area_tool_command.h \
     src/application/project/project_tree_manager.h \
     \
     # Domain Layer

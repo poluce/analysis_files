@@ -776,7 +776,7 @@ void ThermalChart::clearAllMarkers()
 
 // ==================== Phase 3: 测量工具管理实现 ====================
 
-void ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {
     Q_ASSERT(m_initialized); // 确保依赖完整
 
@@ -805,6 +805,8 @@ void ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const Thermal
     m_massLossTools.append(tool);
 
     qDebug() << "ThermalChart::addMassLossTool - 添加测量工具，测量值:" << tool->measureValue();
+
+    return tool;  // 返回工具指针
 }
 
 void ThermalChart::removeMassLossTool(QGraphicsObject* tool)
