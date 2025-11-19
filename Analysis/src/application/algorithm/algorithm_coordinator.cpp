@@ -519,6 +519,7 @@ void AlgorithmCoordinator::advanceWorkflow(
     wf.stepOutputs[wf.currentStepIndex] = outputCurveIds;
 
     qDebug() << "[AlgorithmCoordinator] 工作流步骤完成:"
+             << "taskId=" << taskId
              << "步骤" << (wf.currentStepIndex + 1) << "/" << wf.steps.size()
              << "算法=" << algorithmName
              << "输出曲线数=" << outputCurveIds.size();
