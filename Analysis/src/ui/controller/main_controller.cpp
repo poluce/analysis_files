@@ -214,7 +214,7 @@ void MainController::initialize()
     // 标记为已初始化状态
     m_initialized = true;
 
-    qDebug() << "✅ MainController 初始化完成，所有依赖已就绪";
+    qDebug() << "[OK] MainController 初始化完成，所有依赖已就绪";
 }
 
 // ==================== 业务逻辑槽函数 ====================

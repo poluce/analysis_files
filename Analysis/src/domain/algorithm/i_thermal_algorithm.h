@@ -164,7 +164,7 @@ public:
     /**
      * @brief 声明算法生成的曲线是否为辅助曲线。
      *
-     * **辅助曲线** vs **独立曲线**：
+     * 辅助曲线 vs 独立曲线：
      * - 辅助曲线：如基线、平滑曲线，应继承父曲线的Y轴，保持视觉一致性
      * - 独立曲线：如微分、积分，数据类型改变，应创建新的Y轴
      *
@@ -183,7 +183,7 @@ public:
     /**
      * @brief 声明算法生成的曲线是否为强绑定曲线。
      *
-     * **强绑定曲线** vs **非强绑定曲线**：
+     * 强绑定曲线 vs 非强绑定曲线：
      * - 强绑定曲线：与父曲线紧密关联，不应独立显示
      *   - 不在 ProjectExplorer 树中显示为独立节点
      *   - 父曲线隐藏时，强绑定的子曲线也自动隐藏
@@ -212,13 +212,13 @@ public:
     /**
      * @brief 准备算法执行前的上下文并验证数据完整性（两阶段执行 - 阶段1）。
      *
-     * **两阶段执行机制**：
-     * - **阶段1（prepareContext）**：算法检查上下文中的数据是否完整，返回就绪状态
-     * - **阶段2（executeWithContext）**：只在数据完整时执行计算
+     * 两阶段执行机制：
+     * - 阶段1（prepareContext）：算法检查上下文中的数据是否完整，返回就绪状态
+     * - 阶段2（executeWithContext）：只在数据完整时执行计算
      *
      * 此方法的职责：
      * 1. 向上下文注入默认参数（如果缺失）
-     * 2. **验证所需数据是否完整**（核心）
+     * 2. 验证所需数据是否完整（核心）
      * 3. 返回 true 表示数据就绪，可以执行；返回 false 表示需要等待用户交互
      *
      * 示例：
@@ -238,24 +238,24 @@ public:
     /**
      * @brief 执行算法（上下文驱动，纯虚函数）。
      *
-     * ✅ **核心执行接口**：算法从上下文中拉取所需数据，返回结构化的 AlgorithmResult。
+     * 核心执行接口：算法从上下文中拉取所需数据，返回结构化的 AlgorithmResult。
      *
      * @note 使用 ContextKeys 常量需要包含：#include "application/algorithm/algorithm_context.h"
      *
-     * **输入**（从上下文拉取）：
+     * 输入（从上下文拉取）：
      * - 曲线数据：context->get<ThermalCurve*>(ContextKeys::ActiveCurve)
      * - 参数：context->get<int>(ContextKeys::ParamWindow)
      * - 选择的点：context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints)
      * - 参考曲线：context->get<ThermalCurve*>(ContextKeys::InputCurve)
      *
-     * **输出**（返回 AlgorithmResult 容器）：
+     * 输出（返回 AlgorithmResult 容器）：
      * - ResultType::Curve: 单曲线输出（如微分、积分）
      * - ResultType::Marker: 标注点输出（如峰值、外推点）
      * - ResultType::Region: 区域输出（如峰面积）
      * - ResultType::ScalarValue: 数值输出（如温度、斜率）
      * - ResultType::Composite: 混合输出（如峰面积=数值+曲线+区域）
      *
-     * **示例**：
+     * 示例：
      * @code
      * // 简单曲线输出
      * AlgorithmResult result = AlgorithmResult::success("differentiation", curveId, ResultType::Curve);
