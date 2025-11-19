@@ -184,9 +184,16 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::algorithmFailed, this,
         &MainController::onCoordinatorAlgorithmFailed, Qt::UniqueConnection);
-    connect(
-        m_algorithmCoordinator, &AlgorithmCoordinator::algorithmSucceeded, this,
-        &MainController::onCoordinatorAlgorithmSucceeded, Qt::UniqueConnection);
+
+    // 新的算法完成信号（携带完整结果）
+    connect(m_algorithmCoordinator, &AlgorithmCoordinator::algorithmCompleted,
+            this, &MainController::onAlgorithmCompleted, Qt::UniqueConnection);
+
+    // 工作流信号
+    connect(m_algorithmCoordinator, &AlgorithmCoordinator::workflowCompleted,
+            this, &MainController::onWorkflowCompleted, Qt::UniqueConnection);
+    connect(m_algorithmCoordinator, &AlgorithmCoordinator::workflowFailed,
+            this, &MainController::onWorkflowFailed, Qt::UniqueConnection);
 
     // ==================== 连接异步执行进度信号 ====================
     connect(m_algorithmCoordinator, &AlgorithmCoordinator::algorithmStarted,
@@ -473,15 +480,63 @@ void MainController::onCoordinatorAlgorithmFailed(const QString& algorithmName, 
         m_mainWindow, tr("算法失败"), tr("算法 %1 执行失败：%2").arg(algorithmName, reason));
 }
 
-void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmName)
+void MainController::onAlgorithmCompleted(
+    const QString& taskId,
+    const QString& algorithmName,
+    const QString& parentCurveId,
+    const AlgorithmResult& result)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
-    qInfo() << "算法执行完成:" << algorithmName;
+    qInfo() << "算法执行完成:" << algorithmName
+            << "taskId:" << taskId
+            << "源曲线:" << parentCurveId
+            << "结果类型:" << static_cast<int>(result.type());
 
     cleanupProgressDialog();
     m_currentTaskId.clear();
     m_currentAlgorithmName.clear();
+
+    // 可选：自动化工作流决策（未来扩展）
+    // if (algorithmName == "differentiation") {
+    //     QString dtgCurveId = result.curves().first().id();
+    //     m_algorithmCoordinator->run("peakDetection");
+    // }
+}
+
+void MainController::onWorkflowCompleted(const QString& workflowId, const QStringList& outputCurveIds)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qInfo() << "工作流执行完成:" << workflowId
+            << "输出曲线数:" << outputCurveIds.size();
+
+    cleanupProgressDialog();
+
+    // 显示成功提示
+    QMessageBox::information(
+        m_mainWindow,
+        tr("工作流完成"),
+        tr("工作流 %1 执行完成，生成 %2 条输出曲线。")
+            .arg(workflowId)
+            .arg(outputCurveIds.size())
+    );
+}
+
+void MainController::onWorkflowFailed(const QString& workflowId, const QString& errorMessage)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qWarning() << "工作流执行失败:" << workflowId << errorMessage;
+
+    cleanupProgressDialog();
+
+    // 显示错误提示
+    QMessageBox::warning(
+        m_mainWindow,
+        tr("工作流失败"),
+        tr("工作流 %1 执行失败：%2").arg(workflowId, errorMessage)
+    );
 }
 
 void MainController::onPeakAreaToolRequested()
