@@ -138,7 +138,7 @@ public:
         desc.displayName = displayName();
         desc.category = category();
 
-        // 基于 inputType() 设置交互需求（向后兼容旧 API）
+        // 基于 inputType() 设置交互需求（默认实现）
         switch (inputType()) {
         case InputType::None:
             desc.needsParameters = false;

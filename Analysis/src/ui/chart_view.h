@@ -63,7 +63,7 @@ struct ActiveAlgorithmInfo {
  * 设计原则：
  * - 薄容器：大部分功能转发给 ThermalChart 和 ThermalChartView
  * - 算法状态机：唯一不转发的业务逻辑（ChartView 的核心职责）
- * - 向后兼容：对外 API 保持不变
+ * - API 稳定性：对外 API 保持不变
  */
 class ChartView : public QWidget {
     Q_OBJECT

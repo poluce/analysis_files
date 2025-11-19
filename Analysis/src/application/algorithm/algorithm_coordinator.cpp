@@ -28,7 +28,7 @@ AlgorithmCoordinator::AlgorithmCoordinator(
     qRegisterMetaType<AlgorithmResult>("AlgorithmResult");
     qRegisterMetaType<ResultType>("ResultType");
 
-    // 连接同步执行信号（向后兼容）
+    // 连接同步执行信号
     connect(
         m_algorithmManager, &AlgorithmManager::algorithmResultReady, this,
         &AlgorithmCoordinator::onAlgorithmResultReady);
@@ -60,9 +60,9 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
         descriptor.name = algorithmName;
     }
 
-    // 若交互需求未显式指定，则依据输入类型推断（向后兼容）
+    // 若交互需求未显式指定，则依据输入类型推断
     // 注意：现在所有算法都应该明确定义 needsParameters/needsPointSelection
-    // 这里的推断逻辑仅作为向后兼容的兜底方案
+    // 这里的推断逻辑仅作为默认行为的兜底方案
     if (!descriptor.needsParameters && !descriptor.needsPointSelection) {
         if (algorithm->inputType() == IThermalAlgorithm::InputType::PointSelection) {
             descriptor.needsPointSelection = true;
@@ -80,27 +80,27 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
 
 void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataPoint>& points)
 {
-    // 向后兼容方法：调用新的 submitPoints()
-    qDebug() << "[AlgorithmCoordinator] handlePointSelectionResult (向后兼容) - 转发到 submitPoints()";
+    // 方法别名：转发到 submitPoints()
+    qDebug() << "[AlgorithmCoordinator] handlePointSelectionResult - 转发到 submitPoints()";
     submitPoints(points);
 }
 
 void AlgorithmCoordinator::cancelPendingRequest()
 {
-    // 向后兼容方法：调用新的 cancel()
-    qDebug() << "[AlgorithmCoordinator] cancelPendingRequest (向后兼容) - 转发到 cancel()";
+    // 方法别名：转发到 cancel()
+    qDebug() << "[AlgorithmCoordinator] cancelPendingRequest - 转发到 cancel()";
     cancel();
 }
 
 void AlgorithmCoordinator::saveResultToContext(
     const QString& algorithmName, const AlgorithmResult& result)
 {
-    // Store the entire result object in context
+    // 将完整的结果对象存储到上下文
     m_context->setValue(OutputKeys::latestResult(algorithmName),
                        QVariant::fromValue(result),
                        QStringLiteral("AlgorithmCoordinator"));
 
-    // Store the result type for quick access
+    // 存储结果类型以便快速访问
     m_context->setValue(
         OutputKeys::resultType(algorithmName),
         QVariant::fromValue(static_cast<int>(result.type())),
