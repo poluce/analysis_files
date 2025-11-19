@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QGraphicsLineItem>
 #include <QGraphicsScene>
+#include <QPointer>
 #include <QSignalBlocker>
 #include <QtCharts/QLegend>
 #include <QtCharts/QLegendMarker>
@@ -268,7 +269,7 @@ void ThermalChart::updateSeriesStyle(QLineSeries* series, bool selected)
 }
 
 // ==================== 坐标轴管理辅助函数（占位符）====================
-// 重新调节指定轴的缩放
+// 重新调节指定轴的缩放（只对可见曲线进行调整）
 void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
 {
     if (!axis) {
@@ -285,6 +286,11 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
     }
 
     for (auto lineSeries : attachedSeries) {
+        // 跳过不可见的系列（只对可见曲线进行适应视图）
+        if (!lineSeries->isVisible()) {
+            continue;
+        }
+
         const auto points = lineSeries->pointsVector();
         for (const QPointF& point : points) {
             if (axis->orientation() == Qt::Horizontal) {
@@ -393,8 +399,6 @@ ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoi
 
     return curveData[nearestIdx];
 }
-
-// ==================== Phase 2: 曲线管理实现 ====================
 
 void ThermalChart::addCurve(const ThermalCurve& curve)
 {
@@ -652,8 +656,6 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     emit xAxisModeChanged(m_xAxisMode);
 }
 
-// ==================== Phase 3: 标注点（Markers）管理实现 ====================
-
 void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color, qreal size)
 {
     Q_ASSERT(m_initialized); // 确保依赖完整
@@ -769,9 +771,7 @@ void ThermalChart::clearAllMarkers()
     qDebug() << "ThermalChart::clearAllMarkers - 清空所有标注点";
 }
 
-// ==================== Phase 3: 测量工具管理实现 ====================
-
-void ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {
     Q_ASSERT(m_initialized); // 确保依赖完整
 
@@ -792,14 +792,20 @@ void ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const Thermal
     // 设置测量点（传递完整的 ThermalDataPoint）
     tool->setMeasurePoints(point1, point2);
 
-    // 连接删除信号
-    connect(tool, &TrapezoidMeasureTool::removeRequested, this, [this, tool]() { removeMassLossTool(tool); });
+    // 连接删除信号（使用 QPointer 防止访问已删除对象）
+    connect(tool, &TrapezoidMeasureTool::removeRequested, this, [this, toolPtr = QPointer<QGraphicsObject>(tool)]() {
+        if (!toolPtr.isNull()) {
+            emit massLossToolRemoveRequested(toolPtr.data());
+        }
+    });
 
     // 添加到场景
     scene()->addItem(tool);
     m_massLossTools.append(tool);
 
     qDebug() << "ThermalChart::addMassLossTool - 添加测量工具，测量值:" << tool->measureValue();
+
+    return tool;  // 返回工具指针
 }
 
 void ThermalChart::removeMassLossTool(QGraphicsObject* tool)
@@ -809,6 +815,8 @@ void ThermalChart::removeMassLossTool(QGraphicsObject* tool)
     // 从场景中移除
     scene()->removeItem(tool);
 
+    // 阻止信号发射（删除已由命令模式触发，无需再发出 removeRequested）
+    tool->blockSignals(true);
     tool->deleteLater();
 
     qDebug() << "ThermalChart::removeMassLossTool - 移除测量工具";
@@ -847,6 +855,9 @@ void ThermalChart::removeCurveMassLossTools(const QString& curveId)
             qDebug() << "ThermalChart::removeCurveMassLossTools - 删除曲线" << curveId << "的测量工具";
             m_massLossTools.removeAt(i);
             scene()->removeItem(obj);
+
+            // 阻止信号发射，防止删除时触发 removeRequested 信号导致 "pure virtual method called" 崩溃
+            obj->blockSignals(true);
             obj->deleteLater();
         }
     }
@@ -876,8 +887,12 @@ ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataP
     // 设置测量点（传递完整的 ThermalDataPoint）
     tool->setMeasurePoints(point1, point2);
 
-    // 连接删除信号
-    connect(tool, &PeakAreaTool::removeRequested, this, [this, tool]() { removePeakAreaTool(tool); });
+    // 连接删除信号（使用 QPointer 防止访问已删除对象）
+    connect(tool, &PeakAreaTool::removeRequested, this, [this, toolPtr = QPointer<PeakAreaTool>(tool)]() {
+        if (!toolPtr.isNull()) {
+            emit peakAreaToolRemoveRequested(toolPtr.data());
+        }
+    });
 
     // 连接面积变化信号
     connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) { qDebug() << "峰面积已更新:" << newArea; });
@@ -904,6 +919,8 @@ void ThermalChart::removePeakAreaTool(QGraphicsObject* tool)
 
     scene()->removeItem(tool);
 
+    // 阻止信号发射（删除已由命令模式触发，无需再发出 removeRequested）
+    tool->blockSignals(true);
     tool->deleteLater();
 
     qDebug() << "ThermalChart::removePeakAreaTool - 移除峰面积工具";
@@ -959,6 +976,9 @@ void ThermalChart::removeCurvePeakAreaTools(const QString& curveId)
             qDebug() << "ThermalChart::removeCurvePeakAreaTools - 删除曲线" << curveId << "的峰面积工具";
             m_peakAreaTools.removeAt(i);
             scene()->removeItem(obj);
+
+            // 阻止信号发射，防止删除时触发 removeRequested 信号导致 "pure virtual method called" 崩溃
+            obj->blockSignals(true);
             obj->deleteLater();
         }
     }

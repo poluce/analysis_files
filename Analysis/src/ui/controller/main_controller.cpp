@@ -14,18 +14,21 @@
 #include "application/history/add_curve_command.h"
 #include "application/history/clear_curves_command.h"
 #include "application/history/remove_curve_command.h"
+#include "application/history/remove_mass_loss_tool_command.h"
+#include "application/history/remove_peak_area_tool_command.h"
 #include "application/history/history_manager.h"
-#include "domain/algorithm/algorithm_descriptor.h"  // 领域层描述符（Phase 1 迁移）
+#include "domain/algorithm/algorithm_descriptor.h"
 #include "domain/algorithm/i_thermal_algorithm.h"
 #include "ui/chart_view.h"
 #include "ui/main_window.h"
+#include "ui/thermal_chart.h"
+#include "ui/trapezoid_measure_tool.h"
+#include "ui/peak_area_tool.h"
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QProgressDialog>
 #include <QInputDialog>
 #include <memory>
-
-// Phase 4: 动态参数对话框所需头文件
 #include <QDialog>
 #include <QFormLayout>
 #include <QSpinBox>
@@ -110,6 +113,18 @@ void MainController::setPlotWidget(ChartView* plotWidget)
                 qDebug() << "ChartView 交互状态变化:" << stateName;
             }, Qt::UniqueConnection);
 
+    // 获取 ThermalChart 实例并连接工具删除请求信号
+    ThermalChart* thermalChart = m_plotWidget->chart();
+    if (thermalChart) {
+        connect(thermalChart, &ThermalChart::massLossToolRemoveRequested,
+                this, &MainController::onMassLossToolRemoveRequested, Qt::UniqueConnection);
+
+        connect(thermalChart, &ThermalChart::peakAreaToolRemoveRequested,
+                this, &MainController::onPeakAreaToolRemoveRequested, Qt::UniqueConnection);
+
+        qDebug() << "MainController: 已连接视图工具删除请求信号";
+    }
+
 }
 
 void MainController::attachMainWindow(MainWindow* mainWindow)
@@ -131,9 +146,6 @@ void MainController::attachMainWindow(MainWindow* mainWindow)
         connect(mainWindow, &MainWindow::massLossToolRequested, m_plotWidget, &ChartView::startMassLossTool, Qt::UniqueConnection);
         // 峰面积工具需要参数对话框，不直接连接到 ChartView
         connect(mainWindow, &MainWindow::peakAreaToolRequested, this, &MainController::onPeakAreaToolRequested, Qt::UniqueConnection);
-        // TODO: 放大和缩小功能需要在 ChartView 中实现
-        // connect(mainWindow, &MainWindow::zoomInRequested, m_plotWidget, &ChartView::zoomIn, Qt::UniqueConnection);
-        // connect(mainWindow, &MainWindow::zoomOutRequested, m_plotWidget, &ChartView::zoomOut, Qt::UniqueConnection);
     }
 
     // 算法接入（使用 lambda 适配不同参数的信号）
@@ -163,7 +175,6 @@ void MainController::setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, 
         m_algorithmCoordinator, &AlgorithmCoordinator::requestPointSelection, this,
         &MainController::onCoordinatorRequestPointSelection, Qt::UniqueConnection);
 
-    // Phase 4: 连接新的 requestParameterDialog 信号（基于算法自描述）
     connect(
         m_algorithmCoordinator, &AlgorithmCoordinator::requestParameterDialog, this,
         &MainController::onRequestParameterDialog, Qt::UniqueConnection);
@@ -203,7 +214,7 @@ void MainController::initialize()
     // 标记为已初始化状态
     m_initialized = true;
 
-    qDebug() << "✅ MainController 初始化完成，所有依赖已就绪";
+    qDebug() << "[OK] MainController 初始化完成，所有依赖已就绪";
 }
 
 // ==================== 业务逻辑槽函数 ====================
@@ -270,7 +281,6 @@ void MainController::onAlgorithmRequested(const QString& algorithmName, const QV
     qDebug() << "MainController: 接收到算法执行请求：" << algorithmName
              << (params.isEmpty() ? "（无参数）" : "（带参数）");
 
-    // Phase 3: 使用新的 run() 方法，基于算法自描述自动编排执行流程
     // 参数说明：params 参数暂时未使用，因为参数收集现在由 AlgorithmCoordinator
     // 通过 requestParameterDialog 信号触发动态对话框完成
     Q_UNUSED(params);
@@ -401,9 +411,6 @@ void MainController::onCurveDeleteRequested(const QString& curveId)
              << (cascadeDelete ? "（包括子曲线）" : "");
 }
 
-// NOTE (Phase 6): onRequestGenericParameterDialog() 已删除
-// Phase 4 使用新的 onRequestParameterDialog() 替代（基于动态 QDialog + QFormLayout）
-
 void MainController::onCoordinatorRequestPointSelection(
     const QString& algorithmName, int requiredPoints, const QString& hint)
 {
@@ -411,7 +418,6 @@ void MainController::onCoordinatorRequestPointSelection(
 
     qDebug() << "MainController::onCoordinatorRequestPointSelection - 算法:" << algorithmName
              << ", 需要点数:" << requiredPoints;
-    // NOTE: Phase 3 移除了 curveId 参数，从 CurveManager 获取活动曲线
 
     // ==================== 使用新的活动算法状态机 ====================
     // 获取算法的显示名称
@@ -424,7 +430,6 @@ void MainController::onCoordinatorRequestPointSelection(
     }
 
     // 启动算法交互状态机
-    // Phase 3 更新：从 CurveManager 获取活动曲线的 ID
     QString curveId;
     ThermalCurve* activeCurve = m_curveManager->getActiveCurve();
     if (activeCurve) {
@@ -477,12 +482,6 @@ void MainController::onCoordinatorAlgorithmSucceeded(const QString& algorithmNam
     cleanupProgressDialog();
     m_currentTaskId.clear();
     m_currentAlgorithmName.clear();
-
-    // 显示成功提示（可选，避免过于频繁的弹窗）
-    // if (m_mainWindow) {
-    //     QMessageBox::information(m_mainWindow, QStringLiteral("算法执行完成"),
-    //                             QStringLiteral("算法 %1 执行成功！").arg(algorithmName));
-    // }
 }
 
 void MainController::onPeakAreaToolRequested()
@@ -639,8 +638,6 @@ void MainController::handleProgressDialogCancelled()
         m_algorithmCoordinator->cancelPendingRequest();
     }
 }
-
-// ==================== Phase 4: 动态参数对话框实现 ====================
 
 void MainController::onRequestParameterDialog(const QString& algorithmName, const AlgorithmDescriptor& descriptor)
 {
@@ -836,4 +833,86 @@ QVariantMap MainController::extractParameters(const QMap<QString, QWidget*>& wid
     }
 
     return parameters;
+}
+
+void MainController::onMassLossToolRemoveRequested(QGraphicsObject* tool)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "MainController::onMassLossToolRemoveRequested - 收到删除请求";
+
+    if (!tool) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - 工具指针为空";
+        return;
+    }
+
+    // 转换为 TrapezoidMeasureTool 以验证类型
+    auto* measureTool = qobject_cast<TrapezoidMeasureTool*>(tool);
+    if (!measureTool) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - 工具类型转换失败";
+        return;
+    }
+
+    // 获取 ThermalChart 实例
+    ThermalChart* thermalChart = m_plotWidget->chart();
+    if (!thermalChart) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - ThermalChart 为空";
+        return;
+    }
+
+    // 创建删除命令
+    auto command = std::make_unique<RemoveMassLossToolCommand>(
+        thermalChart,
+        tool,
+        "移除质量损失测量工具"
+    );
+
+    // 通过 HistoryManager 执行命令（支持撤销/重做）
+    if (!m_historyManager->executeCommand(std::move(command))) {
+        qWarning() << "MainController::onMassLossToolRemoveRequested - 命令执行失败";
+        return;
+    }
+
+    qDebug() << "MainController::onMassLossToolRemoveRequested - 成功删除工具";
+}
+
+void MainController::onPeakAreaToolRemoveRequested(QGraphicsObject* tool)
+{
+    Q_ASSERT(m_initialized);  // 确保依赖完整
+
+    qDebug() << "MainController::onPeakAreaToolRemoveRequested - 收到删除请求";
+
+    if (!tool) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - 工具指针为空";
+        return;
+    }
+
+    // 转换为 PeakAreaTool 以验证类型
+    auto* peakAreaTool = qobject_cast<PeakAreaTool*>(tool);
+    if (!peakAreaTool) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - 工具类型转换失败";
+        return;
+    }
+
+    // 获取 ThermalChart 实例
+    ThermalChart* thermalChart = m_plotWidget->chart();
+    if (!thermalChart) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - ThermalChart 为空";
+        return;
+    }
+
+    // 创建删除命令
+    auto command = std::make_unique<RemovePeakAreaToolCommand>(
+        thermalChart,
+        peakAreaTool,
+        "移除峰面积工具"
+    );
+
+    // 通过 HistoryManager 执行命令（支持撤销/重做）
+    if (!m_historyManager->executeCommand(std::move(command))) {
+        qWarning() << "MainController::onPeakAreaToolRemoveRequested - 命令执行失败";
+        return;
+    }
+
+    qDebug() << "MainController::onPeakAreaToolRemoveRequested - 成功删除工具";
 }

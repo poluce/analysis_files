@@ -44,6 +44,10 @@ SOURCES += \
     src/application/history/algorithm_command.cpp \
     src/application/history/clear_curves_command.cpp \
     src/application/history/remove_curve_command.cpp \
+    src/application/history/add_mass_loss_tool_command.cpp \
+    src/application/history/add_peak_area_tool_command.cpp \
+    src/application/history/remove_mass_loss_tool_command.cpp \
+    src/application/history/remove_peak_area_tool_command.cpp \
     src/application/project/project_tree_manager.cpp \
     \
     # Domain Layer
@@ -55,7 +59,6 @@ SOURCES += \
     src/infrastructure/algorithm/moving_average_filter_algorithm.cpp \
     src/infrastructure/algorithm/integration_algorithm.cpp \
     src/infrastructure/algorithm/baseline_correction_algorithm.cpp \
-    src/infrastructure/algorithm/peak_area_algorithm.cpp \
     src/infrastructure/algorithm/temperature_extrapolation_algorithm.cpp
 
 
@@ -87,6 +90,10 @@ HEADERS += \
     src/application/history/algorithm_command.h \
     src/application/history/clear_curves_command.h \
     src/application/history/remove_curve_command.h \
+    src/application/history/add_mass_loss_tool_command.h \
+    src/application/history/add_peak_area_tool_command.h \
+    src/application/history/remove_mass_loss_tool_command.h \
+    src/application/history/remove_peak_area_tool_command.h \
     src/application/project/project_tree_manager.h \
     \
     # Domain Layer
@@ -105,7 +112,6 @@ HEADERS += \
     src/infrastructure/algorithm/moving_average_filter_algorithm.h \
     src/infrastructure/algorithm/integration_algorithm.h \
     src/infrastructure/algorithm/baseline_correction_algorithm.h \
-    src/infrastructure/algorithm/peak_area_algorithm.h \
     src/infrastructure/algorithm/temperature_extrapolation_algorithm.h
 
 

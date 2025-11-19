@@ -14,6 +14,7 @@ class ThermalChart;
 class ThermalChartView;
 class ThermalCurve;
 class CurveManager;
+class HistoryManager;
 class QGraphicsObject;
 class QPen;
 
@@ -62,7 +63,7 @@ struct ActiveAlgorithmInfo {
  * 设计原则：
  * - 薄容器：大部分功能转发给 ThermalChart 和 ThermalChartView
  * - 算法状态机：唯一不转发的业务逻辑（ChartView 的核心职责）
- * - 向后兼容：对外 API 保持不变
+ * - API 稳定性：对外 API 保持不变
  */
 class ChartView : public QWidget {
     Q_OBJECT
@@ -76,6 +77,12 @@ public:
      * @param manager CurveManager 指针
      */
     void setCurveManager(CurveManager* manager);
+
+    /**
+     * @brief 设置历史管理器（用于工具命令的撤销/重做）
+     * @param manager HistoryManager 指针
+     */
+    void setHistoryManager(HistoryManager* manager);
 
     // ==================== 交互配置（转发给 ThermalChartView）====================
     void setInteractionMode(int type);  // 使用 int 避免枚举冲突
@@ -152,6 +159,13 @@ public slots:
 
     // ==================== 坐标轴管理（转发给 ThermalChart）====================
     void rescaleAxes();
+
+    // ==================== 内部组件访问（用于信号连接）====================
+    /**
+     * @brief 获取内部 ThermalChart 实例
+     * @return ThermalChart 指针（保证非空，构造时创建）
+     */
+    ThermalChart* chart() const { return m_chart; }
 
     // ==================== 十字线控制（转发给 ThermalChart）====================
     void setVerticalCrosshairEnabled(bool enabled);

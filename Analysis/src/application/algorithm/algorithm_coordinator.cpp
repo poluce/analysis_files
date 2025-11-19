@@ -28,7 +28,7 @@ AlgorithmCoordinator::AlgorithmCoordinator(
     qRegisterMetaType<AlgorithmResult>("AlgorithmResult");
     qRegisterMetaType<ResultType>("ResultType");
 
-    // 连接同步执行信号（向后兼容）
+    // 连接同步执行信号
     connect(
         m_algorithmManager, &AlgorithmManager::algorithmResultReady, this,
         &AlgorithmCoordinator::onAlgorithmResultReady);
@@ -60,9 +60,9 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
         descriptor.name = algorithmName;
     }
 
-    // 若交互需求未显式指定，则依据输入类型推断（向后兼容）
+    // 若交互需求未显式指定，则依据输入类型推断
     // 注意：现在所有算法都应该明确定义 needsParameters/needsPointSelection
-    // 这里的推断逻辑仅作为向后兼容的兜底方案
+    // 这里的推断逻辑仅作为默认行为的兜底方案
     if (!descriptor.needsParameters && !descriptor.needsPointSelection) {
         if (algorithm->inputType() == IThermalAlgorithm::InputType::PointSelection) {
             descriptor.needsPointSelection = true;
@@ -80,27 +80,27 @@ std::optional<AlgorithmDescriptor> AlgorithmCoordinator::descriptorFor(const QSt
 
 void AlgorithmCoordinator::handlePointSelectionResult(const QVector<ThermalDataPoint>& points)
 {
-    // 向后兼容方法：调用新的 submitPoints()
-    qDebug() << "[AlgorithmCoordinator] handlePointSelectionResult (向后兼容) - 转发到 submitPoints()";
+    // 方法别名：转发到 submitPoints()
+    qDebug() << "[AlgorithmCoordinator] handlePointSelectionResult - 转发到 submitPoints()";
     submitPoints(points);
 }
 
 void AlgorithmCoordinator::cancelPendingRequest()
 {
-    // 向后兼容方法：调用新的 cancel()
-    qDebug() << "[AlgorithmCoordinator] cancelPendingRequest (向后兼容) - 转发到 cancel()";
+    // 方法别名：转发到 cancel()
+    qDebug() << "[AlgorithmCoordinator] cancelPendingRequest - 转发到 cancel()";
     cancel();
 }
 
 void AlgorithmCoordinator::saveResultToContext(
     const QString& algorithmName, const AlgorithmResult& result)
 {
-    // Store the entire result object in context
+    // 将完整的结果对象存储到上下文
     m_context->setValue(OutputKeys::latestResult(algorithmName),
                        QVariant::fromValue(result),
                        QStringLiteral("AlgorithmCoordinator"));
 
-    // Store the result type for quick access
+    // 存储结果类型以便快速访问
     m_context->setValue(
         OutputKeys::resultType(algorithmName),
         QVariant::fromValue(static_cast<int>(result.type())),
@@ -114,12 +114,6 @@ void AlgorithmCoordinator::onAlgorithmResultReady(
     emit algorithmSucceeded(algorithmName);
 }
 
-// NOTE (Phase 3): ensurePrerequisites 和 populateDefaultParameters 已删除
-// 新架构不再需要这些方法，算法通过 descriptor() 提供完整的参数定义和默认值
-
-// NOTE (Phase 3): executeAlgorithm 已被 execute() 替代
-// 旧方法接收曲线、参数、点作为参数，新方法从 m_pending 中读取这些数据
-
 void AlgorithmCoordinator::resetState()
 {
     m_pending.reset();
@@ -132,8 +126,6 @@ void AlgorithmCoordinator::handleError(const QString& algorithmName, const QStri
     resetState();  // 自动清理所有状态
     emit algorithmFailed(algorithmName, reason);
 }
-
-// ==================== 异步执行槽函数实现 ====================
 
 void AlgorithmCoordinator::onAsyncAlgorithmStarted(const QString& taskId, const QString& algorithmName)
 {
@@ -189,15 +181,9 @@ void AlgorithmCoordinator::onAsyncAlgorithmFailed(
     emit algorithmFailed(algorithmName, errorMessage);
 }
 
-// NOTE (Phase 3): 旧的元数据驱动流程实现已删除
-// 旧实现依赖 App::AlgorithmDescriptorRegistry（已在 Phase 1 删除）
-// 新实现见上方的 run(), processNextStep(), submitParameters(), submitPoints(), execute()
-
-// ==================== Phase 3 新架构实现 ====================
-
 void AlgorithmCoordinator::run(const QString& algorithmName)
 {
-    qDebug() << "[AlgorithmCoordinator] Phase 3 - 执行算法:" << algorithmName;
+    qDebug() << "[AlgorithmCoordinator] 执行算法:" << algorithmName;
 
     // 1. 获取算法的自描述信息
     auto descriptorOpt = descriptorFor(algorithmName);

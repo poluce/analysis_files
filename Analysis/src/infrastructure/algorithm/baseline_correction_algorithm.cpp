@@ -48,7 +48,6 @@ AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
     desc.displayName = displayName();
     desc.category = category();
 
-    // 交互需求：需要点选（Phase 2 新 API）
     desc.needsParameters = false;
     desc.needsPointSelection = true;
     desc.requiredPointCount = 2;

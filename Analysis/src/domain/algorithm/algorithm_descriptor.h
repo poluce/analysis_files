@@ -7,7 +7,7 @@
 #include <QVariant>
 
 /**
- * @brief 算法参数定义（增强版 - Phase 2）
+ * @brief 算法参数定义
  *
  * 描述单个参数的键名、类型、默认值和校验信息。
  * 支持动态参数对话框生成（QDialog + QFormLayout）。
@@ -23,7 +23,7 @@ struct AlgorithmParameterDefinition {
 };
 
 /**
- * @brief 算法描述信息（增强版 - Phase 2）
+ * @brief 算法描述信息
  *
  * 算法通过 IThermalAlgorithm::descriptor() 返回此结构，实现完全自描述：
  * - 是否需要交互（参数对话框、点选、曲线选择）

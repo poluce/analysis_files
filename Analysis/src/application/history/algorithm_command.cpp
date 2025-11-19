@@ -27,14 +27,14 @@ bool AlgorithmCommand::execute()
     }
 
     try {
-        // ⚠️ 注意：AlgorithmCommand 已弃用，新架构使用 AlgorithmCoordinator + AlgorithmContext
+        // WARNING: AlgorithmCommand 已弃用，新架构使用 AlgorithmCoordinator + AlgorithmContext
         // 此处暂时禁用以避免编译错误
         qWarning() << "AlgorithmCommand::execute - 此类已弃用，请使用 AlgorithmCoordinator";
         return false;
 
         // 旧代码（已全部禁用）：
         // const auto inputData = m_inputCurve->getProcessedData();
-        // const auto outputData = m_algorithm->process(inputData);  // ❌ process() 不存在
+        // const auto outputData = m_algorithm->process(inputData);  // process() 不存在
         // m_newCurveId = QUuid::createUuid().toString();
         // ...
         // return true;

@@ -18,6 +18,7 @@ class HistoryManager;
 class ChartView;
 class MainWindow;
 class CurveViewController;
+class QGraphicsObject;
 
 /**
  * @brief MainController 协调UI和应用服务。
@@ -98,17 +99,15 @@ private slots:
      */
     void onImportTriggered();
     /**
-     * @brief 处理点选请求（Phase 3/4 更新）
+     * @brief 处理点选请求
      * @param algorithmName 算法名称
      * @param requiredPoints 所需点数
      * @param hint 提示信息
-     *
-     * Phase 3 移除了 curveId 参数（从 CurveManager 获取活动曲线）
      */
     void onCoordinatorRequestPointSelection(const QString& algorithmName, int requiredPoints, const QString& hint);
 
     /**
-     * @brief 处理参数对话框请求（Phase 4 新架构）
+     * @brief 处理参数对话框请求
      * @param algorithmName 算法名称
      * @param descriptor 算法描述符（包含完整的参数定义）
      *
@@ -124,6 +123,22 @@ private slots:
     // ==================== 异步执行进度反馈槽函数 ====================
     void onAlgorithmStarted(const QString& taskId, const QString& algorithmName);
     void onAlgorithmProgress(const QString& taskId, int percentage, const QString& message);
+
+    /**
+     * @brief 处理质量损失工具删除请求
+     * @param tool 待删除的工具对象
+     *
+     * 创建 RemoveMassLossToolCommand 并通过 HistoryManager 执行
+     */
+    void onMassLossToolRemoveRequested(QGraphicsObject* tool);
+
+    /**
+     * @brief 处理峰面积工具删除请求
+     * @param tool 待删除的工具对象
+     *
+     * 创建 RemovePeakAreaToolCommand 并通过 HistoryManager 执行
+     */
+    void onPeakAreaToolRemoveRequested(QGraphicsObject* tool);
 
 private:
     // ==================== 初始化状态标记 ====================
@@ -153,8 +168,6 @@ private:
     void cleanupProgressDialog();
     QProgressDialog* ensureProgressDialog();
     void handleProgressDialogCancelled();
-
-    // ==================== Phase 4: 动态参数对话框辅助方法 ====================
 
     /**
      * @brief 根据参数定义创建对应的 QWidget 控件

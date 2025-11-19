@@ -117,6 +117,26 @@ public:
      */
     QString curveId() const { return m_curveId; }
 
+    /**
+     * @brief 获取第一个测量点（用于 RemoveCommand 保存状态）
+     */
+    ThermalDataPoint point1() const { return m_point1; }
+
+    /**
+     * @brief 获取第二个测量点（用于 RemoveCommand 保存状态）
+     */
+    ThermalDataPoint point2() const { return m_point2; }
+
+    /**
+     * @brief 获取基线模式（用于 RemoveCommand 保存状态）
+     */
+    BaselineMode baselineMode() const { return m_baselineMode; }
+
+    /**
+     * @brief 获取参考曲线ID（用于 RemoveCommand 保存状态）
+     */
+    QString referenceCurveId() const { return m_baselineCurveId; }
+
 signals:
     /**
      * @brief 工具被删除时发射

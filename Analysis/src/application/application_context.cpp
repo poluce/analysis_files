@@ -35,7 +35,7 @@ ApplicationContext::ApplicationContext(QObject* parent)
 
     // 3. 应用服务层（依赖注入）
     m_algorithmManager = new AlgorithmManager(
-        m_threadManager,  // ✅ 显式注入 ThreadManager
+        m_threadManager,  // 显式注入 ThreadManager
         this
     );
     m_algorithmManager->setCurveManager(m_curveManager);
@@ -55,11 +55,12 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 4. 表示层（UI）
     m_chartView = new ChartView();
     m_chartView->setCurveManager(m_curveManager);  // 设置曲线管理器，用于获取曲线数据
+    m_chartView->setHistoryManager(m_historyManager);  // 设置历史管理器，用于工具命令
 
     m_projectExplorerView = new ProjectExplorerView();
 
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
-    m_mainWindow->bindHistoryManager(*m_historyManager);  // ✅ 传递实例而非单例
+    m_mainWindow->bindHistoryManager(*m_historyManager);  // 传递实例而非单例
 
     // 连接 AlgorithmManager 的标注点信号到 ChartView
     connect(m_algorithmManager, &AlgorithmManager::markersGenerated,
@@ -70,8 +71,8 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 5. 控制器层
     m_mainController = new MainController(
         m_curveManager,
-        m_algorithmManager,  // ✅ 直接传递实例
-        m_historyManager,    // ✅ 直接传递实例
+        m_algorithmManager,  // 直接传递实例
+        m_historyManager,    // 直接传递实例
         this
     );
     m_mainController->setPlotWidget(m_chartView);
@@ -105,7 +106,7 @@ void ApplicationContext::start() { m_mainWindow->show(); }
 
 void ApplicationContext::registerAlgorithms()
 {
-    // ✅ 使用成员变量，不再调用单例
+    // 使用成员变量，不再调用单例
     m_algorithmManager->registerAlgorithm(new DifferentiationAlgorithm());
     m_algorithmManager->registerAlgorithm(new MovingAverageFilterAlgorithm());
     m_algorithmManager->registerAlgorithm(new IntegrationAlgorithm());

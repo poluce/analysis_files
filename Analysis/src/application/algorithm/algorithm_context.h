@@ -193,16 +193,16 @@ namespace ContextKeys {
  * - 用户交互数据（选择的点、曲线引用等）
  * - 算法中间结果和输出数据
  *
- * ## 核心特性
+ * 核心特性:
  *
- * 1. **类型安全访问**: 使用模板方法 `get<T>()` 提供编译时类型检查
- * 2. **标准键名常量**: `ContextKeys` 命名空间定义所有标准键名，避免拼写错误
- * 3. **数据来源追踪**: 每个值都记录来源（UI/Algorithm/File）和时间戳
- * 4. **信号通知**: 值变化时自动发出信号，支持响应式编程
+ * 1. 类型安全访问: 使用模板方法 get<T>() 提供编译时类型检查
+ * 2. 标准键名常量: ContextKeys 命名空间定义所有标准键名，避免拼写错误
+ * 3. 数据来源追踪: 每个值都记录来源（UI/Algorithm/File）和时间戳
+ * 4. 信号通知: 值变化时自动发出信号，支持响应式编程
  *
- * ## 算法开发者指南
+ * 算法开发者指南:
  *
- * ### 1. 读取上下文数据
+ * 1. 读取上下文数据
  *
  * 算法应该从上下文中"拉取"所需数据，而不是通过函数参数传递：
  *
@@ -234,9 +234,9 @@ namespace ContextKeys {
  * }
  * @endcode
  *
- * ### 2. 设置默认参数（可选）
+ * 2. 设置默认参数（可选）
  *
- * 如果算法有默认参数，可以在 `prepareContext()` 中注入：
+ * 如果算法有默认参数，可以在 prepareContext() 中注入：
  *
  * @code
  * void MyAlgorithm::prepareContext(AlgorithmContext* context) {
@@ -247,34 +247,32 @@ namespace ContextKeys {
  * }
  * @endcode
  *
- * ### 3. 标准数据类型速查
+ * 3. 标准数据类型速查
  *
- * | 键名常量                          | 数据类型                  | 说明                    |
- * |-----------------------------------|---------------------------|-------------------------|
- * | `ContextKeys::ActiveCurve`        | `ThermalCurve`            | 当前活动曲线（副本）    |
- * | `ContextKeys::BaselineCurves`     | `QVector<ThermalCurve*>`  | 活动曲线的所有基线      |
- * | `ContextKeys::SelectedPoints`     | `QVector<ThermalDataPoint>`        | 用户选择的点集合        |
- * | `ContextKeys::ParamWindow`        | `int`                     | 窗口大小（移动平均）    |
- * | `ContextKeys::ParamThreshold`     | `double`                  | 阈值（峰值检测等）      |
- * | `ContextKeys::BaselineType`       | `int`                     | 基线类型 (0=线性, 1=多项式) |
- * | `ContextKeys::FilterType`         | `QString`                 | 滤波类型 ("FFT", "MovingAverage") |
- * | `ContextKeys::PeakArea`           | `double`                  | 峰面积计算结果          |
- * | `ContextKeys::ActivationEnergy`   | `double`                  | 活化能 (kJ/mol)         |
+ * - ContextKeys::ActiveCurve        - ThermalCurve             - 当前活动曲线（副本）
+ * - ContextKeys::BaselineCurves     - QVector<ThermalCurve*>   - 活动曲线的所有基线
+ * - ContextKeys::SelectedPoints     - QVector<ThermalDataPoint> - 用户选择的点集合
+ * - ContextKeys::ParamWindow        - int                      - 窗口大小（移动平均）
+ * - ContextKeys::ParamThreshold     - double                   - 阈值（峰值检测等）
+ * - ContextKeys::BaselineType       - int                      - 基线类型 (0=线性, 1=多项式)
+ * - ContextKeys::FilterType         - QString                  - 滤波类型 ("FFT", "MovingAverage")
+ * - ContextKeys::PeakArea           - double                   - 峰面积计算结果
+ * - ContextKeys::ActivationEnergy   - double                   - 活化能 (kJ/mol)
  *
- * 完整的数据清单请参考：`新设计文档/AlgorithmContext_数据清单.md`
+ * 完整的数据清单请参考: 新设计文档/AlgorithmContext_数据清单.md
  *
- * ### 4. 注意事项
+ * 4. 注意事项
  *
- * - ✅ **使用标准键名常量** (`ContextKeys::*`) 而非字符串字面量
- * - ✅ **使用 `value_or()`** 提供回退默认值，避免崩溃
- * - ✅ **检查指针有效性** 在使用 `ThermalCurve*` 前检查 `!= nullptr`
- * - ✅ **返回 QVariant** 算法结果应包装为 `QVariant::fromValue(result)`
- * - ❌ **不要修改输入曲线** 使用 `getProcessedData()` 获取只读数据
- * - ❌ **不要在上下文中存储大对象** 对于大数据，存储指针或引用
+ * - 推荐: 使用标准键名常量 (ContextKeys::*) 而非字符串字面量
+ * - 推荐: 使用 value_or() 提供回退默认值，避免崩溃
+ * - 推荐: 检查指针有效性 在使用 ThermalCurve* 前检查 != nullptr
+ * - 推荐: 返回 QVariant 算法结果应包装为 QVariant::fromValue(result)
+ * - 禁止: 不要修改输入曲线 使用 getProcessedData() 获取只读数据
+ * - 禁止: 不要在上下文中存储大对象 对于大数据，存储指针或引用
  *
- * ## 高级用法
+ * 高级用法:
  *
- * ### 监听上下文变化
+ * 监听上下文变化
  *
  * @code
  * connect(context, &AlgorithmContext::valueChanged, this,

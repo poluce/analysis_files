@@ -150,7 +150,7 @@ public:
     void clearAllMarkers();
 
     // ==================== 测量工具管理 ====================
-    void addMassLossTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
+    QGraphicsObject* addMassLossTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
     void removeMassLossTool(QGraphicsObject* tool);
     void clearAllMassLossTools();
 
@@ -186,6 +186,20 @@ signals:
      * @brief 曲线可见性改变信号
      */
     void curveVisibilityChanged(const QString& curveId, bool visible);
+
+    /**
+     * @brief 质量损失工具删除请求信号
+     *
+     * 当用户点击工具关闭按钮时发出，由 Controller 创建 RemoveCommand
+     */
+    void massLossToolRemoveRequested(QGraphicsObject* tool);
+
+    /**
+     * @brief 峰面积工具删除请求信号
+     *
+     * 当用户点击工具关闭按钮时发出，由 Controller 创建 RemoveCommand
+     */
+    void peakAreaToolRemoveRequested(QGraphicsObject* tool);
 
 private:
     // ==================== 系列管理辅助函数 ====================
