@@ -10,6 +10,8 @@
 #include <QMetaType>
 #include <QSet>
 #include <QVariant>
+#include <QUuid>
+#include <QDateTime>
 
 AlgorithmCoordinator::AlgorithmCoordinator(
     AlgorithmManager* manager, CurveManager* curveManager, AlgorithmContext* context, QObject* parent)
@@ -31,7 +33,7 @@ AlgorithmCoordinator::AlgorithmCoordinator(
     // 连接同步执行信号
     connect(
         m_algorithmManager, &AlgorithmManager::algorithmResultReady, this,
-        &AlgorithmCoordinator::onAlgorithmResultReady);
+        &AlgorithmCoordinator::onSyncAlgorithmResultReady);
 
     // 连接异步执行信号
     connect(m_algorithmManager, &AlgorithmManager::algorithmStarted,
@@ -92,26 +94,27 @@ void AlgorithmCoordinator::cancelPendingRequest()
     cancel();
 }
 
-void AlgorithmCoordinator::saveResultToContext(
+void AlgorithmCoordinator::onSyncAlgorithmResultReady(
     const QString& algorithmName, const AlgorithmResult& result)
 {
-    // 将完整的结果对象存储到上下文
-    m_context->setValue(OutputKeys::latestResult(algorithmName),
-                       QVariant::fromValue(result),
-                       QStringLiteral("AlgorithmCoordinator"));
+    // 1. 生成 taskId（算法名 + 时间戳 + UUID）
+    qint64 timestamp = QDateTime::currentMSecsSinceEpoch();
+    QString uuid = QUuid::createUuid().toString(QUuid::WithoutBraces).left(8);
+    QString taskId = QString("%1-%2-%3").arg(algorithmName).arg(timestamp).arg(uuid);
 
-    // 存储结果类型以便快速访问
-    m_context->setValue(
-        OutputKeys::resultType(algorithmName),
-        QVariant::fromValue(static_cast<int>(result.type())),
-        QStringLiteral("AlgorithmCoordinator"));
-}
+    qDebug() << "[AlgorithmCoordinator] 同步算法完成:" << algorithmName << "taskId:" << taskId;
 
-void AlgorithmCoordinator::onAlgorithmResultReady(
-    const QString& algorithmName, const AlgorithmResult& result)
-{
-    saveResultToContext(algorithmName, result);
-    emit algorithmSucceeded(algorithmName);
+    // 2. 获取父曲线ID
+    QString parentCurveId = result.parentCurveId();
+
+    // 3. 保存结果到上下文
+    m_context->saveResult(taskId, algorithmName, parentCurveId, result);
+
+    // 4. 发射 algorithmCompleted 信号
+    emit algorithmCompleted(taskId, algorithmName, parentCurveId, result);
+
+    // 5. 推进工作流（如有）
+    advanceWorkflow(taskId, algorithmName, result);
 }
 
 void AlgorithmCoordinator::resetState()
@@ -157,11 +160,17 @@ void AlgorithmCoordinator::onAsyncAlgorithmFinished(
         resetState();
     }
 
-    // 保存结果到上下文（复用统一方法）
-    saveResultToContext(algorithmName, result);
+    // 获取父曲线ID
+    QString parentCurveId = result.parentCurveId();
 
-    // 发出成功信号
-    emit algorithmSucceeded(algorithmName);
+    // 保存结果到上下文
+    m_context->saveResult(taskId, algorithmName, parentCurveId, result);
+
+    // 发射 algorithmCompleted 信号
+    emit algorithmCompleted(taskId, algorithmName, parentCurveId, result);
+
+    // 推进工作流（如有）
+    advanceWorkflow(taskId, algorithmName, result);
 
     qDebug() << "[AlgorithmCoordinator] 结果已保存到上下文，算法成功完成";
 }
@@ -355,6 +364,12 @@ void AlgorithmCoordinator::execute()
                            QVariant::fromValue(pending.points), "AlgorithmCoordinator");
     }
 
+    // 检查算法依赖（工作流支持）
+    if (!checkPrerequisites(pending.algorithmName)) {
+        handleError(pending.algorithmName, "依赖检查失败");
+        return;
+    }
+
     // 提交到异步队列
     QString taskId = m_algorithmManager->executeAsync(pending.algorithmName, m_context);
 
@@ -392,4 +407,178 @@ void AlgorithmCoordinator::cancel()
             qWarning() << "[AlgorithmCoordinator] 任务取消失败（任务可能已完成）:" << m_currentTaskId;
         }
     }
+}
+
+// ========== 工作流实现 ==========
+
+QString AlgorithmCoordinator::runWorkflow(const QStringList& steps, const QStringList& curveIds)
+{
+    if (steps.isEmpty()) {
+        qWarning() << "[AlgorithmCoordinator] runWorkflow - 步骤列表为空";
+        return QString();
+    }
+
+    if (curveIds.isEmpty()) {
+        qWarning() << "[AlgorithmCoordinator] runWorkflow - 输入曲线列表为空";
+        return QString();
+    }
+
+    if (m_currentWorkflow.has_value()) {
+        qWarning() << "[AlgorithmCoordinator] runWorkflow - 已有工作流正在运行，请先取消或等待完成";
+        return QString();
+    }
+
+    // 生成工作流 ID
+    qint64 timestamp = QDateTime::currentMSecsSinceEpoch();
+    QString uuid = QUuid::createUuid().toString(QUuid::WithoutBraces).left(8);
+    QString workflowId = QString("workflow-%1-%2").arg(timestamp).arg(uuid);
+
+    // 初始化工作流状态
+    PendingWorkflow workflow;
+    workflow.id = workflowId;
+    workflow.steps = steps;
+    workflow.currentStepIndex = 0;
+    workflow.inputCurveIds = curveIds;
+    workflow.status = WorkflowStatus::Running;
+
+    m_currentWorkflow = workflow;
+
+    qInfo() << "[AlgorithmCoordinator] 工作流启动:"
+            << "id=" << workflowId
+            << "步骤数=" << steps.size()
+            << "输入曲线=" << curveIds.size();
+
+    // 执行第一步算法
+    QString firstAlgorithm = steps.first();
+    QString firstInputCurve = curveIds.first();
+
+    qDebug() << "[AlgorithmCoordinator] 工作流执行步骤 1/" << steps.size() << ": " << firstAlgorithm;
+    run(firstAlgorithm);
+
+    return workflowId;
+}
+
+void AlgorithmCoordinator::cancelWorkflow(const QString& workflowId)
+{
+    if (!m_currentWorkflow.has_value()) {
+        qDebug() << "[AlgorithmCoordinator] cancelWorkflow - 无活动工作流";
+        return;
+    }
+
+    if (m_currentWorkflow->id != workflowId) {
+        qWarning() << "[AlgorithmCoordinator] cancelWorkflow - 工作流ID不匹配:"
+                   << "请求=" << workflowId
+                   << "当前=" << m_currentWorkflow->id;
+        return;
+    }
+
+    // 标记状态为已取消
+    m_currentWorkflow->status = WorkflowStatus::Cancelled;
+    m_currentWorkflow->errorMessage = "用户取消";
+
+    qInfo() << "[AlgorithmCoordinator] 工作流已取消:" << workflowId;
+
+    // 发射失败信号
+    emit workflowFailed(workflowId, "用户取消");
+
+    // 清理工作流状态
+    m_currentWorkflow.reset();
+}
+
+void AlgorithmCoordinator::advanceWorkflow(
+    const QString& taskId,
+    const QString& algorithmName,
+    const AlgorithmResult& result)
+{
+    if (!m_currentWorkflow.has_value()) {
+        return;  // 无活动工作流
+    }
+
+    auto& wf = m_currentWorkflow.value();
+
+    // 验证算法名匹配当前步骤
+    if (wf.currentStepIndex >= wf.steps.size()) {
+        return;  // 已超出步骤范围
+    }
+
+    QString expectedAlgorithm = wf.steps[wf.currentStepIndex];
+    if (algorithmName != expectedAlgorithm) {
+        qDebug() << "[AlgorithmCoordinator] advanceWorkflow - 算法名不匹配，跳过:"
+                 << "期望=" << expectedAlgorithm
+                 << "实际=" << algorithmName;
+        return;  // 算法名不匹配
+    }
+
+    // 记录当前步骤的输出曲线ID
+    QStringList outputCurveIds;
+    if (result.hasCurves()) {
+        for (const ThermalCurve& curve : result.curves()) {
+            outputCurveIds.append(curve.id());
+        }
+    }
+    wf.stepOutputs[wf.currentStepIndex] = outputCurveIds;
+
+    qDebug() << "[AlgorithmCoordinator] 工作流步骤完成:"
+             << "taskId=" << taskId
+             << "步骤" << (wf.currentStepIndex + 1) << "/" << wf.steps.size()
+             << "算法=" << algorithmName
+             << "输出曲线数=" << outputCurveIds.size();
+
+    // 推进到下一步
+    wf.currentStepIndex++;
+
+    // 检查是否完成
+    if (wf.currentStepIndex >= wf.steps.size()) {
+        // 工作流完成
+        wf.status = WorkflowStatus::Completed;
+        QString wfId = wf.id;
+        QStringList finalOutputs = wf.stepOutputs[wf.steps.size() - 1];
+
+        emit workflowCompleted(wfId, finalOutputs);
+        m_currentWorkflow.reset();
+
+        qInfo() << "[AlgorithmCoordinator] 工作流完成:" << wfId
+                << "最终输出曲线数=" << finalOutputs.size();
+        return;
+    }
+
+    // 执行下一步
+    QString nextAlgorithm = wf.steps[wf.currentStepIndex];
+    QString nextInputCurve = outputCurveIds.isEmpty() ? wf.inputCurveIds.first() : outputCurveIds.first();
+
+    qInfo() << "[AlgorithmCoordinator] 工作流推进:"
+            << "步骤" << (wf.currentStepIndex + 1) << "/" << wf.steps.size()
+            << "算法=" << nextAlgorithm
+            << "输入曲线=" << nextInputCurve;
+
+    run(nextAlgorithm);
+}
+
+bool AlgorithmCoordinator::checkPrerequisites(const QString& algorithmName)
+{
+    // 1. 获取算法描述符
+    auto descriptor = descriptorFor(algorithmName);
+    if (!descriptor.has_value()) {
+        qWarning() << "[AlgorithmCoordinator] checkPrerequisites - 算法不存在:" << algorithmName;
+        emit showMessage(QStringLiteral("算法 %1 不存在").arg(algorithmName));
+        return false;
+    }
+
+    const AlgorithmDescriptor& desc = descriptor.value();
+
+    // 2. 检查每个 prerequisite
+    for (const QString& prerequisite : desc.prerequisites) {
+        if (!m_context->contains(prerequisite)) {
+            QString message = QStringLiteral("算法 %1 缺少必需依赖: %2")
+                                .arg(algorithmName)
+                                .arg(prerequisite);
+            qWarning() << "[AlgorithmCoordinator] checkPrerequisites -" << message;
+            emit showMessage(message);
+            return false;
+        }
+    }
+
+    qDebug() << "[AlgorithmCoordinator] checkPrerequisites - 算法" << algorithmName
+             << "的所有依赖已满足，共" << desc.prerequisites.size() << "项";
+    return true;
 }

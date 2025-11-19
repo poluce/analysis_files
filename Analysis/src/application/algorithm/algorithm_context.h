@@ -7,6 +7,7 @@
 #include <QVariant>
 #include <QVariantMap>
 #include <optional>
+#include "domain/algorithm/algorithm_result.h"
 
 // ============================================================================
 // 标准键名常量定义 (Standard Context Keys)
@@ -379,6 +380,92 @@ public:
      */
     AlgorithmContext* clone() const;
 
+    // ========== 算法结果专用 API ==========
+
+    /**
+     * @brief 保存算法执行结果（支持并发和历史管理）
+     *
+     * 此方法使用混合索引方案存储结果：
+     * - 主存储（byTask）：按 taskId 存储，不可覆盖，支持并发
+     * - 最新指针（latestTaskId）：指向该曲线+算法的最新任务ID
+     * - 历史队列（historyTaskIds）：记录最近 N 次执行的 taskId 列表
+     *
+     * LRU 裁剪策略：
+     * - 当历史队列超出 m_historyDepth 时，自动裁剪最旧的记录
+     * - 被裁剪的任务的主存储也会被删除（可选）
+     *
+     * @param taskId 任务ID（全局唯一，格式：{algorithm}-{timestamp}-{uuid}）
+     * @param algorithm 算法名称
+     * @param parentCurveId 来源曲线ID
+     * @param result 算法执行结果
+     *
+     * 使用示例:
+     * @code
+     * AlgorithmResult result = AlgorithmResult::success("differentiation", "curve-001", ResultType::Curve);
+     * context->saveResult("task-001", "differentiation", "curve-001", result);
+     * @endcode
+     */
+    void saveResult(const QString& taskId,
+                   const QString& algorithm,
+                   const QString& parentCurveId,
+                   const AlgorithmResult& result);
+
+    /**
+     * @brief 获取某条曲线某算法的最新执行结果
+     *
+     * 读取逻辑：
+     * 1. 读取 latestTaskId 指针
+     * 2. 展开 taskId，读取主存储（byTask）
+     *
+     * @param algorithm 算法名称
+     * @param curveId 曲线ID
+     * @return std::optional<AlgorithmResult> - 如果存在返回结果，否则返回 std::nullopt
+     *
+     * 使用示例:
+     * @code
+     * auto result = context->latestResult("differentiation", "curve-001");
+     * if (result.has_value()) {
+     *     qDebug() << "最新微分结果:" << result->timestamp();
+     * }
+     * @endcode
+     */
+    std::optional<AlgorithmResult> latestResult(const QString& algorithm,
+                                                const QString& curveId) const;
+
+    /**
+     * @brief 获取某条曲线某算法的历史执行结果列表（按时间倒序）
+     *
+     * 读取逻辑：
+     * 1. 读取 historyTaskIds 列表
+     * 2. 展开每个 taskId，读取主存储（byTask）
+     *
+     * @param algorithm 算法名称
+     * @param curveId 曲线ID
+     * @param limit 限制返回数量（默认10，0表示不限制）
+     * @return QVector<AlgorithmResult> - 历史结果列表（最新的在前）
+     *
+     * 使用示例:
+     * @code
+     * auto history = context->historyResults("differentiation", "curve-001", 5);
+     * qDebug() << "最近5次微分执行:" << history.size();
+     * @endcode
+     */
+    QVector<AlgorithmResult> historyResults(const QString& algorithm,
+                                           const QString& curveId,
+                                           int limit = 10) const;
+
+    /**
+     * @brief 设置历史记录深度（默认20）
+     * @param depth 历史深度（必须 > 0）
+     */
+    void setHistoryDepth(int depth);
+
+    /**
+     * @brief 获取当前历史记录深度
+     * @return 历史深度
+     */
+    int historyDepth() const;
+
 signals:
     /**
      * @brief 当键值发生改变时发射此信号
@@ -400,6 +487,7 @@ private:
     };
 
     QHash<QString, Entry> m_entries;
+    int m_historyDepth = 20;  // 历史记录深度（默认保留最近20次执行）
 };
 
 #endif // APPLICATION_ALGORITHM_CONTEXT_H

@@ -76,6 +76,10 @@ AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
     debugParam.required = false;
     desc.parameters.append(debugParam);
 
+    // 依赖声明（工作流支持）
+    desc.prerequisites.append(ContextKeys::ActiveCurve);
+    desc.produces.append("curve");
+
     return desc;
 }
 

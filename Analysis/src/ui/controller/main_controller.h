@@ -14,6 +14,7 @@ class ThermalCurve;
 class AlgorithmManager;
 class AlgorithmCoordinator;
 class AlgorithmContext;
+class AlgorithmResult;
 class HistoryManager;
 class ChartView;
 class MainWindow;
@@ -118,7 +119,32 @@ private slots:
 
     void onCoordinatorShowMessage(const QString& text);
     void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
-    void onCoordinatorAlgorithmSucceeded(const QString& algorithmName);
+
+    /**
+     * @brief 算法执行完成（新信号，携带完整结果）
+     * @param taskId 任务ID
+     * @param algorithmName 算法名称
+     * @param parentCurveId 来源曲线ID
+     * @param result 算法执行结果
+     */
+    void onAlgorithmCompleted(const QString& taskId,
+                             const QString& algorithmName,
+                             const QString& parentCurveId,
+                             const AlgorithmResult& result);
+
+    /**
+     * @brief 工作流执行完成
+     * @param workflowId 工作流ID
+     * @param outputCurveIds 最终输出曲线ID列表
+     */
+    void onWorkflowCompleted(const QString& workflowId, const QStringList& outputCurveIds);
+
+    /**
+     * @brief 工作流执行失败
+     * @param workflowId 工作流ID
+     * @param errorMessage 错误信息
+     */
+    void onWorkflowFailed(const QString& workflowId, const QString& errorMessage);
 
     // ==================== 异步执行进度反馈槽函数 ====================
     void onAlgorithmStarted(const QString& taskId, const QString& algorithmName);

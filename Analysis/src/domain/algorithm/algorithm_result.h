@@ -28,58 +28,89 @@ enum class ResultType {
  * 与输入键名（ContextKeys）分离，专门用于算法输出结果的存储和检索。
  *
  * @code
- * // 推荐使用：
- * context->setValue(OutputKeys::latestResult("differentiation"), result);
- * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
+ * // 推荐使用（通过 AlgorithmContext 高层API）：
+ * context->saveResult("task-001", "differentiation", "curve-001", result);
+ * auto latest = context->latestResult("differentiation", "curve-001");
  *
- * // 避免使用：
- * context->setValue("result/differentiation/latest", result);  // 容易拼写错误
+ * // 或使用底层键名（仅用于特殊场景）：
+ * QString key = OutputKeys::byTask("differentiation", "task-001");
+ * context->setValue(key, QVariant::fromValue(result));
  * @endcode
  */
 namespace OutputKeys {
     /** 结果键名前缀 */
     inline constexpr const char* ResultPrefix = "result/";
 
-    /** 最新结果键名后缀 */
-    inline constexpr const char* LatestSuffix = "/latest";
+    /** 按任务ID索引中缀 */
+    inline constexpr const char* ByTaskInfix = "/byTask/";
 
-    /** 结果类型键名后缀 */
-    inline constexpr const char* ResultTypeSuffix = "/resultType";
+    /** 按曲线ID索引中缀 */
+    inline constexpr const char* ByCurveInfix = "/byCurve/";
 
-    /** 历史结果键名中缀 */
-    inline constexpr const char* HistoryInfix = "/history/";
+    /** 最新任务ID后缀 */
+    inline constexpr const char* LatestTaskIdSuffix = "/latestTaskId";
+
+    /** 历史任务ID后缀 */
+    inline constexpr const char* HistoryTaskIdsSuffix = "/historyTaskIds";
 
     /**
-     * @brief 生成算法最新结果键名
-     * @param algorithmName 算法名称
-     * @return 完整键名 (格式: "result/{algorithmName}/latest")
+     * @brief 生成按任务ID存储的结果键名（主存储）
+     * @param algorithm 算法名称
+     * @param taskId 任务ID
+     * @return 完整键名 (格式: "result/{algorithm}/byTask/{taskId}")
      *
      * 使用示例:
      * @code
-     * // 存储最新结果
-     * context->setValue(OutputKeys::latestResult("differentiation"), result);
+     * // 存储算法结果（不可覆盖）
+     * QString key = OutputKeys::byTask("differentiation", "task-001");
+     * context->setValue(key, QVariant::fromValue(result));
      *
-     * // 读取最新结果
-     * auto result = context->get<AlgorithmResult>(OutputKeys::latestResult("differentiation"));
+     * // 读取特定任务的结果
+     * auto result = context->get<AlgorithmResult>(key);
      * @endcode
      */
-    inline QString latestResult(const QString& algorithmName) {
-        return QString(ResultPrefix) + algorithmName + QString(LatestSuffix);
+    inline QString byTask(const QString& algorithm, const QString& taskId) {
+        return QString(ResultPrefix) + algorithm + QString(ByTaskInfix) + taskId;
     }
 
     /**
-     * @brief 生成算法结果类型键名
-     * @param algorithmName 算法名称
-     * @return 完整键名 (格式: "result/{algorithmName}/resultType")
+     * @brief 生成曲线最新任务ID键名（索引）
+     * @param algorithm 算法名称
+     * @param curveId 曲线ID
+     * @return 完整键名 (格式: "result/{algorithm}/byCurve/{curveId}/latestTaskId")
      *
      * 使用示例:
      * @code
-     * // 存储结果类型（用于快速查询）
-     * context->setValue(OutputKeys::resultType("differentiation"), static_cast<int>(result.type()));
+     * // 存储最新任务ID指针
+     * QString key = OutputKeys::latestTaskId("differentiation", "curve-001");
+     * context->setValue(key, "task-003");
+     *
+     * // 读取最新任务ID
+     * auto latestTaskId = context->get<QString>(key);
      * @endcode
      */
-    inline QString resultType(const QString& algorithmName) {
-        return QString(ResultPrefix) + algorithmName + QString(ResultTypeSuffix);
+    inline QString latestTaskId(const QString& algorithm, const QString& curveId) {
+        return QString(ResultPrefix) + algorithm + QString(ByCurveInfix) + curveId + QString(LatestTaskIdSuffix);
+    }
+
+    /**
+     * @brief 生成曲线历史任务ID列表键名（索引）
+     * @param algorithm 算法名称
+     * @param curveId 曲线ID
+     * @return 完整键名 (格式: "result/{algorithm}/byCurve/{curveId}/historyTaskIds")
+     *
+     * 使用示例:
+     * @code
+     * // 存储历史任务ID列表
+     * QString key = OutputKeys::historyTaskIds("differentiation", "curve-001");
+     * context->setValue(key, QStringList{"task-003", "task-002", "task-001"});
+     *
+     * // 读取历史任务ID列表
+     * auto historyIds = context->get<QStringList>(key);
+     * @endcode
+     */
+    inline QString historyTaskIds(const QString& algorithm, const QString& curveId) {
+        return QString(ResultPrefix) + algorithm + QString(ByCurveInfix) + curveId + QString(HistoryTaskIdsSuffix);
     }
 
 }

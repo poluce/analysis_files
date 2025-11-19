@@ -53,6 +53,11 @@ AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
     desc.requiredPointCount = 2;
     desc.pointSelectionHint = "请在曲线上选择两个点定义基线范围（起点和终点）";
 
+    // 依赖声明（工作流支持）
+    desc.prerequisites.append(ContextKeys::ActiveCurve);
+    desc.prerequisites.append(ContextKeys::SelectedPoints);
+    desc.produces.append("curve");
+
     return desc;
 }
 
