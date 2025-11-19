@@ -85,6 +85,16 @@ public:
      */
     QString curveId() const { return m_curveId; }
 
+    /**
+     * @brief 获取第一个测量点（用于 RemoveCommand 保存状态）
+     */
+    ThermalDataPoint point1() const { return m_point1; }
+
+    /**
+     * @brief 获取第二个测量点（用于 RemoveCommand 保存状态）
+     */
+    ThermalDataPoint point2() const { return m_point2; }
+
 signals:
     /**
      * @brief 工具被删除时发射

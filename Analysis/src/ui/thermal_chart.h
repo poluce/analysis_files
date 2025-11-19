@@ -187,6 +187,20 @@ signals:
      */
     void curveVisibilityChanged(const QString& curveId, bool visible);
 
+    /**
+     * @brief 质量损失工具删除请求信号
+     *
+     * 当用户点击工具关闭按钮时发出，由 Controller 创建 RemoveCommand
+     */
+    void massLossToolRemoveRequested(QGraphicsObject* tool);
+
+    /**
+     * @brief 峰面积工具删除请求信号
+     *
+     * 当用户点击工具关闭按钮时发出，由 Controller 创建 RemoveCommand
+     */
+    void peakAreaToolRemoveRequested(QGraphicsObject* tool);
+
 private:
     // ==================== 系列管理辅助函数 ====================
     QLineSeries* createSeriesForThermalCurve(const ThermalCurve& curve) const;

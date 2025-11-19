@@ -797,8 +797,10 @@ QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, c
     // 设置测量点（传递完整的 ThermalDataPoint）
     tool->setMeasurePoints(point1, point2);
 
-    // 连接删除信号
-    connect(tool, &TrapezoidMeasureTool::removeRequested, this, [this, tool]() { removeMassLossTool(tool); });
+    // 连接删除信号（发出信号给 Controller，由 Controller 创建 RemoveCommand）
+    connect(tool, &TrapezoidMeasureTool::removeRequested, this, [this, tool]() {
+        emit massLossToolRemoveRequested(tool);
+    });
 
     // 添加到场景
     scene()->addItem(tool);
@@ -883,8 +885,10 @@ ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataP
     // 设置测量点（传递完整的 ThermalDataPoint）
     tool->setMeasurePoints(point1, point2);
 
-    // 连接删除信号
-    connect(tool, &PeakAreaTool::removeRequested, this, [this, tool]() { removePeakAreaTool(tool); });
+    // 连接删除信号（发出信号给 Controller，由 Controller 创建 RemoveCommand）
+    connect(tool, &PeakAreaTool::removeRequested, this, [this, tool]() {
+        emit peakAreaToolRemoveRequested(tool);
+    });
 
     // 连接面积变化信号
     connect(tool, &PeakAreaTool::areaChanged, this, [](qreal newArea) { qDebug() << "峰面积已更新:" << newArea; });
