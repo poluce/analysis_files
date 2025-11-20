@@ -38,10 +38,15 @@ namespace ContextKeys {
  *
  * 标准数据类型速查:
  * - ActiveCurve      - ThermalCurve              - 当前活动曲线（副本）
+ * - InputCurve       - ThermalCurve              - 输入曲线
  * - BaselineCurves   - QVector<ThermalCurve*>    - 活动曲线的所有基线
+ * - CurveManager     - CurveManager*             - 曲线管理器
  * - SelectedPoints   - QVector<ThermalDataPoint> - 用户选择的点集合
- * - ParamWindow      - int                       - 窗口大小
- * - ParamThreshold   - double                    - 阈值
+ * - ParamWindow      - int                       - 窗口大小（移动平均）
+ * - ParamHalfWin     - int                       - 半窗口大小（微分）
+ * - ParamDt          - double                    - 时间步长
+ * - ParamEnableDebug - bool                      - 启用调试输出
+ * - ParamThreshold   - double                    - 阈值（峰值检测）
  *
  * 注意事项:
  * - 使用 ContextKeys::* 常量而非字符串字面量
