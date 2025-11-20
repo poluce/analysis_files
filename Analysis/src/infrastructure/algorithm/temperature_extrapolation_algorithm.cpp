@@ -223,7 +223,7 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
     }
 
     double T_onset = onsetPoint.x();
-    double Y_onset = onsetPoint.y();
+    // Y_onset 不需要，外推温度只关心 X 坐标
 
     // 记录警告
     if (!warning.isEmpty()) {
