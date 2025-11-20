@@ -35,20 +35,8 @@ namespace ContextKeys {
     /** 输入曲线 (ThermalCurve) - 算法的数据来源曲线 */
     inline constexpr const char* InputCurve = "inputCurve";
 
-    /** 输出曲线 (ThermalCurve) - 算法生成的新曲线 */
-    inline constexpr const char* OutputCurve = "outputCurve";
-
-    /** 活动曲线的基线曲线列表 (QVector<ThermalCurve*>) - 由 AlgorithmCoordinator 自动注入
-     *
-     * 说明：可能包含多条基线（线性、多项式、样条等），由算法决定如何使用：
-     * - 使用第一条：baselines.value().first() 或 baselines.value()[0]
-     * - 使用最新的：baselines.value().last()
-     * - 遍历所有：for (auto* baseline : baselines.value())
-     */
+    /** 活动曲线的基线曲线列表 (QVector<ThermalCurve*>) - 由 AlgorithmCoordinator 自动注入 */
     inline constexpr const char* BaselineCurves = "baselineCurves";
-
-    /** 目标曲线ID (QString) - 用于标识特定曲线 */
-    inline constexpr const char* TargetCurveId = "targetCurveId";
 
     /** 曲线管理器 (CurveManager*) - 用于查找关联曲线 */
     inline constexpr const char* CurveManager = "curveManager";
@@ -56,15 +44,6 @@ namespace ContextKeys {
     // ========== 用户交互选点 (User Interaction Points) ==========
     /** 用户选择的点集合 (QVector<QPointF>) - 用于基线、峰面积等算法 */
     inline constexpr const char* SelectedPoints = "selectedPoints";
-
-    /** 选中点的X坐标列表 (QList<double>) */
-    inline constexpr const char* SelectedXPoints = "selectedXPoints";
-
-    /** 选中点的Y坐标列表 (QList<double>) */
-    inline constexpr const char* SelectedYPoints = "selectedYPoints";
-
-    /** 最后一次点击的点 (QPointF) */
-    inline constexpr const char* LastClickedPoint = "lastClickedPoint";
 
     // ========== 通用算法参数 (Common Algorithm Parameters) ==========
     /** 窗口大小 (int) - 用于移动平均算法 */
@@ -81,109 +60,6 @@ namespace ContextKeys {
 
     /** 阈值 (double) - 用于峰值检测等算法 */
     inline constexpr const char* ParamThreshold = "param.threshold";
-
-    /** 步长 (double) - 用于数值计算 */
-    inline constexpr const char* ParamStepSize = "param.stepSize";
-
-    /** 平滑因子 (double) - 用于滤波算法 */
-    inline constexpr const char* ParamSmoothingFactor = "param.smoothingFactor";
-
-    // ========== 基线校正参数 (Baseline Correction Parameters) ==========
-    /** 基线类型 (int) - 0=线性, 1=多项式 */
-    inline constexpr const char* BaselineType = "baselineType";
-
-    /** 基线起点 (QPointF) */
-    inline constexpr const char* BaselineP1 = "baselineP1";
-
-    /** 基线终点 (QPointF) */
-    inline constexpr const char* BaselineP2 = "baselineP2";
-
-    /** 基线曲线数据 (QVector<QPointF>) */
-    inline constexpr const char* BaselineSeries = "baselineSeries";
-
-    /** 基线拟合系数 (QList<double>) */
-    inline constexpr const char* BaselineCoefficients = "baselineCoefficients";
-
-    /** 多项式拟合次数 (int) */
-    inline constexpr const char* PolynomialDegree = "polynomialDegree";
-
-    // ========== 峰值分析参数 (Peak Analysis Parameters) ==========
-    /** 峰值点坐标 (QPointF) */
-    inline constexpr const char* PeakPoint = "peakPoint";
-
-    /** 多个峰值的X坐标 (QList<double>) */
-    inline constexpr const char* PeakXValues = "peakXValues";
-
-    /** 峰面积 (double) */
-    inline constexpr const char* PeakArea = "peakArea";
-
-    /** 积分区间起点 (QPointF) */
-    inline constexpr const char* IntegrationStart = "integration.start";
-
-    /** 积分区间终点 (QPointF) */
-    inline constexpr const char* IntegrationEnd = "integration.end";
-
-    // ========== 滤波与微分参数 (Filtering & Derivative Parameters) ==========
-    /** 滤波类型 (QString) - "FFT", "MovingAverage" */
-    inline constexpr const char* FilterType = "filterType";
-
-    /** DTG（导数）曲线数据 (QVector<QPointF>) */
-    inline constexpr const char* DtgSeries = "dtgSeries";
-
-    /** 滤波后的曲线数据 (QVector<QPointF>) */
-    inline constexpr const char* FilteredSeries = "filteredSeries";
-
-    // ========== 拟合参数 (Fitting Parameters) ==========
-    /** 拟合类型 (QString) - "polynomial", "linear" */
-    inline constexpr const char* FitType = "fitType";
-
-    /** 拟合阶数 (int) */
-    inline constexpr const char* FitDegree = "fitDegree";
-
-    /** 拟合系数 (QList<double>) */
-    inline constexpr const char* FitCoefficients = "fitCoefficients";
-
-    /** 拟合优度 R² (double) */
-    inline constexpr const char* FitRSquared = "fitRSquared";
-
-    /** 拟合曲线数据 (QVector<QPointF>) */
-    inline constexpr const char* FitSeries = "fitSeries";
-
-    // ========== 动力学分析参数 (Kinetic Analysis Parameters) ==========
-    /** 活化能 Ea (double) - 单位 kJ/mol */
-    inline constexpr const char* ActivationEnergy = "activationEnergy";
-
-    /** 指前因子 A (double) */
-    inline constexpr const char* PreExponentialFactor = "preExponentialFactor";
-
-    /** 反应级数 n (double) */
-    inline constexpr const char* ReactionOrder = "reactionOrder";
-
-    // ========== 显示与坐标轴配置 (Display & Axis Configuration) ==========
-    /** X轴数据键名 (QString) */
-    inline constexpr const char* XAxisKey = "xAxisKey";
-
-    /** Y轴数据键名 (QString) */
-    inline constexpr const char* YAxisKey = "yAxisKey";
-
-    /** X轴标签 (QString) */
-    inline constexpr const char* XAxisLabel = "xAxisLabel";
-
-    /** Y轴标签 (QString) */
-    inline constexpr const char* YAxisLabel = "yAxisLabel";
-
-    /** X轴单位 (QString) */
-    inline constexpr const char* XAxisUnit = "xAxisUnit";
-
-    /** Y轴单位 (QString) */
-    inline constexpr const char* YAxisUnit = "yAxisUnit";
-
-    // ========== 交互状态 (Interaction State) ==========
-    /** 选点模式 (QString) - "baseline", "peak", "area" 等 */
-    inline constexpr const char* SelectionMode = "selectionMode";
-
-    /** 图表交互模式 (QString) - "RubberBand", "Drag", "Disabled" */
-    inline constexpr const char* ChartInteractionMode = "chartInteractionMode";
 }
 
 // ============================================================================
