@@ -61,9 +61,9 @@ AlgorithmDescriptor TemperatureExtrapolationAlgorithm::descriptor() const
     desc.prerequisites.append(ContextKeys::ActiveCurve);
     desc.prerequisites.append(ContextKeys::SelectedPoints);
     // 输出声明
-    desc.produces.append("curves");   // 切线、基线延长线
-    desc.produces.append("markers");  // 外推点、拐点
-    desc.produces.append("scalar");   // 外推温度数值
+    desc.produces.append(ProducesKeys::Curves);   // 切线、基线延长线
+    desc.produces.append(ProducesKeys::Markers);  // 外推点、拐点
+    desc.produces.append(ProducesKeys::Scalar);   // 外推温度数值
 
     return desc;
 }

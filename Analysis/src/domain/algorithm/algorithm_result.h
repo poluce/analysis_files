@@ -116,6 +116,29 @@ namespace OutputKeys {
 }
 
 /**
+ * @brief 算法输出声明键名
+ *
+ * 为 AlgorithmDescriptor 的 produces 字段提供类型安全的键名常量。
+ * 统一管理算法输出类型声明，避免字符串拼写错误。
+ *
+ * @code
+ * // 推荐使用：
+ * desc.produces.append(ProducesKeys::Curve);
+ * desc.produces.append(ProducesKeys::Markers);
+ *
+ * // 避免使用：
+ * desc.produces.append("curve");  // 容易拼写错误
+ * @endcode
+ */
+namespace ProducesKeys {
+    inline constexpr const char* Curve = "curve";       // 单条曲线输出
+    inline constexpr const char* Curves = "curves";     // 多条曲线输出
+    inline constexpr const char* Markers = "markers";   // 标注点输出
+    inline constexpr const char* Scalar = "scalar";     // 数值输出
+    inline constexpr const char* Region = "region";     // 区域输出
+}
+
+/**
  * @brief 算法结果元数据键名
  *
  * 为 AlgorithmResult 的元数据字段提供类型安全的键名常量。

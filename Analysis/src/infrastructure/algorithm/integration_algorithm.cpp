@@ -51,7 +51,7 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
 
     // 依赖声明（工作流支持）
     desc.prerequisites.append(ContextKeys::ActiveCurve);
-    desc.produces.append("curve");
+    desc.produces.append(ProducesKeys::Curve);
 
     return desc;
 }
