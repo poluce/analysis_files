@@ -262,11 +262,11 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     // 填充结果
     result.setCurve(outputCurve);
     result.setSignalType(SignalType::Derivative);
-    result.setMeta("unit", "mg/min");
-    result.setMeta("label", "DTG");
-    result.setMeta("windowSize", halfWin * 2 + 1);
-    result.setMeta("halfWin", halfWin);
-    result.setMeta("dt", dt);
+    result.setMeta(MetaKeys::Unit, "mg/min");
+    result.setMeta(MetaKeys::Label, "DTG");
+    result.setMeta(MetaKeys::WindowSize, halfWin * 2 + 1);
+    result.setMeta(MetaKeys::HalfWin, halfWin);
+    result.setMeta(MetaKeys::Dt, dt);
 
     return result;
 }

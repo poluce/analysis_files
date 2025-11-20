@@ -86,7 +86,12 @@ namespace MetaKeys {
     // 算法参数
     inline constexpr const char* Method = "method";              // QString
     inline constexpr const char* WindowSize = "windowSize";      // int
+    inline constexpr const char* HalfWin = "halfWin";            // int
+    inline constexpr const char* Dt = "dt";                      // double
     inline constexpr const char* InstrumentType = "instrumentType";  // int
+    inline constexpr const char* CorrectionType = "correctionType";  // QString
+    inline constexpr const char* BaselinePointCount = "baselinePointCount";  // int
+    inline constexpr const char* TemperatureRange = "temperatureRange";      // QString
 
     // 显示
     inline constexpr const char* Unit = "unit";                  // QString

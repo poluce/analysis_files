@@ -260,7 +260,7 @@ public:
      * // 简单曲线输出
      * AlgorithmResult result = AlgorithmResult::success("differentiation", curveId, ResultType::Curve);
      * result.setCurve(outputCurve);
-     * result.setMeta("unit", "mg/min");
+     * result.setMeta(MetaKeys::Unit, "mg/min");
      * return result;
      *
      * // 混合输出
