@@ -5,9 +5,9 @@
 #include "domain/model/thermal_curve.h"
 #include <QPointer>
 #include <QString>
+#include <QGraphicsObject>
 
 class ChartView;
-class QGraphicsObject;
 
 /**
  * @brief AddMassLossToolCommand 将质量损失测量工具的添加操作封装为可撤销命令。

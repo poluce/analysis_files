@@ -6,6 +6,7 @@
 #include <QVariantMap>
 #include <QPointF>
 #include "domain/algorithm/algorithm_descriptor.h"
+#include "domain/model/thermal_data_point.h"
 
 // 前置声明
 class CurveManager;
