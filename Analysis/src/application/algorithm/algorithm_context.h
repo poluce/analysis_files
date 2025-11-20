@@ -35,6 +35,19 @@ namespace ContextKeys {
  *
  * 采用键值对方式管理算法输入参数、用户交互数据和算法结果。
  * 使用 get<T>() 模板方法获取类型安全的数据访问。
+ *
+ * 标准数据类型速查:
+ * - ActiveCurve      - ThermalCurve              - 当前活动曲线（副本）
+ * - BaselineCurves   - QVector<ThermalCurve*>    - 活动曲线的所有基线
+ * - SelectedPoints   - QVector<ThermalDataPoint> - 用户选择的点集合
+ * - ParamWindow      - int                       - 窗口大小
+ * - ParamThreshold   - double                    - 阈值
+ *
+ * 注意事项:
+ * - 使用 ContextKeys::* 常量而非字符串字面量
+ * - 使用 value_or() 提供回退默认值
+ * - 检查指针有效性后再使用
+ * - 不要修改输入曲线，使用 getProcessedData() 获取只读数据
  */
 class AlgorithmContext : public QObject {
     Q_OBJECT
