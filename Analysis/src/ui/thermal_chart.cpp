@@ -291,6 +291,18 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
             continue;
         }
 
+        // 跳过辅助曲线（辅助曲线不参与 Y 轴范围计算）
+        // 辅助曲线（如切线、基线延长线）的 Y 值范围可能与源曲线差异很大
+        if (m_curveManager) {
+            QString curveId = m_seriesToId.value(lineSeries);
+            if (!curveId.isEmpty()) {
+                ThermalCurve* curve = m_curveManager->getCurve(curveId);
+                if (curve && curve->isAuxiliaryCurve()) {
+                    continue;
+                }
+            }
+        }
+
         const auto points = lineSeries->pointsVector();
         for (const QPointF& point : points) {
             if (axis->orientation() == Qt::Horizontal) {
