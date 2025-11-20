@@ -55,25 +55,18 @@ namespace ProducesKeys {
     inline constexpr const char* Curves = "curves";
     inline constexpr const char* Markers = "markers";
     inline constexpr const char* Scalar = "scalar";
-    inline constexpr const char* Region = "region";
 }
 
 /**
  * @brief 算法结果元数据键名（用于 AlgorithmResult.meta）
  */
 namespace MetaKeys {
-    // 峰值分析
+    // 数值
     inline constexpr const char* Area = "area";                  // double
-    inline constexpr const char* PeakHeight = "peakHeight";      // double
-    inline constexpr const char* PeakPosition = "peakPosition";  // QPointF
-
-    // 线性拟合
     inline constexpr const char* Slope = "slope";                // double
     inline constexpr const char* Intercept = "intercept";        // double
 
     // 温度外推
-    inline constexpr const char* Onset = "onset";                              // double
-    inline constexpr const char* Endset = "endset";                            // double
     inline constexpr const char* ExtrapolatedTemperature = "extrapolatedTemperature";  // double
     inline constexpr const char* Confidence = "confidence";                    // double
     inline constexpr const char* Warning = "warning";                          // QString
@@ -93,16 +86,11 @@ namespace MetaKeys {
     // 算法参数
     inline constexpr const char* Method = "method";              // QString
     inline constexpr const char* WindowSize = "windowSize";      // int
-
-    // 关联曲线
-    inline constexpr const char* BaselineCurveId = "baselineCurveId";      // QString
-    inline constexpr const char* BaselineCurveName = "baselineCurveName";  // QString
-    inline constexpr const char* InstrumentType = "instrumentType";        // int
+    inline constexpr const char* InstrumentType = "instrumentType";  // int
 
     // 显示
     inline constexpr const char* Unit = "unit";                  // QString
     inline constexpr const char* Label = "label";                // QString
-    inline constexpr const char* Color = "color";                // QColor
     inline constexpr const char* MarkerColor = "markerColor";    // QColor
     inline constexpr const char* SignalType = "signalType";      // SignalType
 
