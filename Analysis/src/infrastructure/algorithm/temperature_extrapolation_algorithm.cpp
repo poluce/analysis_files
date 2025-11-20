@@ -194,7 +194,7 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
         return AlgorithmResult::failure("temperature_extrapolation", "用户取消执行");
     }
 
-    // 5. 基线拟合（优先使用现有基线，否则用两点连线）
+    // 5. 基线拟合（优先使用现有基线，否则用 T1 之前的初始区域拟合）
     LinearFit baseline;
     ThermalCurve existingBaseline;
 
@@ -210,12 +210,13 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
         }
     }
 
-    // 如果没有现有基线或拟合失败，使用两点连线
+    // 如果没有现有基线或拟合失败，使用 T1 之前的初始区域拟合基线
     if (!baseline.valid) {
 #if DEBUG_TEMPERATURE_EXTRAPOLATION
-        qDebug() << "无现有基线，使用两点连线";
+        qDebug() << "无现有基线，使用 T1 之前的初始区域拟合";
 #endif
-        baseline = fitBaselineTwoPoint(curveData, T1, T2);
+        baseline = fitInitialBaseline(curveData, T1, 20);
+        baseline.quality.rejectReason = "初始区域拟合";
     }
 
     if (!baseline.valid) {
