@@ -8,6 +8,21 @@
 class AlgorithmContext;
 
 /**
+ * @brief 基线质量评估结果
+ */
+struct BaselineQuality {
+    double r2;              // 决定系数
+    double slopeNormalized; // 归一化斜率 (slope / Y_range)
+    double varianceRatio;   // 导数方差比
+    bool isAcceptable;      // 是否达标
+    QString rejectReason;   // 拒绝原因（如有）
+
+    BaselineQuality()
+        : r2(0), slopeNormalized(0), varianceRatio(0)
+        , isAcceptable(false), rejectReason("未评估") {}
+};
+
+/**
  * @brief 线性拟合结果结构体
  */
 struct LinearFit {
@@ -15,6 +30,7 @@ struct LinearFit {
     double intercept;  // 截距
     double r2;         // R² 拟合优度
     bool valid;        // 是否有效
+    BaselineQuality quality;  // 质量评估
 
     LinearFit() : slope(0), intercept(0), r2(0), valid(false) {}
     LinearFit(double s, double i, double r = 1.0)
@@ -268,6 +284,127 @@ private:
      */
     QString formatTemperatureText(double temperature,
                                    InstrumentType instrumentType) const;
+
+    // ==================== Phase 2: 稳健算法函数 ====================
+
+    /**
+     * @brief 自适应稳健基线拟合
+     *
+     * 算法流程：
+     * 1. 在 [T1 - deltaT_max, T1 - deltaT_min] 范围内滑动窗口搜索
+     * 2. 对每个窗口计算一阶导数方差
+     * 3. 选择方差最小的子窗做 OLS
+     * 4. 应用质量门槛验证
+     * 5. 如果失败，使用两点基线兜底
+     *
+     * @param data 曲线数据
+     * @param T1 用户选择的起始温度
+     * @param T2 用户选择的结束温度（用于兜底）
+     * @param yRange 数据 Y 轴范围（用于归一化斜率）
+     * @return LinearFit 拟合结果（含质量评估）
+     */
+    LinearFit fitBaselineAdaptive(const QVector<ThermalDataPoint>& data,
+                                   double T1,
+                                   double T2,
+                                   double yRange) const;
+
+    /**
+     * @brief 兜底基线：使用用户选择的两点连线
+     *
+     * 当自适应搜索无法找到合适的平稳基线段时，
+     * 使用用户选择的 T1 和 T2 两点直接连线作为基线
+     *
+     * @param data 曲线数据
+     * @param T1 用户选择的起始温度
+     * @param T2 用户选择的结束温度
+     * @return LinearFit 两点连线拟合结果
+     */
+    LinearFit fitBaselineTwoPoint(const QVector<ThermalDataPoint>& data,
+                                   double T1,
+                                   double T2) const;
+
+    /**
+     * @brief 计算数据段的一阶导数方差
+     *
+     * @param data 曲线数据
+     * @param startIdx 起始索引
+     * @param endIdx 结束索引
+     * @return 导数方差
+     */
+    double calculateDerivativeVariance(const QVector<ThermalDataPoint>& data,
+                                        int startIdx,
+                                        int endIdx) const;
+
+    /**
+     * @brief 线性回归拟合（指定索引范围）
+     *
+     * @param data 曲线数据
+     * @param startIdx 起始索引
+     * @param endIdx 结束索引
+     * @return LinearFit 拟合结果
+     */
+    LinearFit fitLinear(const QVector<ThermalDataPoint>& data,
+                         int startIdx,
+                         int endIdx) const;
+
+    /**
+     * @brief 稳健拐点检测
+     *
+     * 算法改进：
+     * 1. 使用滑动窗口 OLS 估计局部斜率（代替三点差分）
+     * 2. 只在 leading half 搜索
+     * 3. SNR/阈值过滤
+     *
+     * @param data 曲线数据
+     * @param T1 搜索范围起点
+     * @param T2 搜索范围终点
+     * @return InflectionPoint 拐点信息
+     */
+    InflectionPoint detectInflectionPointRobust(const QVector<ThermalDataPoint>& data,
+                                                  double T1,
+                                                  double T2) const;
+
+    /**
+     * @brief 计算局部斜率（滑动窗口 OLS）
+     *
+     * @param data 曲线数据
+     * @param startIdx 起始索引
+     * @param endIdx 结束索引
+     * @return 局部斜率
+     */
+    double calculateLocalSlope(const QVector<ThermalDataPoint>& data,
+                                int startIdx,
+                                int endIdx) const;
+
+    /**
+     * @brief 检查二阶导数过零
+     *
+     * @param data 曲线数据
+     * @param centerIdx 中心索引
+     * @param halfWindow 半窗口大小
+     * @return true=过零，false=未过零
+     */
+    bool checkSecondDerivativeZeroCrossing(const QVector<ThermalDataPoint>& data,
+                                            int centerIdx,
+                                            int halfWindow) const;
+
+    /**
+     * @brief 计算两条直线的交点（带合理性约束）
+     *
+     * @param baseline 基线拟合
+     * @param tangent 切线拟合
+     * @param T1 用户选择的起始温度
+     * @param T2 用户选择的结束温度
+     * @param outConfidence 输出：结果可信度 (0-1)
+     * @param outWarning 输出：警告信息
+     * @return QPointF 交点坐标
+     */
+    QPointF calculateLineIntersectionConstrained(const LinearFit& baseline,
+                                                   const LinearFit& tangent,
+                                                   double T1,
+                                                   double T2,
+                                                   double& outConfidence,
+                                                   QString& outWarning) const;
 };
 
 #endif // TEMPERATURE_EXTRAPOLATION_ALGORITHM_H
