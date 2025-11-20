@@ -7,6 +7,7 @@
 #include <QtCharts/QAbstractSeries>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
+#include <QtCharts/QXYSeries>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -120,7 +121,7 @@ private:
     // ==================== 交互辅助函数 ====================
     void handleCurveSelectionClick(const QPointF& viewportPos);
     void handleValueClick(const QPointF& viewportPos);
-    QLineSeries* findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const;
+    QXYSeries* findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const;
     qreal hitThreshold() const;
 
     // ==================== EventFilter 事件处理辅助函数 ====================
@@ -171,7 +172,7 @@ private:
      * @param outSeries 输出参数：活动系列指针
      * @return true=验证通过，false=验证失败
      */
-    bool validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+    bool validateMassLossToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries);
 
     /**
      * @brief 重置质量损失工具状态
@@ -185,7 +186,7 @@ private:
      * @param outSeries 输出参数：目标系列指针
      * @return true=验证通过，false=验证失败
      */
-    bool validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+    bool validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries);
 
     /**
      * @brief 检查点击位置是否在绘图区域内

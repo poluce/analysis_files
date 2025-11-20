@@ -382,7 +382,7 @@ void ThermalChartView::handleMouseLeave()
 
 // ==================== 质量损失工具辅助函数实现 ====================
 
-bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
+bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
@@ -394,7 +394,7 @@ bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve
     }
 
     // 获取活动曲线的系列（用于正确的坐标转换）
-    QLineSeries* activeSeries = m_thermalChart->seriesForCurveId(activeCurve->id());
+    QXYSeries* activeSeries = m_thermalChart->seriesForCurveId(activeCurve->id());
     if (!activeSeries) {
         qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 无法获取活动曲线的系列";
         return false;
@@ -421,7 +421,7 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
 
     // 1. 验证前置条件并获取活动曲线和系列
     ThermalCurve* activeCurve = nullptr;
-    QLineSeries* activeSeries = nullptr;
+    QXYSeries* activeSeries = nullptr;
     if (!validateMassLossToolPreconditions(&activeCurve, &activeSeries)) {
         return false;
     }
@@ -482,7 +482,7 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
 
 // ==================== 峰面积工具辅助函数实现 ====================
 
-bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
+bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
@@ -500,7 +500,7 @@ bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve
     }
 
     // 获取目标曲线的系列（用于正确的坐标转换）
-    QLineSeries* targetSeries = m_thermalChart->seriesForCurveId(targetCurve->id());
+    QXYSeries* targetSeries = m_thermalChart->seriesForCurveId(targetCurve->id());
     if (!targetSeries) {
         qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线的系列";
         return false;
@@ -589,7 +589,7 @@ bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
 
     // 1. 验证前置条件并获取目标曲线和系列
     ThermalCurve* targetCurve = nullptr;
-    QLineSeries* targetSeries = nullptr;
+    QXYSeries* targetSeries = nullptr;
     if (!validatePeakAreaToolPreconditions(&targetCurve, &targetSeries)) {
         return false;
     }
@@ -711,7 +711,7 @@ void ThermalChartView::handleCurveSelectionClick(const QPointF& viewportPos)
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
     qreal bestDist = std::numeric_limits<qreal>::max();
-    QLineSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
+    QXYSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
 
     const qreal deviceRatio = devicePixelRatioF();
     qreal baseThreshold = (m_hitTestBasePx + 3.0) * deviceRatio;
@@ -742,7 +742,7 @@ void ThermalChartView::handleValueClick(const QPointF& viewportPos)
 
     // 查找最接近的系列
     qreal bestDist = std::numeric_limits<qreal>::max();
-    QLineSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
+    QXYSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
 
     if (clickedSeries) {
         QPointF valuePos = chart()->mapToValue(chartPos, clickedSeries);
@@ -750,7 +750,7 @@ void ThermalChartView::handleValueClick(const QPointF& viewportPos)
     }
 }
 
-QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const
+QXYSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
@@ -778,27 +778,27 @@ QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, q
         return qSqrt(dx * dx + dy * dy);
     };
 
-    QLineSeries* closestSeries = nullptr;
+    QXYSeries* closestSeries = nullptr;
     qreal bestDist = std::numeric_limits<qreal>::max();
 
     for (QAbstractSeries* abstractSeries : chart()->series()) {
-        QLineSeries* lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
-        if (!lineSeries || !lineSeries->isVisible()) {
+        QXYSeries* xySeries = qobject_cast<QXYSeries*>(abstractSeries);
+        if (!xySeries || !xySeries->isVisible()) {
             continue;
         }
 
-        const auto points = lineSeries->pointsVector();
+        const auto points = xySeries->pointsVector();
         if (points.size() < 2) {
             continue;
         }
 
-        QPointF previous = chart()->mapToPosition(points[0], lineSeries);
+        QPointF previous = chart()->mapToPosition(points[0], xySeries);
         for (int i = 1; i < points.size(); ++i) {
-            const QPointF current = chart()->mapToPosition(points[i], lineSeries);
+            const QPointF current = chart()->mapToPosition(points[i], xySeries);
             const qreal dist = pointToSegDist(viewportPos, previous, current);
             if (dist < bestDist) {
                 bestDist = dist;
-                closestSeries = lineSeries;
+                closestSeries = xySeries;
             }
             previous = current;
         }

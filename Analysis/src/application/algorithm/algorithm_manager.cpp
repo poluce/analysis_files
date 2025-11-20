@@ -181,9 +181,9 @@ void AlgorithmManager::createMarkerCurve(const QString& parentCurveId,
     }
 
     // 创建标记点曲线
-    ThermalCurve markerCurve;
-    markerCurve.setId(QUuid::createUuid().toString(QUuid::WithoutBraces));
-    markerCurve.setName(result.algorithmKey() + "-标记点");
+    QString curveId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QString curveName = result.algorithmKey() + "-标记点";
+    ThermalCurve markerCurve(curveId, curveName);
     markerCurve.setParentId(parentCurveId);
     markerCurve.setInstrumentType(parentCurve->instrumentType());
     markerCurve.setSignalType(SignalType::Marker);
@@ -196,8 +196,8 @@ void AlgorithmManager::createMarkerCurve(const QString& parentCurveId,
     markerCurve.setColor(markerColor);
 
     // 标记为辅助曲线和强绑定
-    markerCurve.setAuxiliaryCurve(true);
-    markerCurve.setStronglyBound(true);
+    markerCurve.setIsAuxiliaryCurve(true);
+    markerCurve.setIsStronglyBound(true);
 
     addCurveWithHistory(markerCurve);
 
