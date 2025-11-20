@@ -274,6 +274,13 @@ public:
     }
 
     /**
+     * @brief 添加一条输出曲线
+     */
+    void addCurve(const ThermalCurve& curve) {
+        m_curves.append(curve);
+    }
+
+    /**
      * @brief 获取所有输出曲线
      */
     QList<ThermalCurve> curves() const { return m_curves; }
