@@ -88,8 +88,7 @@ void AlgorithmManager::handleMarkerResult(const AlgorithmResult& result)
     }
 
     if (result.hasMarkers()) {
-        QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
-        emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
+        createMarkerCurve(result.parentCurveId(), result.markers(), result);
     }
 }
 
@@ -122,14 +121,9 @@ void AlgorithmManager::handleCompositeResult(const AlgorithmResult& result)
     if (result.hasMarkers()) {
         qDebug() << "  包含" << result.markerCount() << "个标注点";
 
-        // 标注点添加到第一条输出曲线（如切线）
-        // 因为外推点是切线与基线的交点，应该显示在切线上
-        QString targetCurveId = result.curves().isEmpty()
-            ? result.parentCurveId()
-            : result.curves().first().id();
-
-        QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
-        emit markersGenerated(targetCurveId, result.markers(), markerColor);
+        // 标注点关联到父曲线
+        QString targetCurveId = result.parentCurveId();
+        createMarkerCurve(targetCurveId, result.markers(), result);
     }
 
     if (result.hasRegions()) {
@@ -159,6 +153,56 @@ void AlgorithmManager::addCurveWithHistory(const ThermalCurve& curve)
         m_curveManager->setActiveCurve(curve.id());
         qDebug() << "直接添加曲线:" << curve.name() << "ID:" << curve.id();
     }
+}
+
+void AlgorithmManager::createMarkerCurve(const QString& parentCurveId,
+                                          const QList<QPointF>& markers,
+                                          const AlgorithmResult& result)
+{
+    if (!m_curveManager || markers.isEmpty()) {
+        return;
+    }
+
+    // 获取父曲线信息
+    ThermalCurve* parentCurve = m_curveManager->getCurve(parentCurveId);
+    if (!parentCurve) {
+        qWarning() << "父曲线不存在:" << parentCurveId;
+        return;
+    }
+
+    // 将 QPointF 转换为 ThermalDataPoint
+    QVector<ThermalDataPoint> dataPoints;
+    for (const QPointF& point : markers) {
+        ThermalDataPoint dp;
+        dp.temperature = point.x();
+        dp.time = 0.0;  // 标记点没有时间信息
+        dp.value = point.y();
+        dataPoints.append(dp);
+    }
+
+    // 创建标记点曲线
+    ThermalCurve markerCurve;
+    markerCurve.setId(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    markerCurve.setName(result.algorithmKey() + "-标记点");
+    markerCurve.setParentId(parentCurveId);
+    markerCurve.setInstrumentType(parentCurve->instrumentType());
+    markerCurve.setSignalType(SignalType::Marker);
+    markerCurve.setPlotStyle(PlotStyle::Scatter);
+    markerCurve.setRawData(dataPoints);
+    markerCurve.setProcessedData(dataPoints);
+
+    // 设置显示颜色
+    QColor markerColor = result.metaValue<QColor>(MetaKeys::MarkerColor, QColor(Qt::red));
+    markerCurve.setColor(markerColor);
+
+    // 标记为辅助曲线和强绑定
+    markerCurve.setAuxiliaryCurve(true);
+    markerCurve.setStronglyBound(true);
+
+    addCurveWithHistory(markerCurve);
+
+    qDebug() << "创建标记点曲线:" << markerCurve.name() << "ID:" << markerCurve.id()
+             << "父曲线:" << parentCurveId << "点数:" << markers.size();
 }
 
 // ==================== 异步执行实现 ====================

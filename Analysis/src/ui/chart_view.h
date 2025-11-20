@@ -123,12 +123,6 @@ public:
     const ActiveAlgorithmInfo& activeAlgorithm() const { return m_activeAlgorithm; }
 
     // ==================== 叠加物管理（转发给 ThermalChart）====================
-    // 标注点（Markers）
-    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
-                         const QColor& color, qreal size);
-    void removeCurveMarkers(const QString& curveId);
-    void clearAllMarkers();
-
     // 测量工具
     void startMassLossTool();
     void addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);

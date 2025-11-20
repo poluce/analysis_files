@@ -82,7 +82,7 @@ void ThermalChart::initialize()
 
 // ==================== 系列查询接口 ====================
 // 通过UUID 查询曲线系列
-QLineSeries* ThermalChart::seriesForCurveId(const QString& curveId) const
+QXYSeries* ThermalChart::seriesForCurveId(const QString& curveId) const
 {
     auto it = m_idToSeries.constFind(curveId);
 
@@ -94,7 +94,7 @@ QLineSeries* ThermalChart::seriesForCurveId(const QString& curveId) const
     }
 }
 // 通过曲线系类 查询UUID
-QString ThermalChart::curveIdForSeries(QLineSeries* series) const
+QString ThermalChart::curveIdForSeries(QXYSeries* series) const
 {
     auto it = m_seriesToId.constFind(series);
     return (it == m_seriesToId.constEnd()) ? QString() : it.value();
@@ -102,7 +102,7 @@ QString ThermalChart::curveIdForSeries(QLineSeries* series) const
 // 获取曲线的颜色
 QColor ThermalChart::getCurveColor(const QString& curveId) const
 {
-    QLineSeries* series = seriesForCurveId(curveId);
+    QXYSeries* series = seriesForCurveId(curveId);
     if (series) {
         return series->color();
     }
@@ -114,7 +114,7 @@ QColor ThermalChart::getCurveColor(const QString& curveId) const
 QValueAxis* ThermalChart::yAxisForCurveId(const QString& curveId)
 {
     // 早期返回：未找到曲线系列
-    QLineSeries* curveSeries = seriesForCurveId(curveId);
+    QXYSeries* curveSeries = seriesForCurveId(curveId);
     if (!curveSeries) {
         qWarning() << "ThermalChart::yAxisForCurveId - 未找到曲线" << curveId;
         return m_axisY_mass;
@@ -201,9 +201,21 @@ void ThermalChart::clearSelectedPoints() { m_selectedPointsSeries->clear(); }
 
 // ==================== 系列管理辅助函数（占位符）====================
 // 根据热分析数据创建曲线系列
-QLineSeries* ThermalChart::createSeriesForThermalCurve(const ThermalCurve& curve) const
+QXYSeries* ThermalChart::createSeriesForThermalCurve(const ThermalCurve& curve) const
 {
-    auto* series = new QLineSeries();
+    QXYSeries* series = nullptr;
+
+    // 根据 PlotStyle 创建不同类型的系列
+    if (curve.plotStyle() == PlotStyle::Scatter) {
+        auto* scatterSeries = new QScatterSeries();
+        scatterSeries->setMarkerSize(12.0);
+        scatterSeries->setColor(curve.color());
+        scatterSeries->setBorderColor(curve.color().darker(120));
+        series = scatterSeries;
+    } else {
+        series = new QLineSeries();
+    }
+
     series->setName(curve.name());
     QSignalBlocker blocker(series);
     series->replace(buildSeriesPoints(curve));
@@ -243,7 +255,7 @@ void ThermalChart::detachSeriesFromAxes(QXYSeries* series)
     }
 }
 // 注册键值对 key Value
-void ThermalChart::registerSeriesMapping(QLineSeries* series, const QString& curveId)
+void ThermalChart::registerSeriesMapping(QXYSeries* series, const QString& curveId)
 {
     m_seriesToId.insert(series, curveId);
     m_idToSeries.insert(curveId, series);
@@ -251,7 +263,7 @@ void ThermalChart::registerSeriesMapping(QLineSeries* series, const QString& cur
 // 删除键值对
 void ThermalChart::unregisterSeriesMapping(const QString& curveId)
 {
-    QLineSeries* series = seriesForCurveId(curveId);
+    QXYSeries* series = seriesForCurveId(curveId);
     if (!series) {
         m_idToSeries.remove(curveId);
         return;
@@ -261,7 +273,7 @@ void ThermalChart::unregisterSeriesMapping(const QString& curveId)
     m_idToSeries.remove(curveId);
 }
 // 更新选中曲线的样式
-void ThermalChart::updateSeriesStyle(QLineSeries* series, bool selected)
+void ThermalChart::updateSeriesStyle(QXYSeries* series, bool selected)
 {
     QPen pen = series->pen();
     pen.setWidth(selected ? 3 : 1);
@@ -279,22 +291,22 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
     qreal minVal = std::numeric_limits<qreal>::max();
     qreal maxVal = std::numeric_limits<qreal>::lowest();
 
-    const QList<QLineSeries*> attachedSeries = lineSeriesAttachedToAxis(axis);
+    const QList<QXYSeries*> attachedSeries = seriesAttachedToAxis(axis);
 
     if (attachedSeries.isEmpty()) {
         return;
     }
 
-    for (auto lineSeries : attachedSeries) {
+    for (auto xySeries : attachedSeries) {
         // 跳过不可见的系列（只对可见曲线进行适应视图）
-        if (!lineSeries->isVisible()) {
+        if (!xySeries->isVisible()) {
             continue;
         }
 
         // 跳过辅助曲线（辅助曲线不参与 Y 轴范围计算）
         // 辅助曲线（如切线、基线延长线）的 Y 值范围可能与源曲线差异很大
         if (m_curveManager) {
-            QString curveId = m_seriesToId.value(lineSeries);
+            QString curveId = m_seriesToId.value(xySeries);
             if (!curveId.isEmpty()) {
                 ThermalCurve* curve = m_curveManager->getCurve(curveId);
                 if (curve && curve->isAuxiliaryCurve()) {
@@ -303,7 +315,7 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
             }
         }
 
-        const auto points = lineSeries->pointsVector();
+        const auto points = xySeries->pointsVector();
         for (const QPointF& point : points) {
             if (axis->orientation() == Qt::Horizontal) {
                 minVal = qMin(minVal, point.x());
@@ -327,10 +339,10 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
     }
     axis->applyNiceNumbers();
 }
-// 获取指定轴的所有 liseseries
-QList<QLineSeries*> ThermalChart::lineSeriesAttachedToAxis(QAbstractAxis* axis) const
+// 获取指定轴的所有系列
+QList<QXYSeries*> ThermalChart::seriesAttachedToAxis(QAbstractAxis* axis) const
 {
-    QList<QLineSeries*> attachedSeries;
+    QList<QXYSeries*> attachedSeries;
     // 遍历当前图表中的所有曲线
     for (QAbstractSeries* s : series()) {
         if (!s) {
@@ -339,9 +351,9 @@ QList<QLineSeries*> ThermalChart::lineSeriesAttachedToAxis(QAbstractAxis* axis) 
 
         // 如果这个曲线绑定了传入的 axis，则加入结果
         if (s->attachedAxes().contains(axis)) {
-            // 确认是 QLineSeries 类型（你也可以返回 QAbstractSeries*）
-            if (auto* lineSeries = qobject_cast<QLineSeries*>(s)) {
-                attachedSeries.append(lineSeries);
+            // 确认是 QXYSeries 类型（包括 QLineSeries 和 QScatterSeries）
+            if (auto* xySeries = qobject_cast<QXYSeries*>(s)) {
+                attachedSeries.append(xySeries);
             }
         }
     }
@@ -414,7 +426,7 @@ ThermalDataPoint ThermalChart::findNearestDataPoint(const QVector<ThermalDataPoi
 
 void ThermalChart::addCurve(const ThermalCurve& curve)
 {
-    QLineSeries* series = createSeriesForThermalCurve(curve);
+    QXYSeries* series = createSeriesForThermalCurve(curve);
     if (!series) {
         return;
     }
@@ -430,7 +442,7 @@ void ThermalChart::addCurve(const ThermalCurve& curve)
 
 void ThermalChart::updateCurve(const ThermalCurve& curve)
 {
-    QLineSeries* series = seriesForCurveId(curve.id());
+    QXYSeries* series = seriesForCurveId(curve.id());
     if (!series) {
         return;
     }
@@ -446,7 +458,7 @@ void ThermalChart::updateCurve(const ThermalCurve& curve)
 
 void ThermalChart::removeCurve(const QString& curveId)
 {
-    QLineSeries* series = seriesForCurveId(curveId);
+    QXYSeries* series = seriesForCurveId(curveId);
     if (!series) {
         return;
     }
@@ -455,9 +467,6 @@ void ThermalChart::removeCurve(const QString& curveId)
     if (m_selectedSeries == series) {
         m_selectedSeries = nullptr;
     }
-
-    // 清除该曲线的标注点（如果有）
-    removeCurveMarkers(curveId);
 
     // 清除该曲线关联的测量工具（防止悬空指针导致崩溃）
     removeCurveMassLossTools(curveId);
@@ -476,8 +485,8 @@ void ThermalChart::clearCurves()
     const auto currentSeries = series();
     for (QAbstractSeries* series : currentSeries) {
         removeSeries(series);
-        if (auto* lineSeries = qobject_cast<QLineSeries*>(series)) {
-            const QString curveId = m_seriesToId.take(lineSeries);
+        if (auto* xySeries = qobject_cast<QXYSeries*>(series)) {
+            const QString curveId = m_seriesToId.take(xySeries);
             if (!curveId.isEmpty()) {
                 m_idToSeries.remove(curveId);
             }
@@ -490,7 +499,6 @@ void ThermalChart::clearCurves()
     m_selectedSeries = nullptr;
     resetAxesToDefault();
     clearCrosshair();
-    clearAllMarkers();
     clearAllMassLossTools(); // 清空所有测量工具（TrapezoidMeasureTool）
     clearAllPeakAreaTools(); // 清空所有峰面积工具
 }
@@ -500,7 +508,7 @@ void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
     Q_ASSERT(m_initialized); // 确保依赖完整
 
     // 早期返回：检查曲线是否存在
-    QLineSeries* series = seriesForCurveId(curveId);
+    QXYSeries* series = seriesForCurveId(curveId);
     if (!series || series->isVisible() == visible) {
         return;
     }
@@ -508,35 +516,17 @@ void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
     // 设置当前曲线的可见性
     series->setVisible(visible);
 
-    // ==================== 级联处理标注点（Markers）====================
-    if (m_curveMarkers.contains(curveId)) {
-        CurveMarkerData& markerData = m_curveMarkers[curveId];
-        if (markerData.series) {
-            markerData.series->setVisible(visible);
-            qDebug() << "ThermalChart::setCurveVisible - 同步标注点可见性:" << curveId << visible;
-        }
-    }
-
     // ==================== 级联处理子曲线 ====================
     QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
     for (ThermalCurve* child : children) {
         if (!child)
             continue;
 
-        // 只级联处理强绑定的子曲线（如基线）
+        // 只级联处理强绑定的子曲线（如基线、标记点）
         if (child->isStronglyBound()) {
-            QLineSeries* childSeries = seriesForCurveId(child->id());
+            QXYSeries* childSeries = seriesForCurveId(child->id());
             if (childSeries) {
                 childSeries->setVisible(visible);
-
-                // 递归处理子曲线的标注点
-                if (m_curveMarkers.contains(child->id())) {
-                    CurveMarkerData& childMarkerData = m_curveMarkers[child->id()];
-                    if (childMarkerData.series) {
-                        childMarkerData.series->setVisible(visible);
-                    }
-                }
-
                 qDebug() << "ThermalChart::setCurveVisible - 级联设置子曲线可见性:" << child->name() << visible;
             }
         }
@@ -549,7 +539,7 @@ void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
 void ThermalChart::highlightCurve(const QString& curveId)
 {
     // 查找对应的系列
-    QLineSeries* targetSeries = seriesForCurveId(curveId);
+    QXYSeries* targetSeries = seriesForCurveId(curveId);
 
     if (!targetSeries) {
         // 如果找不到系列，清除当前高亮
@@ -634,7 +624,7 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     // 重新加载所有曲线数据
     const auto& allCurves = m_curveManager->getAllCurves();
     for (const ThermalCurve& curve : allCurves) {
-        QLineSeries* series = seriesForCurveId(curve.id());
+        QXYSeries* series = seriesForCurveId(curve.id());
         if (series) {
             QSignalBlocker blocker(series);
             series->replace(buildSeriesPoints(curve));
@@ -644,143 +634,10 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     // 重新缩放坐标轴以适应新数据范围
     rescaleAxes();
 
-    // 更新所有标注点（Markers）的显示位置
-    for (auto it = m_curveMarkers.begin(); it != m_curveMarkers.end(); ++it) {
-        CurveMarkerData& markerData = it.value();
-        if (markerData.series) {
-            markerData.series->clear();
-            for (const ThermalDataPoint& dataPoint : markerData.dataPoints) {
-                QPointF displayPoint;
-                if (m_xAxisMode == XAxisMode::Temperature) {
-                    displayPoint.setX(dataPoint.temperature);
-                } else {
-                    displayPoint.setX(dataPoint.time);
-                }
-                displayPoint.setY(dataPoint.value);
-                markerData.series->append(displayPoint);
-            }
-        }
-    }
-
     qDebug() << "ThermalChart::setXAxisMode - 已完成横轴切换和曲线重绘";
 
     // 发出信号通知叠加物更新
     emit xAxisModeChanged(m_xAxisMode);
-}
-
-void ThermalChart::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color, qreal size)
-{
-    Q_ASSERT(m_initialized); // 确保依赖完整
-
-    // 早期返回：检查前置条件
-    if (curveId.isEmpty() || markers.isEmpty()) {
-        return;
-    }
-
-    // 如果已存在标注点系列，先移除
-    removeCurveMarkers(curveId);
-
-    // 查找曲线对应的系列（用于确定Y轴）
-    QLineSeries* curveSeries = seriesForCurveId(curveId);
-    if (!curveSeries) {
-        qWarning() << "ThermalChart::addCurveMarkers - 未找到曲线" << curveId;
-        return;
-    }
-
-    // 从 CurveManager 获取曲线数据，将 QPointF 转换为 ThermalDataPoint
-    QVector<ThermalDataPoint> dataPoints;
-    ThermalCurve* curve = m_curveManager->getCurve(curveId);
-    if (curve) {
-        const auto& curveData = curve->getProcessedData();
-        for (const QPointF& marker : markers) {
-            double targetX = marker.x(); // 根据横轴模式，可能是 temperature 或 time
-            ThermalDataPoint foundPoint = findNearestDataPoint(curveData, targetX);
-            dataPoints.append(foundPoint);
-        }
-    }
-
-    // 如果无法获取完整数据，使用 QPointF 创建临时 ThermalDataPoint
-    if (dataPoints.isEmpty()) {
-        for (const QPointF& marker : markers) {
-            ThermalDataPoint point;
-            point.temperature = marker.x();
-            point.time = 0.0;
-            point.value = marker.y();
-            dataPoints.append(point);
-        }
-    }
-
-    // 创建标注点系列
-    auto* markerSeries = new QScatterSeries();
-    markerSeries->setName(QString("标注点 (%1)").arg(curveId));
-    markerSeries->setMarkerSize(size);
-    markerSeries->setColor(color);
-    markerSeries->setBorderColor(color.darker(120));
-    markerSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-
-    // 添加点（根据当前横轴模式选择X坐标）
-    for (const ThermalDataPoint& dataPoint : dataPoints) {
-        QPointF displayPoint;
-        if (m_xAxisMode == XAxisMode::Temperature) {
-            displayPoint.setX(dataPoint.temperature);
-        } else {
-            displayPoint.setX(dataPoint.time);
-        }
-        displayPoint.setY(dataPoint.value);
-        markerSeries->append(displayPoint);
-    }
-
-    // 添加到图表
-    addSeries(markerSeries);
-
-    // 附着到与曲线相同的轴
-    const auto axes = curveSeries->attachedAxes();
-    for (QAbstractAxis* axis : axes) {
-        markerSeries->attachAxis(axis);
-    }
-
-    // 保存映射关系和原始数据
-    CurveMarkerData markerData;
-    markerData.series = markerSeries;
-    markerData.dataPoints = dataPoints;
-    m_curveMarkers[curveId] = markerData;
-
-    qDebug() << "ThermalChart::addCurveMarkers - 为曲线" << curveId << "添加了" << markers.size() << "个标注点";
-}
-
-void ThermalChart::removeCurveMarkers(const QString& curveId)
-{
-    // 早期返回：检查是否存在
-    if (!m_curveMarkers.contains(curveId)) {
-        return;
-    }
-
-    CurveMarkerData markerData = m_curveMarkers.take(curveId);
-    if (!markerData.series) {
-        return;
-    }
-
-    // 从图表中移除
-    removeSeries(markerData.series);
-    markerData.series->deleteLater();
-
-    qDebug() << "ThermalChart::removeCurveMarkers - 移除曲线" << curveId << "的标注点";
-}
-
-void ThermalChart::clearAllMarkers()
-{
-    // 移除所有标注点系列
-    for (auto it = m_curveMarkers.begin(); it != m_curveMarkers.end(); ++it) {
-        CurveMarkerData& markerData = it.value();
-        if (markerData.series) {
-            removeSeries(markerData.series);
-            markerData.series->deleteLater();
-        }
-    }
-
-    m_curveMarkers.clear();
-
-    qDebug() << "ThermalChart::clearAllMarkers - 清空所有标注点";
 }
 
 QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
@@ -794,7 +651,7 @@ QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, c
     // 设置坐标轴和系列（用于正确的坐标转换）
     if (!curveId.isEmpty()) {
         QValueAxis* yAxis = yAxisForCurveId(curveId);
-        QLineSeries* series = seriesForCurveId(curveId);
+        QXYSeries* series = seriesForCurveId(curveId);
         tool->setAxes(curveId, m_axisX, yAxis, series);
     }
 
@@ -889,7 +746,7 @@ ThermalChart::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataP
     // 设置坐标轴和系列（用于正确的坐标转换）
     if (!curveId.isEmpty()) {
         QValueAxis* yAxis = yAxisForCurveId(curveId);
-        QLineSeries* series = seriesForCurveId(curveId);
+        QXYSeries* series = seriesForCurveId(curveId);
         tool->setAxes(curveId, m_axisX, yAxis, series);
     }
 
@@ -1097,7 +954,7 @@ void ThermalChart::clearCustomTitles()
 
 // ==================== 框选缩放辅助函数实现 ====================
 
-bool ThermalChart::isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const
+bool ThermalChart::isSeriesAttachedToYAxis(QXYSeries* series, QValueAxis* yAxis) const
 {
     if (!series || !yAxis) {
         return false;
@@ -1113,7 +970,7 @@ bool ThermalChart::isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxi
     return false;
 }
 
-bool ThermalChart::calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const
+bool ThermalChart::calculateYRangeInXRange(QXYSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const
 {
     if (!series) {
         return false;

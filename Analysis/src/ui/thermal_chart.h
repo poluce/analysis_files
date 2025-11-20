@@ -119,8 +119,8 @@ public:
     QValueAxis* yAxisForCurveId(const QString& curveId);
 
     // ==================== 系列查询 ====================
-    QLineSeries* seriesForCurveId(const QString& curveId) const;
-    QString curveIdForSeries(QLineSeries* series) const;
+    QXYSeries* seriesForCurveId(const QString& curveId) const;
+    QString curveIdForSeries(QXYSeries* series) const;
     QColor getCurveColor(const QString& curveId) const;
 
     // ==================== 数据查询 ====================
@@ -143,11 +143,6 @@ public:
     bool horizontalCrosshairEnabled() const { return m_horizontalCrosshairEnabled; }
     void updateCrosshairAtChartPos(const QPointF& chartPos);
     void clearCrosshair();
-
-    // ==================== 标注点（Markers）管理 ====================
-    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers, const QColor& color = Qt::red, qreal size = 12.0);
-    void removeCurveMarkers(const QString& curveId);
-    void clearAllMarkers();
 
     // ==================== 测量工具管理 ====================
     QGraphicsObject* addMassLossTool(const struct ThermalDataPoint& point1, const struct ThermalDataPoint& point2, const QString& curveId);
@@ -203,18 +198,18 @@ signals:
 
 private:
     // ==================== 系列管理辅助函数 ====================
-    QLineSeries* createSeriesForThermalCurve(const ThermalCurve& curve) const;
+    QXYSeries* createSeriesForThermalCurve(const ThermalCurve& curve) const;
     QList<QPointF> buildSeriesPoints(const ThermalCurve& curve) const;
     void attachSeriesToAxes(QXYSeries* series, QValueAxis* axisY);
     void detachSeriesFromAxes(QXYSeries* series);
-    void registerSeriesMapping(QLineSeries* series, const QString& curveId);
+    void registerSeriesMapping(QXYSeries* series, const QString& curveId);
     void unregisterSeriesMapping(const QString& curveId);
-    void updateSeriesStyle(QLineSeries* series, bool selected);
+    void updateSeriesStyle(QXYSeries* series, bool selected);
 
     // ==================== 坐标轴管理辅助函数 ====================
     QValueAxis* ensureYAxisForCurve(const ThermalCurve& curve);
     void updateAxisRangeForAttachedSeries(QValueAxis* axis) const;
-    QList<QLineSeries*> lineSeriesAttachedToAxis(QAbstractAxis* axis) const;
+    QList<QXYSeries*> seriesAttachedToAxis(QAbstractAxis* axis) const;
 
     void resetAxesToDefault();
 
@@ -225,7 +220,7 @@ private:
      * @param yAxis Y 轴指针
      * @return true=绑定，false=未绑定
      */
-    bool isSeriesAttachedToYAxis(QLineSeries* series, QValueAxis* yAxis) const;
+    bool isSeriesAttachedToYAxis(QXYSeries* series, QValueAxis* yAxis) const;
 
     /**
      * @brief 计算系列在指定 X 范围内的 Y 值范围
@@ -236,7 +231,7 @@ private:
      * @param outYMax 输出：Y 最大值
      * @return true=找到数据，false=未找到数据
      */
-    bool calculateYRangeInXRange(QLineSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const;
+    bool calculateYRangeInXRange(QXYSeries* series, qreal xMin, qreal xMax, qreal& outYMin, qreal& outYMax) const;
 
     // ==================== 工具清理辅助函数 ====================
     /**
@@ -262,9 +257,9 @@ private:
     XAxisMode m_xAxisMode = XAxisMode::Temperature;
 
     // ==================== 曲线系列管理 ====================
-    QHash<QLineSeries*, QString> m_seriesToId;
-    QHash<QString, QLineSeries*> m_idToSeries;
-    QLineSeries* m_selectedSeries = nullptr;
+    QHash<QXYSeries*, QString> m_seriesToId;
+    QHash<QString, QXYSeries*> m_idToSeries;
+    QXYSeries* m_selectedSeries = nullptr;
 
     // ==================== 十字线 ====================
     QGraphicsLineItem* m_verticalCrosshairLine = nullptr;
@@ -274,13 +269,6 @@ private:
 
     // ==================== 选中点高亮系列（算法交互）====================
     QScatterSeries* m_selectedPointsSeries = nullptr;
-
-    // ==================== 标注点（Markers）====================
-    struct CurveMarkerData {
-        QScatterSeries* series;
-        QVector<struct ThermalDataPoint> dataPoints;
-    };
-    QMap<QString, CurveMarkerData> m_curveMarkers;
 
     // ==================== 测量工具 ====================
     QVector<QGraphicsObject*> m_massLossTools;

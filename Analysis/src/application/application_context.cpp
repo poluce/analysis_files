@@ -62,12 +62,6 @@ ApplicationContext::ApplicationContext(QObject* parent)
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
     m_mainWindow->bindHistoryManager(*m_historyManager);  // 传递实例而非单例
 
-    // 连接 AlgorithmManager 的标注点信号到 ChartView
-    connect(m_algorithmManager, &AlgorithmManager::markersGenerated,
-            m_chartView, [this](const QString& curveId, const QList<QPointF>& markers, const QColor& color) {
-                m_chartView->addCurveMarkers(curveId, markers, color, 12.0);
-            });
-
     // 5. 控制器层
     m_mainController = new MainController(
         m_curveManager,

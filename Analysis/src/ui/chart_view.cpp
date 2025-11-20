@@ -135,22 +135,6 @@ bool ChartView::horizontalCrosshairEnabled() const
 
 // ==================== 叠加物管理（转发给 ThermalChart）====================
 
-void ChartView::addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
-                                 const QColor& color, qreal size)
-{
-    m_chart->addCurveMarkers(curveId, markers, color, size);
-}
-
-void ChartView::removeCurveMarkers(const QString& curveId)
-{
-    m_chart->removeCurveMarkers(curveId);
-}
-
-void ChartView::clearAllMarkers()
-{
-    m_chart->clearAllMarkers();
-}
-
 void ChartView::startMassLossTool()
 {
     m_chartView->startMassLossTool();

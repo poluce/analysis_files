@@ -28,12 +28,14 @@ enum class InstrumentType {
  * - Derivative: 微分信号（通过算法派生）
  * - Baseline: 基线（用于峰面积计算的参考线）
  * - PeakArea: 峰面积（原始信号与基线之间的区域）
+ * - Marker: 标记点（用户选择或算法标注的关键点）
  */
 enum class SignalType {
     Raw,        // 原始信号
     Derivative, // 微分信号
     Baseline,   // 基线
     PeakArea,   // 峰面积
+    Marker,     // 标记点
 };
 
 /**
