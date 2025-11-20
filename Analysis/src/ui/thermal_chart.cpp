@@ -516,6 +516,27 @@ void ThermalChart::setCurveVisible(const QString& curveId, bool visible)
     // 设置当前曲线的可见性
     series->setVisible(visible);
 
+    // ==================== 级联处理关联的测量工具 ====================
+    // 质量损失工具
+    for (QGraphicsObject* tool : m_massLossTools) {
+        if (auto* measureTool = qobject_cast<TrapezoidMeasureTool*>(tool)) {
+            if (measureTool->curveId() == curveId) {
+                measureTool->setVisible(visible);
+                qDebug() << "ThermalChart::setCurveVisible - 同步质量损失工具可见性:" << visible;
+            }
+        }
+    }
+
+    // 峰面积工具
+    for (QGraphicsObject* tool : m_peakAreaTools) {
+        if (auto* peakTool = qobject_cast<PeakAreaTool*>(tool)) {
+            if (peakTool->curveId() == curveId) {
+                peakTool->setVisible(visible);
+                qDebug() << "ThermalChart::setCurveVisible - 同步峰面积工具可见性:" << visible;
+            }
+        }
+    }
+
     // ==================== 级联处理子曲线 ====================
     QVector<ThermalCurve*> children = m_curveManager->getChildren(curveId);
     for (ThermalCurve* child : children) {
