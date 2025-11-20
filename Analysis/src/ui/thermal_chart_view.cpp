@@ -303,6 +303,7 @@ void ThermalChartView::contextMenuEvent(QContextMenuEvent* event)
     QMenu menu(this);
 
     if (m_thermalChart) {
+        // ==================== 视图操作 ====================
         QString currentMode = (m_thermalChart->xAxisMode() == XAxisMode::Temperature) ? tr("温度") : tr("时间");
         QString targetMode = (m_thermalChart->xAxisMode() == XAxisMode::Temperature) ? tr("时间") : tr("温度");
         QAction* toggleAction = menu.addAction(tr("切换到以%1为横轴").arg(targetMode));
@@ -311,6 +312,30 @@ void ThermalChartView::contextMenuEvent(QContextMenuEvent* event)
                 XAxisMode currentMode = m_thermalChart->xAxisMode();
                 XAxisMode newMode = (currentMode == XAxisMode::Temperature) ? XAxisMode::Time : XAxisMode::Temperature;
                 m_thermalChart->setXAxisMode(newMode);
+            }
+        });
+
+        QAction* resetViewAction = menu.addAction(tr("恢复视图"));
+        connect(resetViewAction, &QAction::triggered, this, [this]() {
+            if (m_thermalChart) {
+                m_thermalChart->rescaleAxes();
+            }
+        });
+
+        // ==================== 清除工具 ====================
+        menu.addSeparator();
+
+        QAction* clearMassLossAction = menu.addAction(tr("清除所有质量损失工具"));
+        connect(clearMassLossAction, &QAction::triggered, this, [this]() {
+            if (m_thermalChart) {
+                m_thermalChart->clearAllMassLossTools();
+            }
+        });
+
+        QAction* clearPeakAreaAction = menu.addAction(tr("清除所有峰面积工具"));
+        connect(clearPeakAreaAction, &QAction::triggered, this, [this]() {
+            if (m_thermalChart) {
+                m_thermalChart->clearAllPeakAreaTools();
             }
         });
     }
