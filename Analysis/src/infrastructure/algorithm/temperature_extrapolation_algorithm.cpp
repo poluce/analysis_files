@@ -295,7 +295,7 @@ bool TemperatureExtrapolationAlgorithm::findBaselineCurve(AlgorithmContext* cont
     }
 
     // 从上下文获取 CurveManager
-    auto curveManagerOpt = context->get<CurveManager*>("curveManager");
+    auto curveManagerOpt = context->get<CurveManager*>(ContextKeys::CurveManager);
     if (!curveManagerOpt.has_value() || !curveManagerOpt.value()) {
         qWarning() << "TemperatureExtrapolationAlgorithm::findBaselineCurve - CurveManager 未设置";
         return false;

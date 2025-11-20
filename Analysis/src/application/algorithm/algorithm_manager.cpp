@@ -181,7 +181,7 @@ IThermalAlgorithm* AlgorithmManager::validateAsyncExecution(const QString& name,
         return nullptr;
     }
 
-    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
+    context->setValue(ContextKeys::CurveManager, QVariant::fromValue(m_curveManager));
 
     if (!algorithm->prepareContext(context)) {
         qWarning() << "[AlgorithmManager] prepareContext 失败，数据不完整";

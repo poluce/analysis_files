@@ -50,6 +50,9 @@ namespace ContextKeys {
     /** 目标曲线ID (QString) - 用于标识特定曲线 */
     inline constexpr const char* TargetCurveId = "targetCurveId";
 
+    /** 曲线管理器 (CurveManager*) - 用于查找关联曲线 */
+    inline constexpr const char* CurveManager = "curveManager";
+
     // ========== 用户交互选点 (User Interaction Points) ==========
     /** 用户选择的点集合 (QVector<QPointF>) - 用于基线、峰面积等算法 */
     inline constexpr const char* SelectedPoints = "selectedPoints";
