@@ -305,16 +305,16 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
     result.setMeta(MetaKeys::ExtrapolatedTemperature, T_onset);
     result.setMeta(MetaKeys::Slope, tangent.slope);
     result.setMeta(MetaKeys::Intercept, tangent.intercept);
-    result.setMeta("baseline.slope", baseline.slope);
-    result.setMeta("baseline.intercept", baseline.intercept);
-    result.setMeta("baseline.r2", baseline.r2);
-    result.setMeta("baseline.slopeNormalized", baseline.quality.slopeNormalized);
-    result.setMeta("baseline.method", baseline.quality.rejectReason.isEmpty() ? "自适应拟合" : baseline.quality.rejectReason);
-    result.setMeta("inflection.temperature", inflection.temperature);
-    result.setMeta("inflection.value", inflection.value);
-    result.setMeta("inflection.slope", inflection.slope);
-    result.setMeta("confidence", confidence);
-    result.setMeta("warning", warning);
+    result.setMeta(MetaKeys::BaselineSlope, baseline.slope);
+    result.setMeta(MetaKeys::BaselineIntercept, baseline.intercept);
+    result.setMeta(MetaKeys::BaselineR2, baseline.r2);
+    result.setMeta(MetaKeys::BaselineSlopeNormalized, baseline.quality.slopeNormalized);
+    result.setMeta(MetaKeys::BaselineMethod, baseline.quality.rejectReason.isEmpty() ? "自适应拟合" : baseline.quality.rejectReason);
+    result.setMeta(MetaKeys::InflectionTemperature, inflection.temperature);
+    result.setMeta(MetaKeys::InflectionValue, inflection.value);
+    result.setMeta(MetaKeys::InflectionSlope, inflection.slope);
+    result.setMeta(MetaKeys::Confidence, confidence);
+    result.setMeta(MetaKeys::Warning, warning);
     result.setMeta(MetaKeys::InstrumentType, static_cast<int>(inputCurve.instrumentType()));
     result.setMeta(MetaKeys::MarkerColor, QColor(Qt::red));
 

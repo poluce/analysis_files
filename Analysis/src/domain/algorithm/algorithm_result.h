@@ -144,6 +144,20 @@ namespace MetaKeys {
     inline constexpr const char* Onset = "onset";                       // 起始温度 (double)
     inline constexpr const char* Endset = "endset";                     // 结束温度 (double)
     inline constexpr const char* ExtrapolatedTemperature = "extrapolatedTemperature";  // 外推温度 (double)
+    inline constexpr const char* Confidence = "confidence";             // 置信度 (double)
+    inline constexpr const char* Warning = "warning";                   // 警告信息 (QString)
+
+    // 基线拟合相关
+    inline constexpr const char* BaselineSlope = "baseline.slope";                 // 基线斜率 (double)
+    inline constexpr const char* BaselineIntercept = "baseline.intercept";         // 基线截距 (double)
+    inline constexpr const char* BaselineR2 = "baseline.r2";                       // 基线 R² (double)
+    inline constexpr const char* BaselineSlopeNormalized = "baseline.slopeNormalized";  // 归一化斜率 (double)
+    inline constexpr const char* BaselineMethod = "baseline.method";               // 基线拟合方法 (QString)
+
+    // 拐点相关
+    inline constexpr const char* InflectionTemperature = "inflection.temperature"; // 拐点温度 (double)
+    inline constexpr const char* InflectionValue = "inflection.value";             // 拐点值 (double)
+    inline constexpr const char* InflectionSlope = "inflection.slope";             // 拐点斜率 (double)
 
     // 算法参数
     inline constexpr const char* Method = "method";                     // 算法方法 (QString)
