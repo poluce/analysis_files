@@ -194,17 +194,30 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
         return AlgorithmResult::failure("temperature_extrapolation", "用户取消执行");
     }
 
-    // 5. 计算 Y 轴范围（用于归一化斜率）
-    double yMin = std::numeric_limits<double>::max();
-    double yMax = std::numeric_limits<double>::lowest();
-    for (const auto& pt : curveData) {
-        yMin = qMin(yMin, pt.value);
-        yMax = qMax(yMax, pt.value);
-    }
-    double yRange = yMax - yMin;
+    // 5. 基线拟合（优先使用现有基线，否则用两点连线）
+    LinearFit baseline;
+    ThermalCurve existingBaseline;
 
-    // 6. 基线拟合（自适应稳健策略 + 两点兜底）
-    LinearFit baseline = fitBaselineAdaptive(curveData, T1, T2, yRange);
+    if (findBaselineCurve(context, existingBaseline)) {
+        // 有现有基线曲线，从基线数据拟合
+        const auto& baselineData = existingBaseline.getProcessedData();
+        if (!baselineData.isEmpty()) {
+#if DEBUG_TEMPERATURE_EXTRAPOLATION
+            qDebug() << "使用现有基线曲线:" << existingBaseline.name();
+#endif
+            baseline = fitInitialBaseline(baselineData, T1, 20);
+            baseline.quality.rejectReason = "现有基线曲线";
+        }
+    }
+
+    // 如果没有现有基线或拟合失败，使用两点连线
+    if (!baseline.valid) {
+#if DEBUG_TEMPERATURE_EXTRAPOLATION
+        qDebug() << "无现有基线，使用两点连线";
+#endif
+        baseline = fitBaselineTwoPoint(curveData, T1, T2);
+    }
+
     if (!baseline.valid) {
         QString error = QString("基线拟合失败: %1").arg(baseline.quality.rejectReason);
         qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
