@@ -56,6 +56,7 @@ AlgorithmDescriptor MovingAverageFilterAlgorithm::descriptor() const
     windowParam.defaultValue = m_window;
     windowParam.required = true;
     windowParam.constraints["min"] = 1;
+    windowParam.constraints["max"] = 999;
     desc.parameters.append(windowParam);
 
     // 依赖声明（工作流支持）

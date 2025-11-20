@@ -10,7 +10,7 @@ class AlgorithmContext;
  * @brief 移动平均滤波算法 - 简单平滑
  * @details 对每个点，取其两侧窗口范围内的值做平均，
  *          起始与末尾处自动缩小窗口以避免越界。
- *          参数：window（窗口大小，奇数更佳），默认 5。
+ *          参数：window（窗口大小，奇数更佳），默认 500。
  */
 class MovingAverageFilterAlgorithm : public IThermalAlgorithm {
 public:
@@ -33,7 +33,7 @@ public:
     AlgorithmResult executeWithContext(AlgorithmContext* context) override;
 
 private:
-    int m_window = 5; // 滤波窗口大小（点数）
+    int m_window = 500; // 滤波窗口大小（点数）
 };
 
 #endif // MOVINGAVERAGEFILTERALGORITHM_H
