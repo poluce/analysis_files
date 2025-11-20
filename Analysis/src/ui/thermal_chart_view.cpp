@@ -338,6 +338,12 @@ void ThermalChartView::contextMenuEvent(QContextMenuEvent* event)
                 m_thermalChart->clearAllPeakAreaTools();
             }
         });
+
+        menu.addSeparator();
+
+        QAction* deleteAction = menu.addAction(tr("删除"));
+        // TODO: 暂未实现删除功能
+        Q_UNUSED(deleteAction);
     }
 
     menu.exec(event->globalPos());
