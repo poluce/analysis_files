@@ -7,7 +7,7 @@
 #include <QPointer>
 #include <QString>
 
-class ThermalChart;
+class ChartView;
 
 /**
  * @brief RemovePeakAreaToolCommand 将峰面积测量工具的删除操作封装为可撤销命令。
@@ -20,7 +20,7 @@ class ThermalChart;
  */
 class RemovePeakAreaToolCommand : public ICommand {
 public:
-    RemovePeakAreaToolCommand(ThermalChart* chart,
+    RemovePeakAreaToolCommand(ChartView* chartView,
                               PeakAreaTool* tool,
                               QString description = QString());
 
@@ -30,7 +30,7 @@ public:
     QString description() const override;
 
 private:
-    ThermalChart* m_chart = nullptr;
+    ChartView* m_chartView = nullptr;
     QPointer<PeakAreaTool> m_toolPointer;  // 智能指针
 
     // 保存工具完整状态（用于 undo 时重建）

@@ -6,7 +6,7 @@
 #include <QPointer>
 #include <QString>
 
-class ThermalChart;
+class ChartView;
 class QGraphicsObject;
 
 /**
@@ -22,7 +22,7 @@ class QGraphicsObject;
  */
 class AddMassLossToolCommand : public ICommand {
 public:
-    AddMassLossToolCommand(ThermalChart* chart,
+    AddMassLossToolCommand(ChartView* chartView,
                            const ThermalDataPoint& point1,
                            const ThermalDataPoint& point2,
                            const QString& curveId,
@@ -34,7 +34,7 @@ public:
     QString description() const override;
 
 private:
-    ThermalChart* m_chart = nullptr;
+    ChartView* m_chartView = nullptr;
     ThermalDataPoint m_point1;
     ThermalDataPoint m_point2;
     QString m_curveId;

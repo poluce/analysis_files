@@ -18,7 +18,6 @@ class QContextMenuEvent;
 class CurveManager;
 class ThermalCurve;
 class PeakAreaTool;
-class HistoryManager;
 struct ThermalDataPoint;
 
 /**
@@ -55,7 +54,6 @@ public:
 
     // ==================== 外部依赖注入 ====================
     void setCurveManager(CurveManager* manager);
-    void setHistoryManager(HistoryManager* manager) { m_historyManager = manager; }
 
     /**
      * @brief 完整性校验与状态标记
@@ -107,6 +105,19 @@ signals:
      * @param value 数据坐标值
      */
     void hoverMoved(const QPoint& viewPos, const QPointF& value);
+
+    /**
+     * @brief 质量损失工具创建请求信号
+     *
+     * 用户完成工具交互后发出，由 ChartView 转发给 Controller 创建 Command
+     */
+    void massLossToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+
+    /**
+     * @brief 峰面积工具创建请求信号
+     */
+    void peakAreaToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId,
+                                     bool useLinearBaseline, const QString& referenceCurveId);
 
 protected:
     // ==================== 事件处理 ====================
@@ -259,7 +270,6 @@ private:
     // ==================== 依赖注入 ====================
     ThermalChart* m_thermalChart = nullptr;  // 构造函数注入（调用方保证非空）
     CurveManager* m_curveManager = nullptr;  // Setter 注入（initialize() 时断言非空）
-    HistoryManager* m_historyManager = nullptr;  // Setter 注入（可选，用于工具命令）
 
     // ==================== 交互模式 ====================
     InteractionMode m_mode = InteractionMode::View;

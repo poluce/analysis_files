@@ -166,6 +166,21 @@ private slots:
      */
     void onPeakAreaToolRemoveRequested(QGraphicsObject* tool);
 
+    /**
+     * @brief 处理质量损失工具创建请求
+     *
+     * 创建 AddMassLossToolCommand 并通过 HistoryManager 执行
+     */
+    void onMassLossToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+
+    /**
+     * @brief 处理峰面积工具创建请求
+     *
+     * 创建 AddPeakAreaToolCommand 并通过 HistoryManager 执行
+     */
+    void onPeakAreaToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId,
+                                       bool useLinearBaseline, const QString& referenceCurveId);
+
 private:
     // ==================== 初始化状态标记 ====================
     bool m_initialized = false;  // 防止"半初始化对象"的运行时错误

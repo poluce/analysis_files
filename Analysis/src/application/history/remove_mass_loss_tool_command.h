@@ -6,7 +6,7 @@
 #include <QPointer>
 #include <QString>
 
-class ThermalChart;
+class ChartView;
 class QGraphicsObject;
 
 /**
@@ -20,7 +20,7 @@ class QGraphicsObject;
  */
 class RemoveMassLossToolCommand : public ICommand {
 public:
-    RemoveMassLossToolCommand(ThermalChart* chart,
+    RemoveMassLossToolCommand(ChartView* chartView,
                               QGraphicsObject* tool,
                               QString description = QString());
 
@@ -30,7 +30,7 @@ public:
     QString description() const override;
 
 private:
-    ThermalChart* m_chart = nullptr;
+    ChartView* m_chartView = nullptr;
     QPointer<QGraphicsObject> m_toolPointer;  // 智能指针
 
     // 保存工具状态（用于 undo 时重建）

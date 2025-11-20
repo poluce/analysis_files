@@ -1,11 +1,11 @@
 #include "remove_peak_area_tool_command.h"
-#include "ui/thermal_chart.h"
+#include "ui/chart_view.h"
 #include <QDebug>
 
-RemovePeakAreaToolCommand::RemovePeakAreaToolCommand(ThermalChart* chart,
+RemovePeakAreaToolCommand::RemovePeakAreaToolCommand(ChartView* chartView,
                                                       PeakAreaTool* tool,
                                                       QString description)
-    : m_chart(chart)
+    : m_chartView(chartView)
     , m_toolPointer(tool)
     , m_description(description)
 {
@@ -27,8 +27,8 @@ RemovePeakAreaToolCommand::RemovePeakAreaToolCommand(ThermalChart* chart,
 
 bool RemovePeakAreaToolCommand::execute()
 {
-    if (!m_chart) {
-        qWarning() << "RemovePeakAreaToolCommand::execute - ThermalChart 为空";
+    if (!m_chartView) {
+        qWarning() << "RemovePeakAreaToolCommand::execute - ChartView 为空";
         return false;
     }
 
@@ -38,7 +38,7 @@ bool RemovePeakAreaToolCommand::execute()
     }
 
     // 删除工具
-    m_chart->removePeakAreaTool(m_toolPointer.data());
+    m_chartView->removePeakAreaTool(m_toolPointer.data());
     m_wasRemoved = true;
 
     qDebug() << "RemovePeakAreaToolCommand::execute - 移除峰面积工具";
@@ -47,8 +47,8 @@ bool RemovePeakAreaToolCommand::execute()
 
 bool RemovePeakAreaToolCommand::undo()
 {
-    if (!m_chart) {
-        qWarning() << "RemovePeakAreaToolCommand::undo - ThermalChart 为空";
+    if (!m_chartView) {
+        qWarning() << "RemovePeakAreaToolCommand::undo - ChartView 为空";
         return false;
     }
 
@@ -58,7 +58,7 @@ bool RemovePeakAreaToolCommand::undo()
     }
 
     // 重新创建工具
-    PeakAreaTool* tool = m_chart->addPeakAreaTool(m_point1, m_point2, m_curveId);
+    PeakAreaTool* tool = m_chartView->addPeakAreaTool(m_point1, m_point2, m_curveId);
 
     if (!tool) {
         qWarning() << "RemovePeakAreaToolCommand::undo - 重新创建工具失败";

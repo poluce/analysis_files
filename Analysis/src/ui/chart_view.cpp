@@ -35,6 +35,12 @@ ChartView::ChartView(QWidget* parent)
 
     // ThermalChartView → ChartView（转发）
     connect(m_chartView, &ThermalChartView::curveHit, this, &ChartView::curveSelected);
+
+    // 工具创建请求信号转发
+    connect(m_chartView, &ThermalChartView::massLossToolCreateRequested,
+            this, &ChartView::massLossToolCreateRequested);
+    connect(m_chartView, &ThermalChartView::peakAreaToolCreateRequested,
+            this, &ChartView::peakAreaToolCreateRequested);
 }
 
 // ==================== 依赖注入 ====================
@@ -49,11 +55,6 @@ void ChartView::setCurveManager(CurveManager* manager)
     // 设置 ThermalChartView 的依赖并初始化
     m_chartView->setCurveManager(manager);
     m_chartView->initialize();  // 统一初始化（断言完整性）
-}
-
-void ChartView::setHistoryManager(HistoryManager* manager)
-{
-    m_chartView->setHistoryManager(manager);
 }
 
 // ==================== 交互配置（转发给 ThermalChartView）====================
@@ -123,16 +124,6 @@ void ChartView::setHorizontalCrosshairEnabled(bool enabled)
     m_chart->setHorizontalCrosshairEnabled(enabled);
 }
 
-bool ChartView::verticalCrosshairEnabled() const
-{
-    return m_chart->verticalCrosshairEnabled();
-}
-
-bool ChartView::horizontalCrosshairEnabled() const
-{
-    return m_chart->horizontalCrosshairEnabled();
-}
-
 // ==================== 叠加物管理（转发给 ThermalChart）====================
 
 void ChartView::startMassLossTool()
@@ -140,9 +131,9 @@ void ChartView::startMassLossTool()
     m_chartView->startMassLossTool();
 }
 
-void ChartView::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+QGraphicsObject* ChartView::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {
-    m_chart->addMassLossTool(point1, point2, curveId);
+    return m_chart->addMassLossTool(point1, point2, curveId);
 }
 
 void ChartView::removeMassLossTool(QGraphicsObject* tool)
@@ -162,9 +153,9 @@ void ChartView::startPeakAreaTool(const QString& curveId, bool useLinearBaseline
     m_chartView->startPeakAreaTool(curveId, useLinearBaseline, referenceCurveId);
 }
 
-void ChartView::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+PeakAreaTool* ChartView::addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {
-    m_chart->addPeakAreaTool(point1, point2, curveId);
+    return m_chart->addPeakAreaTool(point1, point2, curveId);
 }
 
 void ChartView::removePeakAreaTool(QGraphicsObject* tool)
