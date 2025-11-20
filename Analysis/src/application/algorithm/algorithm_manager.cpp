@@ -122,10 +122,8 @@ void AlgorithmManager::handleCompositeResult(const AlgorithmResult& result)
     if (result.hasMarkers()) {
         qDebug() << "  包含" << result.markerCount() << "个标注点";
 
+        // 标注点应该添加到父曲线（源曲线），而不是输出曲线
         QString targetCurveId = result.parentCurveId();
-        if (result.hasCurves() && !result.curves().isEmpty()) {
-            targetCurveId = result.curves().first().id();
-        }
 
         QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
         emit markersGenerated(targetCurveId, result.markers(), markerColor);
