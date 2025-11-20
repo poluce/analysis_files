@@ -1,6 +1,5 @@
 #include "temperature_extrapolation_algorithm.h"
 #include "application/algorithm/algorithm_context.h"
-#include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
 #include <QColor>
@@ -294,36 +293,21 @@ bool TemperatureExtrapolationAlgorithm::findBaselineCurve(AlgorithmContext* cont
         return false;
     }
 
-    // 从上下文获取 CurveManager
-    auto curveManagerOpt = context->get<CurveManager*>(ContextKeys::CurveManager);
-    if (!curveManagerOpt.has_value() || !curveManagerOpt.value()) {
-        qWarning() << "TemperatureExtrapolationAlgorithm::findBaselineCurve - CurveManager 未设置";
+    // 直接从上下文获取基线曲线列表（由 AlgorithmCoordinator 注入）
+    auto baselinesOpt = context->get<QVector<ThermalCurve*>>(ContextKeys::BaselineCurves);
+    if (!baselinesOpt.has_value() || baselinesOpt.value().isEmpty()) {
         return false;
     }
 
-    CurveManager* curveManager = curveManagerOpt.value();
-
-    // 获取活动曲线
-    auto activeCurveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
-    if (!activeCurveOpt.has_value()) {
-        return false;
-    }
-
-    const ThermalCurve& activeCurve = activeCurveOpt.value();
-    QString parentId = activeCurve.id();
-
-    // 使用 CurveManager 的 getBaselines() 方法获取所有基线曲线
-    QVector<ThermalCurve*> baselines = curveManager->getBaselines(parentId);
-
-    if (baselines.isEmpty()) {
-        return false;
-    }
+    const QVector<ThermalCurve*>& baselines = baselinesOpt.value();
 
     // 使用第一条基线曲线（如果有多条，可以让用户选择或使用最新的）
-    baselineCurve = *baselines.first();  // 复制曲线数据
+    if (baselines.first()) {
+        baselineCurve = *baselines.first();  // 复制曲线数据
+        return true;
+    }
 
-
-    return true;
+    return false;
 }
 
 double TemperatureExtrapolationAlgorithm::getBaselineYAtTemperature(
