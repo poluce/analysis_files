@@ -1,12 +1,21 @@
 #include "application/application_context.h"
 
 #include <QApplication>
+#include <QFile>
 #include <QLocale>
 #include <QTranslator>
 
 int main(int argc, char* argv[])
 {
     QApplication a(argc, argv);
+
+    // 加载样式表
+    QFile styleFile("../../styles/fluent_light.qss");
+    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
+        QString styleSheet = styleFile.readAll();
+        a.setStyleSheet(styleSheet);
+        styleFile.close();
+    }
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();
