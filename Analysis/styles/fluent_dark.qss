@@ -410,6 +410,30 @@ QGraphicsView {
     border-radius: 10px;
 }
 
+QChartView QWidget {
+    background: #181b27;
+}
+
+QChartView QWidget#qt_chart_canvas,
+QChartView QWidget#qt_chart_background {
+    background: #181b27;
+}
+
+QChartView QWidget#qt_scrollarea_viewport {
+    background: #181b27;
+    border: none;
+}
+
+QChartView QGraphicsWidget {
+    background: #181b27;
+    border: 1px solid #2a2f41;
+    border-radius: 10px;
+}
+
+QChartView QLabel {
+    color: #cfd7eb;
+}
+
 /* Algorithm status chips */
 QLabel[status="info"] {
     background: #22345b;
