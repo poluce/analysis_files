@@ -95,6 +95,7 @@ QToolBar {
     border: none;
     border-bottom: 1px solid #24293a;
     padding: 4px 8px;
+    qproperty-iconSize: 28px 28px;
 }
 
 QToolBar QToolButton {
