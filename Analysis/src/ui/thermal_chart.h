@@ -112,6 +112,12 @@ public:
      */
     void clearCustomTitles();
 
+    /**
+     * @brief 设置暗色主题
+     * @param isDark true=暗色主题，false=亮色主题
+     */
+    void setDarkTheme(bool isDark);
+
     // 查询接口（供 ThermalChartView 和叠加物使用）
     QValueAxis* axisX() const { return m_axisX; }
     QValueAxis* primaryAxisY() const { return m_axisY_mass; }

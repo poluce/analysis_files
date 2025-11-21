@@ -987,6 +987,71 @@ void ThermalChart::clearCustomTitles()
     qDebug() << "ThermalChart::clearCustomTitles - 清除所有自定义标题";
 }
 
+void ThermalChart::setDarkTheme(bool isDark)
+{
+    if (isDark) {
+        // 暗色主题
+        QColor bgColor("#181b27");
+        QColor textColor("#cfd7eb");
+        QColor gridColor("#2f3344");
+
+        setBackgroundBrush(QBrush(bgColor));
+        setPlotAreaBackgroundBrush(QBrush(bgColor));
+        setPlotAreaBackgroundVisible(true);
+        setTitleBrush(QBrush(textColor));
+
+        // X轴样式
+        m_axisX->setLabelsBrush(QBrush(textColor));
+        m_axisX->setTitleBrush(QBrush(textColor));
+        m_axisX->setGridLineColor(gridColor);
+        m_axisX->setLinePenColor(gridColor);
+
+        // 主Y轴样式
+        m_axisY_mass->setLabelsBrush(QBrush(textColor));
+        m_axisY_mass->setTitleBrush(QBrush(textColor));
+        m_axisY_mass->setGridLineColor(gridColor);
+        m_axisY_mass->setLinePenColor(gridColor);
+
+        // 次Y轴样式（保持红色系）
+        QColor diffColor("#ff6b6b");
+        m_axisY_diff->setLabelsBrush(QBrush(diffColor));
+        m_axisY_diff->setTitleBrush(QBrush(diffColor));
+        m_axisY_diff->setGridLineColor(gridColor);
+        m_axisY_diff->setLinePenColor(diffColor);
+    } else {
+        // 亮色主题
+        QColor bgColor("#ffffff");
+        QColor textColor("#1f1f1f");
+        QColor gridColor("#e3e6ec");
+
+        setBackgroundBrush(QBrush(bgColor));
+        setPlotAreaBackgroundBrush(QBrush(bgColor));
+        setPlotAreaBackgroundVisible(true);
+        setTitleBrush(QBrush(textColor));
+
+        // X轴样式
+        m_axisX->setLabelsBrush(QBrush(textColor));
+        m_axisX->setTitleBrush(QBrush(textColor));
+        m_axisX->setGridLineColor(gridColor);
+        m_axisX->setLinePenColor(textColor);
+
+        // 主Y轴样式
+        m_axisY_mass->setLabelsBrush(QBrush(textColor));
+        m_axisY_mass->setTitleBrush(QBrush(textColor));
+        m_axisY_mass->setGridLineColor(gridColor);
+        m_axisY_mass->setLinePenColor(textColor);
+
+        // 次Y轴样式（红色）
+        QColor diffColor(Qt::red);
+        m_axisY_diff->setLabelsBrush(QBrush(diffColor));
+        m_axisY_diff->setTitleBrush(QBrush(diffColor));
+        m_axisY_diff->setGridLineColor(gridColor);
+        m_axisY_diff->setLinePenColor(diffColor);
+    }
+
+    qDebug() << "ThermalChart::setDarkTheme -" << (isDark ? "暗色主题" : "亮色主题");
+}
+
 // ==================== 框选缩放辅助函数实现 ====================
 
 bool ThermalChart::isSeriesAttachedToYAxis(QXYSeries* series, QValueAxis* yAxis) const

@@ -85,6 +85,13 @@ public:
     // ==================== 横轴模式（转发给 ThermalChart）====================
     int xAxisMode() const;  // 返回 int (0=Temperature, 1=Time)
 
+    // ==================== 主题设置（转发给 ThermalChart）====================
+    /**
+     * @brief 设置暗色主题
+     * @param isDark true=暗色主题，false=亮色主题
+     */
+    void setDarkTheme(bool isDark);
+
     // ==================== 算法交互状态机（ChartView 核心职责）====================
     /**
      * @brief 启动算法交互（进入选点模式）

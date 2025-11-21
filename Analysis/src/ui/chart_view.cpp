@@ -69,6 +69,12 @@ int ChartView::xAxisMode() const
     return static_cast<int>(m_chart->xAxisMode());
 }
 
+// ==================== 主题设置（转发给 ThermalChart）====================
+void ChartView::setDarkTheme(bool isDark)
+{
+    m_chart->setDarkTheme(isDark);
+}
+
 // ==================== 曲线管理（转发给 ThermalChart）====================
 void ChartView::addCurve(const ThermalCurve& curve)
 {

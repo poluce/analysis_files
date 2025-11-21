@@ -359,6 +359,11 @@ void MainWindow::onThemeToggleRequested()
         qApp->setStyleSheet(styleSheet);
         styleFile.close();
 
+        // 更新图表主题（Qt Charts 需要单独设置）
+        if (m_chartView) {
+            m_chartView->setDarkTheme(m_isDarkTheme);
+        }
+
         QString themeName = m_isDarkTheme ? tr("暗色主题") : tr("亮色主题");
         statusBar()->showMessage(tr("已切换到 %1").arg(themeName), 2000);
         qDebug() << "MainWindow::onThemeToggleRequested - 切换到" << themeName;
