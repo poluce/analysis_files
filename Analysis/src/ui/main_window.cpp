@@ -144,25 +144,25 @@ void MainWindow::bindHistoryManager(HistoryManager& historyManager)
 QToolBar* MainWindow::createFileToolBar()
 {
     QToolBar* toolbar = new QToolBar();
-    toolbar->addAction(style()->standardIcon(QStyle::SP_FileIcon), tr("新建项目"));
-    toolbar->addAction(style()->standardIcon(QStyle::SP_DialogOpenButton), tr("打开..."));
-    toolbar->addAction(style()->standardIcon(QStyle::SP_DialogSaveButton), tr("保存"));
+    toolbar->addAction(QIcon("../../icons/new_file.svg"), tr("新建项目"));
+    toolbar->addAction(QIcon("../../icons/open_folder.svg"), tr("打开..."));
+    toolbar->addAction(QIcon("../../icons/save.svg"), tr("保存"));
     toolbar->addSeparator();
-    QAction* importDataAction = toolbar->addAction(style()->standardIcon(QStyle::SP_DirOpenIcon), tr("导入数据..."));
+    QAction* importDataAction = toolbar->addAction(QIcon("../../icons/import.svg"), tr("导入数据..."));
     connect(importDataAction, &QAction::triggered, this, &MainWindow::onOpenButtonClicked);
-    toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp), tr("导出图表..."));
+    toolbar->addAction(QIcon("../../icons/export.svg"), tr("导出图表..."));
 
     toolbar->addSeparator();
 
     // 添加撤销和重做按钮
-    m_undoAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowBack), tr("撤销"));
+    m_undoAction = toolbar->addAction(QIcon("../../icons/undo.svg"), tr("撤销"));
     m_undoAction->setShortcut(QKeySequence::Undo);             // 绑定 Ctrl+z 快捷键
     m_undoAction->setShortcutContext(Qt::ApplicationShortcut); // 设置为应用程序级别快捷键
     m_undoAction->setEnabled(false);                           // 初始状态禁用
     this->addAction(m_undoAction);                             // 添加到 MainWindow 以确保快捷键全局可用
     connect(m_undoAction, &QAction::triggered, this, &MainWindow::undoRequested);
 
-    m_redoAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowForward), tr("重做"));
+    m_redoAction = toolbar->addAction(QIcon("../../icons/redo.svg"), tr("重做"));
     m_redoAction->setShortcut(QKeySequence::Redo);             // 绑定 Ctrl +y
     m_redoAction->setShortcutContext(Qt::ApplicationShortcut); // 设置为应用程序级别快捷键
     m_redoAction->setEnabled(false);                           // 初始状态禁用
@@ -178,15 +178,15 @@ QToolBar* MainWindow::createViewToolBar()
     QToolBar* toolbar = new QToolBar(tr("视图"));
 
     // 放大按钮
-    QAction* zoomInAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton), tr("放大"));
+    QAction* zoomInAction = toolbar->addAction(QIcon("../../icons/zoom_in.svg"), tr("放大"));
     connect(zoomInAction, &QAction::triggered, this, &MainWindow::zoomInRequested);
 
     // 缩小按钮
-    QAction* zoomOutAction = toolbar->addAction(style()->standardIcon(QStyle::SP_ToolBarVerticalExtensionButton), tr("缩小"));
+    QAction* zoomOutAction = toolbar->addAction(QIcon("../../icons/zoom_out.svg"), tr("缩小"));
     connect(zoomOutAction, &QAction::triggered, this, &MainWindow::zoomOutRequested);
 
     // 适应视图按钮
-    QAction* fitViewAction = toolbar->addAction(style()->standardIcon(QStyle::SP_BrowserReload), tr("适应视图"));
+    QAction* fitViewAction = toolbar->addAction(QIcon("../../icons/fit_view.svg"), tr("适应视图"));
     connect(fitViewAction, &QAction::triggered, this, &MainWindow::fitViewRequested);
 
     toolbar->addSeparator();
@@ -194,19 +194,19 @@ QToolBar* MainWindow::createViewToolBar()
     // 项目浏览器切换按钮
     m_toggleProjectExplorerAction = m_projectExplorerDock->toggleViewAction();
     m_toggleProjectExplorerAction->setText(tr("项目浏览器"));
-    m_toggleProjectExplorerAction->setIcon(style()->standardIcon(QStyle::SP_DirIcon));
+    m_toggleProjectExplorerAction->setIcon(QIcon("../../icons/toggle_project.svg"));
     toolbar->addAction(m_toggleProjectExplorerAction);
 
     // 属性窗口切换按钮
     m_togglePropertiesAction = m_propertiesDock->toggleViewAction();
     m_togglePropertiesAction->setText(tr("属性窗口"));
-    m_togglePropertiesAction->setIcon(style()->standardIcon(QStyle::SP_FileDialogDetailedView));
+    m_togglePropertiesAction->setIcon(QIcon("../../icons/toggle_properties.svg"));
     toolbar->addAction(m_togglePropertiesAction);
 
     toolbar->addSeparator();
 
     // 恢复默认布局按钮
-    QAction* resetLayoutAction = toolbar->addAction(style()->standardIcon(QStyle::SP_BrowserReload), tr("恢复布局"));
+    QAction* resetLayoutAction = toolbar->addAction(QIcon("../../icons/reset_layout.svg"), tr("恢复布局"));
     connect(resetLayoutAction, &QAction::triggered, this, &MainWindow::onResetLayoutRequested);
 
     toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
