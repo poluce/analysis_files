@@ -701,41 +701,7 @@ ThermalCurve TemperatureExtrapolationAlgorithm::createTangentCurve(
         ThermalDataPoint pt;
         pt.temperature = T;
         pt.value = y;
-
-        // 从父曲线插值计算时间值
-        pt.time = 0.0;
-        if (!parentData.isEmpty()) {
-            // 查找插值位置
-            for (int j = 0; j < parentData.size() - 1; ++j) {
-                double t1 = parentData[j].temperature;
-                double t2 = parentData[j + 1].temperature;
-                if ((T >= t1 && T <= t2) || (T >= t2 && T <= t1)) {
-                    // 线性插值计算时间
-                    double ratio = (t2 != t1) ? (T - t1) / (t2 - t1) : 0.0;
-                    pt.time = parentData[j].time + ratio * (parentData[j + 1].time - parentData[j].time);
-                    break;
-                }
-            }
-            // 如果温度超出范围，线性外推时间
-            if (pt.time == 0.0) {
-                if (T <= parentData.first().temperature && parentData.size() >= 2) {
-                    // 使用前两个点外推
-                    double dt = parentData[1].time - parentData[0].time;
-                    double dT = parentData[1].temperature - parentData[0].temperature;
-                    if (qAbs(dT) > 1e-9) {
-                        pt.time = parentData[0].time + (T - parentData[0].temperature) * dt / dT;
-                    }
-                } else if (T >= parentData.last().temperature && parentData.size() >= 2) {
-                    // 使用后两个点外推
-                    int n = parentData.size();
-                    double dt = parentData[n - 1].time - parentData[n - 2].time;
-                    double dT = parentData[n - 1].temperature - parentData[n - 2].temperature;
-                    if (qAbs(dT) > 1e-9) {
-                        pt.time = parentData[n - 1].time + (T - parentData[n - 1].temperature) * dt / dT;
-                    }
-                }
-            }
-        }
+        pt.time = interpolateTimeFromTemperature(parentData, T);
 
         tangentData.append(pt);
     }
@@ -781,41 +747,7 @@ ThermalCurve TemperatureExtrapolationAlgorithm::createBaselineExtensionCurve(
         ThermalDataPoint pt;
         pt.temperature = T;
         pt.value = y;
-
-        // 从父曲线插值计算时间值
-        pt.time = 0.0;
-        if (!parentData.isEmpty()) {
-            // 查找插值位置
-            for (int j = 0; j < parentData.size() - 1; ++j) {
-                double t1 = parentData[j].temperature;
-                double t2 = parentData[j + 1].temperature;
-                if ((T >= t1 && T <= t2) || (T >= t2 && T <= t1)) {
-                    // 线性插值计算时间
-                    double ratio = (t2 != t1) ? (T - t1) / (t2 - t1) : 0.0;
-                    pt.time = parentData[j].time + ratio * (parentData[j + 1].time - parentData[j].time);
-                    break;
-                }
-            }
-            // 如果温度超出范围，线性外推时间
-            if (pt.time == 0.0) {
-                if (T <= parentData.first().temperature && parentData.size() >= 2) {
-                    // 使用前两个点外推
-                    double dt = parentData[1].time - parentData[0].time;
-                    double dT = parentData[1].temperature - parentData[0].temperature;
-                    if (qAbs(dT) > 1e-9) {
-                        pt.time = parentData[0].time + (T - parentData[0].temperature) * dt / dT;
-                    }
-                } else if (T >= parentData.last().temperature && parentData.size() >= 2) {
-                    // 使用后两个点外推
-                    int n = parentData.size();
-                    double dt = parentData[n - 1].time - parentData[n - 2].time;
-                    double dT = parentData[n - 1].temperature - parentData[n - 2].temperature;
-                    if (qAbs(dT) > 1e-9) {
-                        pt.time = parentData[n - 1].time + (T - parentData[n - 1].temperature) * dt / dT;
-                    }
-                }
-            }
-        }
+        pt.time = interpolateTimeFromTemperature(parentData, T);
 
         baselineData.append(pt);
     }
@@ -1283,4 +1215,44 @@ QPointF TemperatureExtrapolationAlgorithm::calculateLineIntersectionConstrained(
 
 
     return QPointF(x, y);
+}
+
+double TemperatureExtrapolationAlgorithm::interpolateTimeFromTemperature(
+    const QVector<ThermalDataPoint>& parentData,
+    double temperature) const
+{
+    if (parentData.isEmpty()) {
+        return 0.0;
+    }
+
+    // 查找插值位置
+    for (int i = 0; i < parentData.size() - 1; ++i) {
+        double t1 = parentData[i].temperature;
+        double t2 = parentData[i + 1].temperature;
+        if ((temperature >= t1 && temperature <= t2) || (temperature >= t2 && temperature <= t1)) {
+            // 线性插值计算时间
+            double ratio = (t2 != t1) ? (temperature - t1) / (t2 - t1) : 0.0;
+            return parentData[i].time + ratio * (parentData[i + 1].time - parentData[i].time);
+        }
+    }
+
+    // 如果温度超出范围，线性外推时间
+    if (temperature <= parentData.first().temperature && parentData.size() >= 2) {
+        // 使用前两个点外推
+        double dt = parentData[1].time - parentData[0].time;
+        double dT = parentData[1].temperature - parentData[0].temperature;
+        if (qAbs(dT) > 1e-9) {
+            return parentData[0].time + (temperature - parentData[0].temperature) * dt / dT;
+        }
+    } else if (temperature >= parentData.last().temperature && parentData.size() >= 2) {
+        // 使用后两个点外推
+        int n = parentData.size();
+        double dt = parentData[n - 1].time - parentData[n - 2].time;
+        double dT = parentData[n - 1].temperature - parentData[n - 2].temperature;
+        if (qAbs(dT) > 1e-9) {
+            return parentData[n - 1].time + (temperature - parentData[n - 1].temperature) * dt / dT;
+        }
+    }
+
+    return 0.0;
 }

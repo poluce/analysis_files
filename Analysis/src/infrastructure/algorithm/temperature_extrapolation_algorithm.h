@@ -405,6 +405,16 @@ private:
                                                    double T2,
                                                    double& outConfidence,
                                                    QString& outWarning) const;
+
+    /**
+     * @brief 根据温度从父曲线插值计算时间值
+     *
+     * @param parentData 父曲线数据
+     * @param temperature 目标温度
+     * @return 插值得到的时间值
+     */
+    double interpolateTimeFromTemperature(const QVector<ThermalDataPoint>& parentData,
+                                           double temperature) const;
 };
 
 #endif // TEMPERATURE_EXTRAPOLATION_ALGORITHM_H

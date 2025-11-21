@@ -11,7 +11,40 @@
 #include <QDebug>
 #include <QUuid>
 #include <QMetaObject>
+#include <QtMath>
 #include <memory>
+
+namespace {
+
+// 根据温度从父曲线插值计算时间值
+double interpolateTimeFromTemperature(const QVector<ThermalDataPoint>& parentData, double temperature)
+{
+    if (parentData.isEmpty()) {
+        return 0.0;
+    }
+
+    // 查找插值位置
+    for (int i = 0; i < parentData.size() - 1; ++i) {
+        double t1 = parentData[i].temperature;
+        double t2 = parentData[i + 1].temperature;
+        if ((temperature >= t1 && temperature <= t2) || (temperature >= t2 && temperature <= t1)) {
+            // 线性插值计算时间
+            double ratio = (t2 != t1) ? (temperature - t1) / (t2 - t1) : 0.0;
+            return parentData[i].time + ratio * (parentData[i + 1].time - parentData[i].time);
+        }
+    }
+
+    // 如果温度超出范围，使用边界值
+    if (temperature <= parentData.first().temperature) {
+        return parentData.first().time;
+    } else if (temperature >= parentData.last().temperature) {
+        return parentData.last().time;
+    }
+
+    return 0.0;
+}
+
+} // namespace
 
 AlgorithmManager::AlgorithmManager(AlgorithmThreadManager* threadManager,
                                    QObject* parent)
@@ -179,32 +212,7 @@ void AlgorithmManager::createMarkerCurve(const QString& parentCurveId,
         ThermalDataPoint dp;
         dp.temperature = point.x();
         dp.value = point.y();
-
-        // 从父曲线插值计算时间值
-        dp.time = 0.0;
-        if (!parentData.isEmpty()) {
-            double temp = point.x();
-            // 查找插值位置
-            for (int i = 0; i < parentData.size() - 1; ++i) {
-                double t1 = parentData[i].temperature;
-                double t2 = parentData[i + 1].temperature;
-                if ((temp >= t1 && temp <= t2) || (temp >= t2 && temp <= t1)) {
-                    // 线性插值计算时间
-                    double ratio = (t2 != t1) ? (temp - t1) / (t2 - t1) : 0.0;
-                    dp.time = parentData[i].time + ratio * (parentData[i + 1].time - parentData[i].time);
-                    break;
-                }
-            }
-            // 如果温度超出范围，使用边界值
-            if (dp.time == 0.0 && parentData.size() > 0) {
-                if (temp <= parentData.first().temperature) {
-                    dp.time = parentData.first().time;
-                } else if (temp >= parentData.last().temperature) {
-                    dp.time = parentData.last().time;
-                }
-            }
-        }
-
+        dp.time = interpolateTimeFromTemperature(parentData, point.x());
         dataPoints.append(dp);
     }
 
