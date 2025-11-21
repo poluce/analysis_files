@@ -344,7 +344,7 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
         axis->setRange(minVal - range / 2, maxVal + range / 2);
     } else {
         // 添加固定比例的边距
-        qreal margin = range * 0.05;
+        qreal margin = range * 0.10;
         axis->setRange(minVal - margin, maxVal + margin);
     }
     // 注意：移除 applyNiceNumbers() 调用，因为它会导致范围在切换横轴时累积变化
