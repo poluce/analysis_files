@@ -328,6 +328,18 @@ QListView::item:selected {
     color: #ffffff;
 }
 
+QTreeView::item:focus,
+QListView::item:focus {
+    outline: none;
+    border: none;
+}
+
+QTreeView:focus,
+QListView:focus {
+    outline: none;
+    border: 1px solid #dfe3e9;
+}
+
 QHeaderView::section {
     background-color: #f3f5f8;
     color: #5f6b7c;
