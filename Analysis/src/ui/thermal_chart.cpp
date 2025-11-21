@@ -30,13 +30,16 @@ ThermalChart::ThermalChart(QGraphicsItem* parent, Qt::WindowFlags wFlags)
     // 创建并设置主坐标轴
     m_axisX = new QValueAxis(this);
     m_axisX->setTitleText(tr("温度 (°C)"));
+    m_axisX->setTickCount(10);
     addAxis(m_axisX, Qt::AlignBottom);
 
     m_axisY_mass = new QValueAxis(this);
     m_axisY_mass->setTitleText(tr("质量 (mg)"));
+    m_axisY_mass->setTickCount(10);
     addAxis(m_axisY_mass, Qt::AlignLeft);
 
     m_axisY_diff = new QValueAxis(this);
+    m_axisY_diff->setTickCount(10);
     QPen pen = m_axisY_diff->linePen();
     pen.setColor(Qt::red);
     m_axisY_diff->setLinePen(pen);
