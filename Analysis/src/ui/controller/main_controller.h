@@ -5,7 +5,6 @@
 #include <QString>
 #include <QVariantMap>
 #include <QPointF>
-#include "domain/algorithm/algorithm_descriptor.h"
 #include "domain/model/thermal_data_point.h"
 
 // 前置声明
@@ -13,14 +12,14 @@ class CurveManager;
 class DataImportWidget;
 class ThermalCurve;
 class AlgorithmManager;
-class AlgorithmCoordinator;
-class AlgorithmContext;
-class AlgorithmResult;
 class HistoryManager;
 class ChartView;
 class MainWindow;
 class CurveViewController;
 class QGraphicsObject;
+class MessagePresenter;
+class AlgorithmExecutionController;
+class DeleteCurveUseCase;
 
 /**
  * @brief MainController 协调UI和应用服务。
@@ -39,7 +38,9 @@ public:
     void setPlotWidget(ChartView* plotWidget);
     void attachMainWindow(MainWindow* mainWindow);
     void setCurveViewController(CurveViewController* ViewController);
-    void setAlgorithmCoordinator(AlgorithmCoordinator* coordinator, AlgorithmContext* context);
+    void setMessagePresenter(MessagePresenter* presenter);
+    void setAlgorithmExecutionController(AlgorithmExecutionController* controller);
+    void setDeleteCurveUseCase(DeleteCurveUseCase* useCase);
 
     /**
      * @brief 完整性校验与状态标记
@@ -100,63 +101,6 @@ private slots:
      * @brief 处理最终的数据导入请求。
      */
     void onImportTriggered();
-    /**
-     * @brief 处理点选请求
-     * @param algorithmName 算法名称
-     * @param requiredPoints 所需点数
-     * @param hint 提示信息
-     */
-    void onCoordinatorRequestPointSelection(const QString& algorithmName, int requiredPoints, const QString& hint);
-
-    /**
-     * @brief 处理参数对话框请求
-     * @param algorithmName 算法名称
-     * @param descriptor 算法描述符（包含完整的参数定义）
-     *
-     * 根据 descriptor.parameters 动态创建 QDialog + QFormLayout，
-     * 用户提交后调用 AlgorithmCoordinator::submitParameters()
-     */
-    void onRequestParameterDialog(const QString& algorithmName, const AlgorithmDescriptor& descriptor);
-
-    void onCoordinatorShowMessage(const QString& text);
-    void onCoordinatorAlgorithmFailed(const QString& algorithmName, const QString& reason);
-
-    /**
-     * @brief 算法执行完成（新信号，携带完整结果）
-     * @param taskId 任务ID
-     * @param algorithmName 算法名称
-     * @param parentCurveId 来源曲线ID
-     * @param result 算法执行结果
-     */
-    void onAlgorithmCompleted(const QString& taskId,
-                             const QString& algorithmName,
-                             const QString& parentCurveId,
-                             const AlgorithmResult& result);
-
-    /**
-     * @brief 工作流执行完成
-     * @param workflowId 工作流ID
-     * @param outputCurveIds 最终输出曲线ID列表
-     */
-    void onWorkflowCompleted(const QString& workflowId, const QStringList& outputCurveIds);
-
-    /**
-     * @brief 工作流执行失败
-     * @param workflowId 工作流ID
-     * @param errorMessage 错误信息
-     */
-    void onWorkflowFailed(const QString& workflowId, const QString& errorMessage);
-
-    // ==================== 异步执行进度反馈槽函数 ====================
-    void onAlgorithmStarted(const QString& taskId, const QString& algorithmName);
-    void onAlgorithmProgress(const QString& taskId, int percentage, const QString& message);
-
-    /**
-     * @brief 处理质量损失工具删除请求
-     * @param tool 待删除的工具对象
-     *
-     * 创建 RemoveMassLossToolCommand 并通过 HistoryManager 执行
-     */
     void onMassLossToolRemoveRequested(QGraphicsObject* tool);
 
     /**
@@ -193,49 +137,16 @@ private:
     HistoryManager* m_historyManager;     // 非拥有指针
 
     // Setter 注入（延迟依赖，但也是必需的）
-    AlgorithmCoordinator* m_algorithmCoordinator = nullptr; // 非拥有指针
-    AlgorithmContext* m_algorithmContext = nullptr;         // 非拥有指针
     ChartView* m_plotWidget = nullptr;    // 非拥有指针
     MainWindow* m_mainWindow = nullptr;   // 非拥有指针
     CurveViewController* m_curveViewController = nullptr;
+    MessagePresenter* m_messagePresenter = nullptr;
+    AlgorithmExecutionController* m_algorithmExecutionController = nullptr;
+    DeleteCurveUseCase* m_deleteCurveUseCase = nullptr;
 
     // 拥有的对象
     DataImportWidget* m_dataImportWidget; // 拥有指针
 
-    // ==================== 异步执行进度反馈 ====================
-    class QProgressDialog* m_progressDialog = nullptr;  // 拥有指针
-    QString m_currentTaskId;         // 当前任务ID（用于验证进度信号）
-    QString m_currentAlgorithmName;  // 当前算法名称（用于提示）
-
-    void cleanupProgressDialog();
-    QProgressDialog* ensureProgressDialog();
-    void handleProgressDialogCancelled();
-
-    /**
-     * @brief 根据参数定义创建对应的 QWidget 控件
-     * @param param 参数定义
-     * @param parent 父控件
-     * @return 创建的控件（QSpinBox, QDoubleSpinBox, QLineEdit, QCheckBox, QComboBox）
-     *
-     * 支持的参数类型：
-     * - Integer → QSpinBox
-     * - Double → QDoubleSpinBox
-     * - String → QLineEdit
-     * - Boolean → QCheckBox
-     * - Enum → QComboBox
-     */
-    QWidget* createParameterWidget(const AlgorithmParameterDefinition& param, QWidget* parent);
-
-    /**
-     * @brief 从控件中提取参数值
-     * @param widgets 控件映射表（参数名 → 控件指针）
-     * @param paramDefs 参数定义列表
-     * @return 参数值映射表（参数名 → 值）
-     *
-     * 通过 qobject_cast 判断控件类型，提取对应的值。
-     */
-    QVariantMap extractParameters(const QMap<QString, QWidget*>& widgets,
-                                  const QList<AlgorithmParameterDefinition>& paramDefs);
 };
 
 #endif // MAINCONTROLLER_H

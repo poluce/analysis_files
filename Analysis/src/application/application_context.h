@@ -15,6 +15,9 @@ class AlgorithmCoordinator;
 class AlgorithmThreadManager;
 class AlgorithmManager;
 class HistoryManager;
+class MessagePresenter;
+class AlgorithmExecutionController;
+class DeleteCurveUseCase;
 
 /**
  * @brief ApplicationContext 统一管理应用启动时的 MVC 各实例创建顺序。
@@ -68,6 +71,9 @@ private:
     // Controller Layer（控制层）
     MainController* m_mainController { nullptr };
     CurveViewController* m_curveViewController { nullptr };
+    AlgorithmExecutionController* m_algorithmExecutionController { nullptr };
+    MessagePresenter* m_messagePresenter { nullptr };
+    DeleteCurveUseCase* m_deleteCurveUseCase { nullptr };
 };
 
 #endif // APPLICATION_CONTEXT_H

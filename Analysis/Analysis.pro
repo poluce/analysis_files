@@ -29,6 +29,8 @@ SOURCES += \
     src/ui/peak_area_dialog.cpp \
     src/ui/controller/main_controller.cpp \
     src/ui/controller/curve_view_controller.cpp \
+    src/ui/controller/algorithm_execution_controller.cpp \
+    src/ui/presenter/message_presenter.cpp \
     \
     # Application Layer
     src/application/application_context.cpp \
@@ -49,6 +51,7 @@ SOURCES += \
     src/application/history/remove_mass_loss_tool_command.cpp \
     src/application/history/remove_peak_area_tool_command.cpp \
     src/application/project/project_tree_manager.cpp \
+    src/application/usecase/delete_curve_use_case.cpp \
     \
     # Domain Layer
     src/domain/model/thermal_curve.cpp \
@@ -75,6 +78,8 @@ HEADERS += \
     src/ui/peak_area_dialog.h \
     src/ui/controller/main_controller.h \
     src/ui/controller/curve_view_controller.h \
+    src/ui/controller/algorithm_execution_controller.h \
+    src/ui/presenter/message_presenter.h \
     \
     # Application Layer
     src/application/application_context.h \
@@ -95,6 +100,7 @@ HEADERS += \
     src/application/history/remove_mass_loss_tool_command.h \
     src/application/history/remove_peak_area_tool_command.h \
     src/application/project/project_tree_manager.h \
+    src/application/usecase/delete_curve_use_case.h \
     \
     # Domain Layer
     src/domain/model/thermal_data_point.h \

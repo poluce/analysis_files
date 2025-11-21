@@ -15,9 +15,12 @@
 // 注：峰面积已改为视图层工具，不再作为算法注册
 #include "ui/chart_view.h"
 #include "ui/controller/curve_view_controller.h"
+#include "ui/controller/algorithm_execution_controller.h"
 #include "ui/controller/main_controller.h"
+#include "ui/presenter/message_presenter.h"
 #include "ui/main_window.h"
 #include "ui/project_explorer_view.h"
+#include "application/usecase/delete_curve_use_case.h"
 
 ApplicationContext::ApplicationContext(QObject* parent)
     : QObject(parent)
@@ -60,6 +63,7 @@ ApplicationContext::ApplicationContext(QObject* parent)
 
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
     m_mainWindow->bindHistoryManager(*m_historyManager);  // 传递实例而非单例
+    m_messagePresenter = new MessagePresenter(m_mainWindow, this);
 
     // 5. 控制器层
     m_mainController = new MainController(
@@ -69,8 +73,25 @@ ApplicationContext::ApplicationContext(QObject* parent)
         this
     );
     m_mainController->setPlotWidget(m_chartView);
-    m_mainController->setAlgorithmCoordinator(m_algorithmCoordinator, m_algorithmContext);
     m_mainController->attachMainWindow(m_mainWindow);
+    m_algorithmExecutionController = new AlgorithmExecutionController(
+        m_curveManager,
+        m_algorithmManager,
+        m_algorithmCoordinator,
+        m_messagePresenter,
+        this);
+    m_algorithmExecutionController->setChartView(m_chartView);
+    m_algorithmExecutionController->setDialogParent(m_mainWindow);
+
+    m_deleteCurveUseCase = new DeleteCurveUseCase(
+        m_curveManager,
+        m_historyManager,
+        m_messagePresenter,
+        this);
+
+    m_mainController->setMessagePresenter(m_messagePresenter);
+    m_mainController->setAlgorithmExecutionController(m_algorithmExecutionController);
+    m_mainController->setDeleteCurveUseCase(m_deleteCurveUseCase);
 
     m_curveViewController = new CurveViewController(
         m_curveManager,
