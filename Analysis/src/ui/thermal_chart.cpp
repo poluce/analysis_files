@@ -297,6 +297,8 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
         return;
     }
 
+    bool hasValidData = false;
+
     for (auto xySeries : attachedSeries) {
         // 跳过不可见的系列（只对可见曲线进行适应视图）
         if (!xySeries->isVisible()) {
@@ -317,6 +319,7 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
 
         const auto points = xySeries->pointsVector();
         for (const QPointF& point : points) {
+            hasValidData = true;
             if (axis->orientation() == Qt::Horizontal) {
                 minVal = qMin(minVal, point.x());
                 maxVal = qMax(maxVal, point.x());
@@ -327,6 +330,11 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
         }
     }
 
+    // 如果没有有效数据，不更新范围
+    if (!hasValidData) {
+        return;
+    }
+
     qreal range = maxVal - minVal;
     if (qFuzzyIsNull(range)) {
         range = qAbs(minVal) * 0.1;
@@ -335,9 +343,11 @@ void ThermalChart::updateAxisRangeForAttachedSeries(QValueAxis* axis) const
         }
         axis->setRange(minVal - range / 2, maxVal + range / 2);
     } else {
-        axis->setRange(minVal, maxVal);
+        // 添加固定比例的边距
+        qreal margin = range * 0.05;
+        axis->setRange(minVal - margin, maxVal + margin);
     }
-    axis->applyNiceNumbers();
+    // 注意：移除 applyNiceNumbers() 调用，因为它会导致范围在切换横轴时累积变化
 }
 // 获取指定轴的所有系列
 QList<QXYSeries*> ThermalChart::seriesAttachedToAxis(QAbstractAxis* axis) const
