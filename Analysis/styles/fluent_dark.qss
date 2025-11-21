@@ -295,48 +295,41 @@ QComboBox::down-arrow {
 }
 
 /* Lists and trees */
-QTreeView,
-QListView,
-QTableView,
-QTableWidget,
 QTreeWidget {
     background-color: #181b27;
     alternate-background-color: #1f2330;
     border: 1px solid #2f3344;
     border-radius: 10px;
     selection-background-color: #3b5fb4;
-    selection-color: #ffffff;
     show-decoration-selected: 1;
     padding: 4px;
 }
 
-QTreeView::item,
-QListView::item {
+QTreeWidget::item {
     padding: 4px 6px;
     margin: 1px;
     border-radius: 6px;
     outline: none;
 }
 
-QTreeView::item:hover:!selected,
-QListView::item:hover:!selected {
+QTreeWidget::item:hover:!selected {
     background-color: #232a3c;
     color: #cfd7eb;
 }
 
-QTreeView::item:selected,
-QListView::item:selected {
-    border: 1px solid #888888;
+QTreeWidget::item:selected,
+QTreeWidget::item:selected:active,
+QTreeWidget::item:selected:!active {
+    background-color: rgba(90, 134, 242, 0.28);
+    border: 1px solid rgba(90, 134, 242, 0.55);
 }
 
-QTreeView::item:focus,
-QListView::item:focus {
+QTreeWidget::item:focus {
     outline: none;
     border: none;
 }
 
-QTreeView:focus,
-QListView:focus {
+QTreeWidget:focus {
     outline: none;
     border: 1px solid #2f3344;
 }

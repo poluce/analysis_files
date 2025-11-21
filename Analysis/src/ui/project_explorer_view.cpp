@@ -1,7 +1,9 @@
 ﻿#include "project_explorer_view.h"
 #include <QAbstractItemModel>
+#include <QColor>
 #include <QDebug>
 #include <QMenu>
+#include <QPalette>
 #include <QTreeView>
 #include <QVBoxLayout>
 
@@ -17,6 +19,11 @@ ProjectExplorerView::ProjectExplorerView(QWidget* parent)
     m_treeView->hideColumn(3);
     m_treeView->setHeaderHidden(true);
     m_treeView->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+    QPalette treePalette = m_treeView->palette();
+    treePalette.setColor(QPalette::Highlight, QColor(0, 120, 212, 30));
+    treePalette.setColor(QPalette::HighlightedText, treePalette.color(QPalette::Text));
+    m_treeView->setPalette(treePalette);
 
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
