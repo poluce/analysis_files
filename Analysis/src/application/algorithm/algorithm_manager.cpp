@@ -170,13 +170,41 @@ void AlgorithmManager::createMarkerCurve(const QString& parentCurveId,
         return;
     }
 
+    // 获取父曲线数据用于时间插值
+    const auto& parentData = parentCurve->getProcessedData();
+
     // 将 QPointF 转换为 ThermalDataPoint
     QVector<ThermalDataPoint> dataPoints;
     for (const QPointF& point : markers) {
         ThermalDataPoint dp;
         dp.temperature = point.x();
-        dp.time = 0.0;  // 标记点没有时间信息
         dp.value = point.y();
+
+        // 从父曲线插值计算时间值
+        dp.time = 0.0;
+        if (!parentData.isEmpty()) {
+            double temp = point.x();
+            // 查找插值位置
+            for (int i = 0; i < parentData.size() - 1; ++i) {
+                double t1 = parentData[i].temperature;
+                double t2 = parentData[i + 1].temperature;
+                if ((temp >= t1 && temp <= t2) || (temp >= t2 && temp <= t1)) {
+                    // 线性插值计算时间
+                    double ratio = (t2 != t1) ? (temp - t1) / (t2 - t1) : 0.0;
+                    dp.time = parentData[i].time + ratio * (parentData[i + 1].time - parentData[i].time);
+                    break;
+                }
+            }
+            // 如果温度超出范围，使用边界值
+            if (dp.time == 0.0 && parentData.size() > 0) {
+                if (temp <= parentData.first().temperature) {
+                    dp.time = parentData.first().time;
+                } else if (temp >= parentData.last().temperature) {
+                    dp.time = parentData.last().time;
+                }
+            }
+        }
+
         dataPoints.append(dp);
     }
 
