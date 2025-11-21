@@ -327,7 +327,6 @@ QListView::item:hover:!selected {
 QTreeView::item:selected,
 QListView::item:selected {
     background-color: #3a3f4b;
-    color: #cfd7eb;
 }
 
 QTreeView::item:focus,
