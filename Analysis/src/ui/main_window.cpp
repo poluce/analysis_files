@@ -219,26 +219,33 @@ QToolBar* MainWindow::createMathToolBar()
 
     QAction* diffAction = toolbar->addAction(tr("微分算法"));
     diffAction->setData("differentiation");
+    diffAction->setIcon(QIcon("../../icons/differentiation.svg"));
 
     QAction* movAvgAction = toolbar->addAction(tr("移动平均滤波..."));
     movAvgAction->setData("moving_average");  // 统一路径：设置 data
+    movAvgAction->setIcon(QIcon("../../icons/moving_average.svg"));
 
     QAction* integAction = toolbar->addAction(tr("积分"));
     integAction->setData("integration");
+    integAction->setIcon(QIcon("../../icons/integration.svg"));
 
     toolbar->addSeparator();
 
     // 添加基线校正按钮
     QAction* baselineAction = toolbar->addAction(tr("基线校正"));
     baselineAction->setData("baseline_correction");
+    baselineAction->setIcon(QIcon("../../icons/baseline_correction.svg"));
     // 添加外推温度按钮
     QAction* tempExtrapolationAction = toolbar->addAction(tr("外推温度"));
     tempExtrapolationAction->setData("temperature_extrapolation");
+    tempExtrapolationAction->setIcon(QIcon("../../icons/temperature_extrapolation.svg"));
     // 添加峰面积测量工具按钮（可交互式）
     QAction* peakAreaAction = toolbar->addAction(tr("峰面积"));
+    peakAreaAction->setIcon(QIcon("../../icons/peak_area.svg"));
     connect(peakAreaAction, &QAction::triggered, this, &MainWindow::onPeakAreaToolRequested);
     // 添加质量损失测量工具按钮
     QAction* massLossAction = toolbar->addAction(tr("质量损失"));
+    massLossAction->setIcon(QIcon("../../icons/mass_loss.svg"));
     connect(massLossAction, &QAction::triggered, this, &MainWindow::onMassLossToolRequested);
 
     // 统一路径：所有算法使用统一触发器
