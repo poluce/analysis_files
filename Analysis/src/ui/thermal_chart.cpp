@@ -30,16 +30,16 @@ ThermalChart::ThermalChart(QGraphicsItem* parent, Qt::WindowFlags wFlags)
     // 创建并设置主坐标轴
     m_axisX = new QValueAxis(this);
     m_axisX->setTitleText(tr("温度 (°C)"));
-    m_axisX->setTickCount(10);
+    m_axisX->setTickCount(20);
     addAxis(m_axisX, Qt::AlignBottom);
 
     m_axisY_mass = new QValueAxis(this);
     m_axisY_mass->setTitleText(tr("质量 (mg)"));
-    m_axisY_mass->setTickCount(10);
+    m_axisY_mass->setTickCount(20);
     addAxis(m_axisY_mass, Qt::AlignLeft);
 
     m_axisY_diff = new QValueAxis(this);
-    m_axisY_diff->setTickCount(10);
+    m_axisY_diff->setTickCount(20);
     QPen pen = m_axisY_diff->linePen();
     pen.setColor(Qt::red);
     m_axisY_diff->setLinePen(pen);
@@ -674,7 +674,8 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
     emit xAxisModeChanged(m_xAxisMode);
 }
 
-QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+QGraphicsObject*
+ThermalChart::addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
 {
     Q_ASSERT(m_initialized); // 确保依赖完整
 
@@ -708,7 +709,7 @@ QGraphicsObject* ThermalChart::addMassLossTool(const ThermalDataPoint& point1, c
 
     qDebug() << "ThermalChart::addMassLossTool - 添加测量工具，测量值:" << tool->measureValue();
 
-    return tool;  // 返回工具指针
+    return tool; // 返回工具指针
 }
 
 void ThermalChart::removeMassLossTool(QGraphicsObject* tool)
@@ -1035,4 +1036,3 @@ bool ThermalChart::calculateYRangeInXRange(QXYSeries* series, qreal xMin, qreal 
 
     return hasData;
 }
-
