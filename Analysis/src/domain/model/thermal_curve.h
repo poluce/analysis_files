@@ -2,6 +2,7 @@
 #define THERMALCURVE_H
 
 #include "thermal_data_point.h"
+#include <QColor>
 #include <QString>
 #include <QVariantMap>
 #include <QVector>
@@ -28,12 +29,14 @@ enum class InstrumentType {
  * - Derivative: 微分信号（通过算法派生）
  * - Baseline: 基线（用于峰面积计算的参考线）
  * - PeakArea: 峰面积（原始信号与基线之间的区域）
+ * - Marker: 标记点（用户选择或算法标注的关键点）
  */
 enum class SignalType {
     Raw,        // 原始信号
     Derivative, // 微分信号
     Baseline,   // 基线
     PeakArea,   // 峰面积
+    Marker,     // 标记点
 };
 
 /**
@@ -84,6 +87,8 @@ public:
     bool isAuxiliaryCurve() const;
     bool isStronglyBound() const;
     bool isMainCurve() const;
+    PlotStyle plotStyle() const;
+    QColor color() const;
 
     // --- 设置器 ---
     void setProjectName(const QString& projectName);
@@ -96,6 +101,8 @@ public:
     void setIsAuxiliaryCurve(bool isAuxiliary);
     void setIsStronglyBound(bool isStronglyBound);
     void setIsMainCurve(bool isMainCurve);
+    void setPlotStyle(PlotStyle style);
+    void setColor(const QColor& color);
 
     // --- 辅助方法 ---
     /**
@@ -121,6 +128,7 @@ private:
     bool m_isStronglyBound;                  // 判断是否是强绑定曲线（强绑定曲线不在树中显示，且随父曲线隐藏）
     bool m_isMainCurve = false;              // 判断是否是主曲线（从文件导入的数据源）
     PlotStyle m_plotStyle = PlotStyle::Line; // 默认折线
+    QColor m_color;                          // 曲线颜色
 
     QVector<ThermalDataPoint> m_rawData;       // 原始数据 (只读)
     QVector<ThermalDataPoint> m_processedData; // 处理后数据

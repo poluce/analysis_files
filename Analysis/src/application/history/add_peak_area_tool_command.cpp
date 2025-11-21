@@ -1,16 +1,16 @@
 #include "add_peak_area_tool_command.h"
-#include "ui/thermal_chart.h"
+#include "ui/chart_view.h"
 #include "ui/peak_area_tool.h"
 #include <QDebug>
 
-AddPeakAreaToolCommand::AddPeakAreaToolCommand(ThermalChart* chart,
+AddPeakAreaToolCommand::AddPeakAreaToolCommand(ChartView* chartView,
                                                 const ThermalDataPoint& point1,
                                                 const ThermalDataPoint& point2,
                                                 const QString& curveId,
                                                 bool useLinearBaseline,
                                                 const QString& referenceCurveId,
                                                 QString description)
-    : m_chart(chart)
+    : m_chartView(chartView)
     , m_point1(point1)
     , m_point2(point2)
     , m_curveId(curveId)
@@ -22,13 +22,13 @@ AddPeakAreaToolCommand::AddPeakAreaToolCommand(ThermalChart* chart,
 
 bool AddPeakAreaToolCommand::execute()
 {
-    if (!m_chart) {
-        qWarning() << "AddPeakAreaToolCommand::execute - ThermalChart 为空";
+    if (!m_chartView) {
+        qWarning() << "AddPeakAreaToolCommand::execute - ChartView 为空";
         return false;
     }
 
     // 1. 创建峰面积工具
-    PeakAreaTool* tool = m_chart->addPeakAreaTool(m_point1, m_point2, m_curveId);
+    PeakAreaTool* tool = m_chartView->addPeakAreaTool(m_point1, m_point2, m_curveId);
     if (!tool) {
         qWarning() << "AddPeakAreaToolCommand::execute - 创建峰面积工具失败";
         return false;
@@ -53,8 +53,8 @@ bool AddPeakAreaToolCommand::execute()
 
 bool AddPeakAreaToolCommand::undo()
 {
-    if (!m_chart) {
-        qWarning() << "AddPeakAreaToolCommand::undo - ThermalChart 为空";
+    if (!m_chartView) {
+        qWarning() << "AddPeakAreaToolCommand::undo - ChartView 为空";
         return false;
     }
 
@@ -65,7 +65,7 @@ bool AddPeakAreaToolCommand::undo()
     }
 
     // 正常删除工具
-    m_chart->removePeakAreaTool(m_toolPointer.data());
+    m_chartView->removePeakAreaTool(m_toolPointer.data());
     m_toolPointer.clear();
 
     qDebug() << "AddPeakAreaToolCommand::undo - 移除峰面积工具";

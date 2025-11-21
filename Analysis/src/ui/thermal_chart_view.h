@@ -7,6 +7,7 @@
 #include <QtCharts/QAbstractSeries>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
+#include <QtCharts/QXYSeries>
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -17,7 +18,6 @@ class QContextMenuEvent;
 class CurveManager;
 class ThermalCurve;
 class PeakAreaTool;
-class HistoryManager;
 struct ThermalDataPoint;
 
 /**
@@ -54,7 +54,6 @@ public:
 
     // ==================== 外部依赖注入 ====================
     void setCurveManager(CurveManager* manager);
-    void setHistoryManager(HistoryManager* manager) { m_historyManager = manager; }
 
     /**
      * @brief 完整性校验与状态标记
@@ -107,6 +106,19 @@ signals:
      */
     void hoverMoved(const QPoint& viewPos, const QPointF& value);
 
+    /**
+     * @brief 质量损失工具创建请求信号
+     *
+     * 用户完成工具交互后发出，由 ChartView 转发给 Controller 创建 Command
+     */
+    void massLossToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+
+    /**
+     * @brief 峰面积工具创建请求信号
+     */
+    void peakAreaToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId,
+                                     bool useLinearBaseline, const QString& referenceCurveId);
+
 protected:
     // ==================== 事件处理 ====================
     void mousePressEvent(QMouseEvent* event) override;
@@ -120,7 +132,7 @@ private:
     // ==================== 交互辅助函数 ====================
     void handleCurveSelectionClick(const QPointF& viewportPos);
     void handleValueClick(const QPointF& viewportPos);
-    QLineSeries* findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const;
+    QXYSeries* findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const;
     qreal hitThreshold() const;
 
     // ==================== EventFilter 事件处理辅助函数 ====================
@@ -171,7 +183,7 @@ private:
      * @param outSeries 输出参数：活动系列指针
      * @return true=验证通过，false=验证失败
      */
-    bool validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+    bool validateMassLossToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries);
 
     /**
      * @brief 重置质量损失工具状态
@@ -185,7 +197,7 @@ private:
      * @param outSeries 输出参数：目标系列指针
      * @return true=验证通过，false=验证失败
      */
-    bool validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries);
+    bool validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries);
 
     /**
      * @brief 检查点击位置是否在绘图区域内
@@ -258,7 +270,6 @@ private:
     // ==================== 依赖注入 ====================
     ThermalChart* m_thermalChart = nullptr;  // 构造函数注入（调用方保证非空）
     CurveManager* m_curveManager = nullptr;  // Setter 注入（initialize() 时断言非空）
-    HistoryManager* m_historyManager = nullptr;  // Setter 注入（可选，用于工具命令）
 
     // ==================== 交互模式 ====================
     InteractionMode m_mode = InteractionMode::View;

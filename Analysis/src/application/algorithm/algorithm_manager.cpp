@@ -88,8 +88,7 @@ void AlgorithmManager::handleMarkerResult(const AlgorithmResult& result)
     }
 
     if (result.hasMarkers()) {
-        QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
-        emit markersGenerated(result.parentCurveId(), result.markers(), markerColor);
+        createMarkerCurve(result.parentCurveId(), result.markers(), result);
     }
 }
 
@@ -122,13 +121,9 @@ void AlgorithmManager::handleCompositeResult(const AlgorithmResult& result)
     if (result.hasMarkers()) {
         qDebug() << "  包含" << result.markerCount() << "个标注点";
 
+        // 标注点关联到父曲线
         QString targetCurveId = result.parentCurveId();
-        if (result.hasCurves() && !result.curves().isEmpty()) {
-            targetCurveId = result.curves().first().id();
-        }
-
-        QColor markerColor = result.metaValue<QColor>("markerColor", QColor(Qt::red));
-        emit markersGenerated(targetCurveId, result.markers(), markerColor);
+        createMarkerCurve(targetCurveId, result.markers(), result);
     }
 
     if (result.hasRegions()) {
@@ -160,6 +155,56 @@ void AlgorithmManager::addCurveWithHistory(const ThermalCurve& curve)
     }
 }
 
+void AlgorithmManager::createMarkerCurve(const QString& parentCurveId,
+                                          const QList<QPointF>& markers,
+                                          const AlgorithmResult& result)
+{
+    if (!m_curveManager || markers.isEmpty()) {
+        return;
+    }
+
+    // 获取父曲线信息
+    ThermalCurve* parentCurve = m_curveManager->getCurve(parentCurveId);
+    if (!parentCurve) {
+        qWarning() << "父曲线不存在:" << parentCurveId;
+        return;
+    }
+
+    // 将 QPointF 转换为 ThermalDataPoint
+    QVector<ThermalDataPoint> dataPoints;
+    for (const QPointF& point : markers) {
+        ThermalDataPoint dp;
+        dp.temperature = point.x();
+        dp.time = 0.0;  // 标记点没有时间信息
+        dp.value = point.y();
+        dataPoints.append(dp);
+    }
+
+    // 创建标记点曲线
+    QString curveId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QString curveName = result.algorithmKey() + "-标记点";
+    ThermalCurve markerCurve(curveId, curveName);
+    markerCurve.setParentId(parentCurveId);
+    markerCurve.setInstrumentType(parentCurve->instrumentType());
+    markerCurve.setSignalType(SignalType::Marker);
+    markerCurve.setPlotStyle(PlotStyle::Scatter);
+    markerCurve.setRawData(dataPoints);
+    markerCurve.setProcessedData(dataPoints);
+
+    // 设置显示颜色
+    QColor markerColor = result.metaValue<QColor>(MetaKeys::MarkerColor, QColor(Qt::red));
+    markerCurve.setColor(markerColor);
+
+    // 标记为辅助曲线和强绑定
+    markerCurve.setIsAuxiliaryCurve(true);
+    markerCurve.setIsStronglyBound(true);
+
+    addCurveWithHistory(markerCurve);
+
+    qDebug() << "创建标记点曲线:" << markerCurve.name() << "ID:" << markerCurve.id()
+             << "父曲线:" << parentCurveId << "点数:" << markers.size();
+}
+
 // ==================== 异步执行实现 ====================
 
 IThermalAlgorithm* AlgorithmManager::validateAsyncExecution(const QString& name, AlgorithmContext* context)
@@ -180,7 +225,7 @@ IThermalAlgorithm* AlgorithmManager::validateAsyncExecution(const QString& name,
         return nullptr;
     }
 
-    context->setValue("curveManager", QVariant::fromValue(m_curveManager));
+    context->setValue(ContextKeys::CurveManager, QVariant::fromValue(m_curveManager));
 
     if (!algorithm->prepareContext(context)) {
         qWarning() << "[AlgorithmManager] prepareContext 失败，数据不完整";

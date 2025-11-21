@@ -88,15 +88,6 @@ signals:
      */
     void algorithmExecutionFailed(const QString& algorithmName, const QString& errorMessage);
 
-    /**
-     * @brief 算法生成标注点信号
-     *
-     * @param curveId 关联的曲线ID
-     * @param markers 标注点列表（数据坐标）
-     * @param color 标注点颜色
-     */
-    void markersGenerated(const QString& curveId, const QList<QPointF>& markers, const QColor& color);
-
     // ==================== 异步执行信号 ====================
 
     /**
@@ -177,6 +168,11 @@ private:
 
     // 添加曲线（使用历史管理）
     void addCurveWithHistory(const ThermalCurve& curve);
+
+    // 创建标记点曲线（将 markers 转换为 ThermalCurve）
+    void createMarkerCurve(const QString& parentCurveId,
+                           const QList<QPointF>& markers,
+                           const AlgorithmResult& result);
 
     // ==================== 异步执行私有方法 ====================
 

@@ -2,9 +2,6 @@
 #include "thermal_chart.h"
 #include "peak_area_tool.h"
 #include "application/curve/curve_manager.h"
-#include "application/history/history_manager.h"
-#include "application/history/add_mass_loss_tool_command.h"
-#include "application/history/add_peak_area_tool_command.h"
 
 #include <QDebug>
 #include <QMouseEvent>
@@ -14,7 +11,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
 #include <QtMath>
-#include <memory>
+#include <limits>
 
 ThermalChartView::ThermalChartView(ThermalChart* chart, QWidget* parent)
     : QChartView(chart, parent)
@@ -303,6 +300,7 @@ void ThermalChartView::contextMenuEvent(QContextMenuEvent* event)
     QMenu menu(this);
 
     if (m_thermalChart) {
+        // ==================== 视图操作 ====================
         QString currentMode = (m_thermalChart->xAxisMode() == XAxisMode::Temperature) ? tr("温度") : tr("时间");
         QString targetMode = (m_thermalChart->xAxisMode() == XAxisMode::Temperature) ? tr("时间") : tr("温度");
         QAction* toggleAction = menu.addAction(tr("切换到以%1为横轴").arg(targetMode));
@@ -313,6 +311,36 @@ void ThermalChartView::contextMenuEvent(QContextMenuEvent* event)
                 m_thermalChart->setXAxisMode(newMode);
             }
         });
+
+        QAction* resetViewAction = menu.addAction(tr("恢复视图"));
+        connect(resetViewAction, &QAction::triggered, this, [this]() {
+            if (m_thermalChart) {
+                m_thermalChart->rescaleAxes();
+            }
+        });
+
+        // ==================== 清除工具 ====================
+        menu.addSeparator();
+
+        QAction* clearMassLossAction = menu.addAction(tr("清除所有质量损失工具"));
+        connect(clearMassLossAction, &QAction::triggered, this, [this]() {
+            if (m_thermalChart) {
+                m_thermalChart->clearAllMassLossTools();
+            }
+        });
+
+        QAction* clearPeakAreaAction = menu.addAction(tr("清除所有峰面积工具"));
+        connect(clearPeakAreaAction, &QAction::triggered, this, [this]() {
+            if (m_thermalChart) {
+                m_thermalChart->clearAllPeakAreaTools();
+            }
+        });
+
+        menu.addSeparator();
+
+        QAction* deleteAction = menu.addAction(tr("删除"));
+        // TODO: 暂未实现删除功能
+        Q_UNUSED(deleteAction);
     }
 
     menu.exec(event->globalPos());
@@ -382,7 +410,7 @@ void ThermalChartView::handleMouseLeave()
 
 // ==================== 质量损失工具辅助函数实现 ====================
 
-bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
+bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
@@ -394,7 +422,7 @@ bool ThermalChartView::validateMassLossToolPreconditions(ThermalCurve** outCurve
     }
 
     // 获取活动曲线的系列（用于正确的坐标转换）
-    QLineSeries* activeSeries = m_thermalChart->seriesForCurveId(activeCurve->id());
+    QXYSeries* activeSeries = m_thermalChart->seriesForCurveId(activeCurve->id());
     if (!activeSeries) {
         qWarning() << "ThermalChartView::validateMassLossToolPreconditions - 无法获取活动曲线的系列";
         return false;
@@ -421,7 +449,7 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
 
     // 1. 验证前置条件并获取活动曲线和系列
     ThermalCurve* activeCurve = nullptr;
-    QLineSeries* activeSeries = nullptr;
+    QXYSeries* activeSeries = nullptr;
     if (!validateMassLossToolPreconditions(&activeCurve, &activeSeries)) {
         return false;
     }
@@ -451,28 +479,8 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
 
     qDebug() << "ThermalChartView::handleMassLossToolClick - 自动延伸范围: ±" << rangeExtension;
 
-    // 6. 通过命令模式创建测量工具
-    if (m_historyManager) {
-        auto command = std::make_unique<AddMassLossToolCommand>(
-            m_thermalChart,
-            point1,
-            point2,
-            activeCurve->id(),
-            "添加质量损失测量工具"
-        );
-        m_historyManager->executeCommand(std::move(command));
-    } else {
-        // 降级处理：如果 HistoryManager 未注入，直接执行（不可撤销）
-        qWarning() << "ThermalChartView::handleMassLossToolClick - HistoryManager 未注入，工具不可撤销";
-        auto command = std::make_unique<AddMassLossToolCommand>(
-            m_thermalChart,
-            point1,
-            point2,
-            activeCurve->id(),
-            "添加质量损失测量工具"
-        );
-        command->execute();
-    }
+    // 6. 发出信号请求创建工具（由 ChartView 转发给 Controller 创建 Command）
+    emit massLossToolCreateRequested(point1, point2, activeCurve->id());
 
     // 7. 重置状态
     resetMassLossToolState();
@@ -482,7 +490,7 @@ bool ThermalChartView::handleMassLossToolClick(const QPointF& viewportPos)
 
 // ==================== 峰面积工具辅助函数实现 ====================
 
-bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QLineSeries** outSeries)
+bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve, QXYSeries** outSeries)
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
@@ -500,7 +508,7 @@ bool ThermalChartView::validatePeakAreaToolPreconditions(ThermalCurve** outCurve
     }
 
     // 获取目标曲线的系列（用于正确的坐标转换）
-    QLineSeries* targetSeries = m_thermalChart->seriesForCurveId(targetCurve->id());
+    QXYSeries* targetSeries = m_thermalChart->seriesForCurveId(targetCurve->id());
     if (!targetSeries) {
         qWarning() << "ThermalChartView::validatePeakAreaToolPreconditions - 无法获取目标曲线的系列";
         return false;
@@ -589,7 +597,7 @@ bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
 
     // 1. 验证前置条件并获取目标曲线和系列
     ThermalCurve* targetCurve = nullptr;
-    QLineSeries* targetSeries = nullptr;
+    QXYSeries* targetSeries = nullptr;
     if (!validatePeakAreaToolPreconditions(&targetCurve, &targetSeries)) {
         return false;
     }
@@ -622,32 +630,9 @@ bool ThermalChartView::handlePeakAreaToolClick(const QPointF& viewportPos)
 
     qDebug() << "ThermalChartView::handlePeakAreaToolClick - 自动延伸范围: ±" << rangeExtension;
 
-    // 7. 通过命令模式创建峰面积测量工具
-    if (m_historyManager) {
-        auto command = std::make_unique<AddPeakAreaToolCommand>(
-            m_thermalChart,
-            point1,
-            point2,
-            targetCurve->id(),
-            m_peakAreaUseLinearBaseline,
-            m_peakAreaReferenceCurveId,
-            "添加峰面积测量工具"
-        );
-        m_historyManager->executeCommand(std::move(command));
-    } else {
-        // 降级处理：如果 HistoryManager 未注入，直接执行（不可撤销）
-        qWarning() << "ThermalChartView::handlePeakAreaToolClick - HistoryManager 未注入，工具不可撤销";
-        auto command = std::make_unique<AddPeakAreaToolCommand>(
-            m_thermalChart,
-            point1,
-            point2,
-            targetCurve->id(),
-            m_peakAreaUseLinearBaseline,
-            m_peakAreaReferenceCurveId,
-            "添加峰面积测量工具"
-        );
-        command->execute();
-    }
+    // 7. 发出信号请求创建工具（由 ChartView 转发给 Controller 创建 Command）
+    emit peakAreaToolCreateRequested(point1, point2, targetCurve->id(),
+                                     m_peakAreaUseLinearBaseline, m_peakAreaReferenceCurveId);
 
     // 8. 重置状态
     resetPeakAreaToolState();
@@ -711,7 +696,7 @@ void ThermalChartView::handleCurveSelectionClick(const QPointF& viewportPos)
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
     qreal bestDist = std::numeric_limits<qreal>::max();
-    QLineSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
+    QXYSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
 
     const qreal deviceRatio = devicePixelRatioF();
     qreal baseThreshold = (m_hitTestBasePx + 3.0) * deviceRatio;
@@ -742,7 +727,7 @@ void ThermalChartView::handleValueClick(const QPointF& viewportPos)
 
     // 查找最接近的系列
     qreal bestDist = std::numeric_limits<qreal>::max();
-    QLineSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
+    QXYSeries* clickedSeries = findSeriesNearPoint(viewportPos, bestDist);
 
     if (clickedSeries) {
         QPointF valuePos = chart()->mapToValue(chartPos, clickedSeries);
@@ -750,7 +735,7 @@ void ThermalChartView::handleValueClick(const QPointF& viewportPos)
     }
 }
 
-QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const
+QXYSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, qreal& outDistance) const
 {
     Q_ASSERT(m_initialized);  // 确保依赖完整
 
@@ -778,27 +763,27 @@ QLineSeries* ThermalChartView::findSeriesNearPoint(const QPointF& viewportPos, q
         return qSqrt(dx * dx + dy * dy);
     };
 
-    QLineSeries* closestSeries = nullptr;
+    QXYSeries* closestSeries = nullptr;
     qreal bestDist = std::numeric_limits<qreal>::max();
 
     for (QAbstractSeries* abstractSeries : chart()->series()) {
-        QLineSeries* lineSeries = qobject_cast<QLineSeries*>(abstractSeries);
-        if (!lineSeries || !lineSeries->isVisible()) {
+        QXYSeries* xySeries = qobject_cast<QXYSeries*>(abstractSeries);
+        if (!xySeries || !xySeries->isVisible()) {
             continue;
         }
 
-        const auto points = lineSeries->pointsVector();
+        const auto points = xySeries->pointsVector();
         if (points.size() < 2) {
             continue;
         }
 
-        QPointF previous = chart()->mapToPosition(points[0], lineSeries);
+        QPointF previous = chart()->mapToPosition(points[0], xySeries);
         for (int i = 1; i < points.size(); ++i) {
-            const QPointF current = chart()->mapToPosition(points[i], lineSeries);
+            const QPointF current = chart()->mapToPosition(points[i], xySeries);
             const qreal dist = pointToSegDist(viewportPos, previous, current);
             if (dist < bestDist) {
                 bestDist = dist;
-                closestSeries = lineSeries;
+                closestSeries = xySeries;
             }
             previous = current;
         }

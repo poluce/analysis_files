@@ -47,6 +47,10 @@ bool ThermalCurve::isStronglyBound() const { return m_isStronglyBound; }
 
 bool ThermalCurve::isMainCurve() const { return m_isMainCurve; }
 
+PlotStyle ThermalCurve::plotStyle() const { return m_plotStyle; }
+
+QColor ThermalCurve::color() const { return m_color; }
+
 void ThermalCurve::setProjectName(const QString& projectName) { m_projectName = projectName; }
 
 void ThermalCurve::setInstrumentType(InstrumentType type) { m_instrumentType = type; }
@@ -70,6 +74,10 @@ void ThermalCurve::setIsAuxiliaryCurve(bool isAuxiliary) { m_isAuxiliaryCurve = 
 void ThermalCurve::setIsStronglyBound(bool isStronglyBound) { m_isStronglyBound = isStronglyBound; }
 
 void ThermalCurve::setIsMainCurve(bool isMainCurve) { m_isMainCurve = isMainCurve; }
+
+void ThermalCurve::setPlotStyle(PlotStyle style) { m_plotStyle = style; }
+
+void ThermalCurve::setColor(const QColor& color) { m_color = color; }
 
 QString ThermalCurve::getYAxisLabel() const
 {

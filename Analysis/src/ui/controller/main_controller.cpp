@@ -14,6 +14,8 @@
 #include "application/history/add_curve_command.h"
 #include "application/history/clear_curves_command.h"
 #include "application/history/remove_curve_command.h"
+#include "application/history/add_mass_loss_tool_command.h"
+#include "application/history/add_peak_area_tool_command.h"
 #include "application/history/remove_mass_loss_tool_command.h"
 #include "application/history/remove_peak_area_tool_command.h"
 #include "application/history/history_manager.h"
@@ -125,6 +127,13 @@ void MainController::setPlotWidget(ChartView* plotWidget)
         qDebug() << "MainController: 已连接视图工具删除请求信号";
     }
 
+    // 连接工具创建请求信号（来自 ChartView，转发自 ThermalChartView）
+    connect(m_plotWidget, &ChartView::massLossToolCreateRequested,
+            this, &MainController::onMassLossToolCreateRequested, Qt::UniqueConnection);
+    connect(m_plotWidget, &ChartView::peakAreaToolCreateRequested,
+            this, &MainController::onPeakAreaToolCreateRequested, Qt::UniqueConnection);
+
+    qDebug() << "MainController: 已连接视图工具创建请求信号";
 }
 
 void MainController::attachMainWindow(MainWindow* mainWindow)
@@ -908,16 +917,9 @@ void MainController::onMassLossToolRemoveRequested(QGraphicsObject* tool)
         return;
     }
 
-    // 获取 ThermalChart 实例
-    ThermalChart* thermalChart = m_plotWidget->chart();
-    if (!thermalChart) {
-        qWarning() << "MainController::onMassLossToolRemoveRequested - ThermalChart 为空";
-        return;
-    }
-
-    // 创建删除命令
+    // 创建删除命令（使用 ChartView 而不是 ThermalChart）
     auto command = std::make_unique<RemoveMassLossToolCommand>(
-        thermalChart,
+        m_plotWidget,
         tool,
         "移除质量损失测量工具"
     );
@@ -949,16 +951,9 @@ void MainController::onPeakAreaToolRemoveRequested(QGraphicsObject* tool)
         return;
     }
 
-    // 获取 ThermalChart 实例
-    ThermalChart* thermalChart = m_plotWidget->chart();
-    if (!thermalChart) {
-        qWarning() << "MainController::onPeakAreaToolRemoveRequested - ThermalChart 为空";
-        return;
-    }
-
-    // 创建删除命令
+    // 创建删除命令（使用 ChartView 而不是 ThermalChart）
     auto command = std::make_unique<RemovePeakAreaToolCommand>(
-        thermalChart,
+        m_plotWidget,
         peakAreaTool,
         "移除峰面积工具"
     );
@@ -970,4 +965,55 @@ void MainController::onPeakAreaToolRemoveRequested(QGraphicsObject* tool)
     }
 
     qDebug() << "MainController::onPeakAreaToolRemoveRequested - 成功删除工具";
+}
+
+void MainController::onMassLossToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId)
+{
+    Q_ASSERT(m_initialized);
+
+    qDebug() << "MainController::onMassLossToolCreateRequested - 收到创建请求";
+
+    // 创建添加命令
+    auto command = std::make_unique<AddMassLossToolCommand>(
+        m_plotWidget,
+        point1,
+        point2,
+        curveId,
+        "添加质量损失测量工具"
+    );
+
+    // 通过 HistoryManager 执行命令（支持撤销/重做）
+    if (!m_historyManager->executeCommand(std::move(command))) {
+        qWarning() << "MainController::onMassLossToolCreateRequested - 命令执行失败";
+        return;
+    }
+
+    qDebug() << "MainController::onMassLossToolCreateRequested - 成功创建工具";
+}
+
+void MainController::onPeakAreaToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId,
+                                                   bool useLinearBaseline, const QString& referenceCurveId)
+{
+    Q_ASSERT(m_initialized);
+
+    qDebug() << "MainController::onPeakAreaToolCreateRequested - 收到创建请求";
+
+    // 创建添加命令
+    auto command = std::make_unique<AddPeakAreaToolCommand>(
+        m_plotWidget,
+        point1,
+        point2,
+        curveId,
+        useLinearBaseline,
+        referenceCurveId,
+        "添加峰面积测量工具"
+    );
+
+    // 通过 HistoryManager 执行命令（支持撤销/重做）
+    if (!m_historyManager->executeCommand(std::move(command))) {
+        qWarning() << "MainController::onPeakAreaToolCreateRequested - 命令执行失败";
+        return;
+    }
+
+    qDebug() << "MainController::onPeakAreaToolCreateRequested - 成功创建工具";
 }

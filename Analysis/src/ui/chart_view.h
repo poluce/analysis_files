@@ -17,6 +17,7 @@ class CurveManager;
 class HistoryManager;
 class QGraphicsObject;
 class QPen;
+class PeakAreaTool;
 
 /**
  * @brief 图表交互状态
@@ -78,12 +79,6 @@ public:
      */
     void setCurveManager(CurveManager* manager);
 
-    /**
-     * @brief 设置历史管理器（用于工具命令的撤销/重做）
-     * @param manager HistoryManager 指针
-     */
-    void setHistoryManager(HistoryManager* manager);
-
     // ==================== 交互配置（转发给 ThermalChartView）====================
     void setInteractionMode(int type);  // 使用 int 避免枚举冲突
 
@@ -123,30 +118,20 @@ public:
     const ActiveAlgorithmInfo& activeAlgorithm() const { return m_activeAlgorithm; }
 
     // ==================== 叠加物管理（转发给 ThermalChart）====================
-    // 标注点（Markers）
-    void addCurveMarkers(const QString& curveId, const QList<QPointF>& markers,
-                         const QColor& color, qreal size);
-    void removeCurveMarkers(const QString& curveId);
-    void clearAllMarkers();
-
     // 测量工具
     void startMassLossTool();
-    void addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+    QGraphicsObject* addMassLossTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
     void removeMassLossTool(QGraphicsObject* tool);
     void clearAllMassLossTools();
 
     // 峰面积工具
     void startPeakAreaTool(const QString& curveId, bool useLinearBaseline, const QString& referenceCurveId = QString());
-    void addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+    PeakAreaTool* addPeakAreaTool(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
     void removePeakAreaTool(QGraphicsObject* tool);
     void clearAllPeakAreaTools();
 
     // ==================== 曲线查询（转发给 ThermalChart）====================
     QColor getCurveColor(const QString& curveId) const;
-
-    // ==================== 十字线（转发给 ThermalChart）====================
-    bool verticalCrosshairEnabled() const;
-    bool horizontalCrosshairEnabled() const;
 
 public slots:
     // ==================== 曲线管理（转发给 ThermalChart）====================
@@ -194,6 +179,17 @@ signals:
      *        0=Idle, 1=WaitingForPoints, 2=PointsCompleted, 3=Executing
      */
     void interactionStateChanged(int newState);
+
+    /**
+     * @brief 质量损失工具创建请求信号（转发自 ThermalChartView）
+     */
+    void massLossToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId);
+
+    /**
+     * @brief 峰面积工具创建请求信号（转发自 ThermalChartView）
+     */
+    void peakAreaToolCreateRequested(const ThermalDataPoint& point1, const ThermalDataPoint& point2, const QString& curveId,
+                                     bool useLinearBaseline, const QString& referenceCurveId);
 
 private slots:
     // ==================== 算法状态机内部信号处理 ====================

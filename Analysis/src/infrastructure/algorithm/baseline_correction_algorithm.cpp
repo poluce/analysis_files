@@ -56,7 +56,7 @@ AlgorithmDescriptor BaselineCorrectionAlgorithm::descriptor() const
     // 依赖声明（工作流支持）
     desc.prerequisites.append(ContextKeys::ActiveCurve);
     desc.prerequisites.append(ContextKeys::SelectedPoints);
-    desc.produces.append("curve");
+    desc.produces.append(ProducesKeys::Curve);
 
     return desc;
 }
@@ -192,11 +192,11 @@ AlgorithmResult BaselineCorrectionAlgorithm::executeWithContext(AlgorithmContext
     result.addMarker(point2, "基线终点");
 
     // 添加元数据
-    result.setMeta("correctionType", "Linear");
-    result.setMeta("baselinePointCount", selectedPoints.size());
-    result.setMeta("temperatureRange", QString("%1 - %2").arg(point1.x()).arg(point2.x()));
-    result.setMeta("label", "基线曲线");
-    result.setMeta("markerColor", QColor(Qt::red));  // 使用红色，与用户选点时的颜色一致
+    result.setMeta(MetaKeys::CorrectionType, "Linear");
+    result.setMeta(MetaKeys::BaselinePointCount, selectedPoints.size());
+    result.setMeta(MetaKeys::TemperatureRange, QString("%1 - %2").arg(point1.x()).arg(point2.x()));
+    result.setMeta(MetaKeys::Label, "基线曲线");
+    result.setMeta(MetaKeys::MarkerColor, QColor(Qt::red));  // 使用红色，与用户选点时的颜色一致
 
     return result;
 }

@@ -1,13 +1,13 @@
 #include "add_mass_loss_tool_command.h"
-#include "ui/thermal_chart.h"
+#include "ui/chart_view.h"
 #include <QDebug>
 
-AddMassLossToolCommand::AddMassLossToolCommand(ThermalChart* chart,
+AddMassLossToolCommand::AddMassLossToolCommand(ChartView* chartView,
                                                 const ThermalDataPoint& point1,
                                                 const ThermalDataPoint& point2,
                                                 const QString& curveId,
                                                 QString description)
-    : m_chart(chart)
+    : m_chartView(chartView)
     , m_point1(point1)
     , m_point2(point2)
     , m_curveId(curveId)
@@ -17,13 +17,13 @@ AddMassLossToolCommand::AddMassLossToolCommand(ThermalChart* chart,
 
 bool AddMassLossToolCommand::execute()
 {
-    if (!m_chart) {
-        qWarning() << "AddMassLossToolCommand::execute - ThermalChart 为空";
+    if (!m_chartView) {
+        qWarning() << "AddMassLossToolCommand::execute - ChartView 为空";
         return false;
     }
 
     // 创建测量工具并保存到 QPointer
-    m_toolPointer = m_chart->addMassLossTool(m_point1, m_point2, m_curveId);
+    m_toolPointer = m_chartView->addMassLossTool(m_point1, m_point2, m_curveId);
 
     if (m_toolPointer.isNull()) {
         qWarning() << "AddMassLossToolCommand::execute - 创建测量工具失败";
@@ -37,8 +37,8 @@ bool AddMassLossToolCommand::execute()
 
 bool AddMassLossToolCommand::undo()
 {
-    if (!m_chart) {
-        qWarning() << "AddMassLossToolCommand::undo - ThermalChart 为空";
+    if (!m_chartView) {
+        qWarning() << "AddMassLossToolCommand::undo - ChartView 为空";
         return false;
     }
 
@@ -49,7 +49,7 @@ bool AddMassLossToolCommand::undo()
     }
 
     // 正常删除工具
-    m_chart->removeMassLossTool(m_toolPointer.data());
+    m_chartView->removeMassLossTool(m_toolPointer.data());
     m_toolPointer.clear();
 
     qDebug() << "AddMassLossToolCommand::undo - 移除测量工具";

@@ -55,18 +55,11 @@ ApplicationContext::ApplicationContext(QObject* parent)
     // 4. 表示层（UI）
     m_chartView = new ChartView();
     m_chartView->setCurveManager(m_curveManager);  // 设置曲线管理器，用于获取曲线数据
-    m_chartView->setHistoryManager(m_historyManager);  // 设置历史管理器，用于工具命令
 
     m_projectExplorerView = new ProjectExplorerView();
 
     m_mainWindow = new MainWindow(m_chartView, m_projectExplorerView);
     m_mainWindow->bindHistoryManager(*m_historyManager);  // 传递实例而非单例
-
-    // 连接 AlgorithmManager 的标注点信号到 ChartView
-    connect(m_algorithmManager, &AlgorithmManager::markersGenerated,
-            m_chartView, [this](const QString& curveId, const QList<QPointF>& markers, const QColor& color) {
-                m_chartView->addCurveMarkers(curveId, markers, color, 12.0);
-            });
 
     // 5. 控制器层
     m_mainController = new MainController(

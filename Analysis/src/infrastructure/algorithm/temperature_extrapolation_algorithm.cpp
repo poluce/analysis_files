@@ -1,23 +1,19 @@
 #include "temperature_extrapolation_algorithm.h"
 #include "application/algorithm/algorithm_context.h"
-#include "application/curve/curve_manager.h"
 #include "domain/model/thermal_curve.h"
 #include "domain/model/thermal_data_point.h"
 #include <QColor>
 #include <QDebug>
 #include <QPointF>
+#include <QUuid>
 #include <QVariant>
 #include <QtMath>
+#include <algorithm>
+#include <limits>
 
-// ==================== 调试开关 ====================
-// 设置为 1 启用调试日志，设置为 0 禁用（生产环境）
-#define DEBUG_TEMPERATURE_EXTRAPOLATION 1
 
 TemperatureExtrapolationAlgorithm::TemperatureExtrapolationAlgorithm()
 {
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "构造: TemperatureExtrapolationAlgorithm";
-#endif
 }
 
 QString TemperatureExtrapolationAlgorithm::name() const
@@ -55,15 +51,18 @@ AlgorithmDescriptor TemperatureExtrapolationAlgorithm::descriptor() const
     desc.category = category();
     desc.needsParameters = false;
     desc.needsPointSelection = true;
-    desc.requiredPointCount = 2;  // 只需要2个点定义切线区域
-    desc.pointSelectionHint = "请选择2个点定义切线区域（峰的前沿或后沿）";
+    desc.requiredPointCount = 2;
+    desc.pointSelectionHint = "请选择2个点定义反应特征区域：\n"
+                               "  点1: 反应前的平坦基线处（左侧）\n"
+                               "  点2: 反应后的平坦处（右侧）";
 
     // 依赖声明（工作流支持）
     desc.prerequisites.append(ContextKeys::ActiveCurve);
     desc.prerequisites.append(ContextKeys::SelectedPoints);
-    // 注：当前实现使用CurveManager查找基线，未来应改为使用ContextKeys::BaselineCurves
-    desc.produces.append("markers");
-    desc.produces.append("scalar");
+    // 输出声明
+    desc.produces.append(ProducesKeys::Curves);   // 切线、基线延长线
+    desc.produces.append(ProducesKeys::Markers);  // 外推点、拐点
+    desc.produces.append(ProducesKeys::Scalar);   // 外推温度数值
 
     return desc;
 }
@@ -98,14 +97,14 @@ bool TemperatureExtrapolationAlgorithm::prepareContext(AlgorithmContext* context
         return false;
     }
 
-    // 阶段2：验证基线曲线存在
-    ThermalCurve baselineCurve;
-    if (!findBaselineCurve(context, baselineCurve)) {
-        qWarning() << "TemperatureExtrapolationAlgorithm::prepareContext - 未找到基线曲线，请先使用'基线校正'功能绘制基线";
+    // 阶段2：验证曲线数据非空
+    const auto& curveData = curve.value().getProcessedData();
+    if (curveData.isEmpty()) {
+        qWarning() << "TemperatureExtrapolationAlgorithm::prepareContext - 曲线数据为空";
         return false;
     }
 
-    // 阶段3：验证选点数据（2个点定义切线区域）
+    // 阶段3：验证选点数据（2个点定义反应特征区域）
     auto points = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
     if (!points.has_value() || points.value().size() < 2) {
         qWarning() << "TemperatureExtrapolationAlgorithm::prepareContext - 需要2个选点，当前"
@@ -113,16 +112,16 @@ bool TemperatureExtrapolationAlgorithm::prepareContext(AlgorithmContext* context
         return false;  // 数据不完整，等待用户选点
     }
 
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::prepareContext - 数据就绪";
-    qDebug() << "  - 选点数:" << points.value().size();
-    qDebug() << "  - 基线曲线:" << baselineCurve.name();
-#endif
+    // 注意：不再强制要求基线曲线存在
+    // 新算法使用混合策略：优先使用现有基线，降级为局部拟合
+
     return true;
 }
 
 AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmContext* context)
 {
+    // ==================== 标准外推法 (ISO 11358-1 / ASTM E2550) ====================
+
     // 1. 验证上下文
     if (!context) {
         qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext - 上下文为空！";
@@ -137,23 +136,14 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
     }
 
     const ThermalCurve& inputCurve = curveOpt.value();
+    const QVector<ThermalDataPoint>& curveData = inputCurve.getProcessedData();
 
-    // 3. 查找基线曲线
-    ThermalCurve baselineCurve;
-    if (!findBaselineCurve(context, baselineCurve)) {
-        QString error = "未找到基线曲线，请先使用'基线校正'功能绘制基线";
-        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
-        return AlgorithmResult::failure("temperature_extrapolation", error);
+    if (curveData.isEmpty()) {
+        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext - 曲线数据为空！";
+        return AlgorithmResult::failure("temperature_extrapolation", "曲线数据为空");
     }
 
-    const QVector<ThermalDataPoint>& baselineData = baselineCurve.getProcessedData();
-    if (baselineData.isEmpty()) {
-        QString error = "基线曲线数据为空";
-        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
-        return AlgorithmResult::failure("temperature_extrapolation", error);
-    }
-
-    // 4. 拉取选择的点（2个点定义切线区域）
+    // 3. 拉取选择的点（2个点定义反应特征区域）
     auto pointsOpt = context->get<QVector<ThermalDataPoint>>(ContextKeys::SelectedPoints);
     if (!pointsOpt.has_value()) {
         qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext - 无法获取选择的点！";
@@ -167,60 +157,10 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
         return AlgorithmResult::failure("temperature_extrapolation", error);
     }
 
-    // 5. 获取输入数据
-    const QVector<ThermalDataPoint>& curveData = inputCurve.getProcessedData();
-    if (curveData.isEmpty()) {
-        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext - 曲线数据为空！";
-        return AlgorithmResult::failure("temperature_extrapolation", "曲线数据为空");
-    }
+    // 4. 确定搜索范围 [T1, T2]
+    double T1 = qMin(selectedPoints[0].temperature, selectedPoints[1].temperature);
+    double T2 = qMax(selectedPoints[0].temperature, selectedPoints[1].temperature);
 
-    // 6. 提取切线区域的两个点
-    ThermalDataPoint tangentPoint1 = selectedPoints[0];
-    ThermalDataPoint tangentPoint2 = selectedPoints[1];
-
-    double temp1 = qMin(tangentPoint1.temperature, tangentPoint2.temperature);
-    double temp2 = qMax(tangentPoint1.temperature, tangentPoint2.temperature);
-
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::executeWithContext - 切线区域:"
-             << "[" << temp1 << "," << temp2 << "]";
-#endif
-
-    // 7. 验证峰范围是否在基线范围内
-    if (!validatePeakRange(baselineData, temp1, temp2)) {
-        QString error = QString("峰范围 [%1, %2] 超出基线范围，请在基线覆盖的温度区域内选择")
-                            .arg(temp1).arg(temp2);
-        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
-        return AlgorithmResult::failure("temperature_extrapolation", error);
-    }
-
-    // 8. 提取拟合区域的数据点
-    QVector<ThermalDataPoint> fittingRegion = extractFittingRegion(
-        curveData, tangentPoint1, tangentPoint2
-    );
-
-    if (fittingRegion.size() < 2) {
-        QString error = "拟合区域数据点不足（至少需要2个点）";
-        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
-        return AlgorithmResult::failure("temperature_extrapolation", error);
-    }
-
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::executeWithContext - 拟合区域点数:" << fittingRegion.size();
-#endif
-
-    // 9. 拟合切线（最小二乘法）
-    double slope = 0.0;
-    double intercept = 0.0;
-    if (!fitTangentLine(fittingRegion, slope, intercept)) {
-        QString error = "切线拟合失败";
-        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
-        return AlgorithmResult::failure("temperature_extrapolation", error);
-    }
-
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::executeWithContext - 切线参数: y =" << slope << "* x +" << intercept;
-#endif
 
     // 检查是否被用户取消
     if (shouldCancel()) {
@@ -228,62 +168,119 @@ AlgorithmResult TemperatureExtrapolationAlgorithm::executeWithContext(AlgorithmC
         return AlgorithmResult::failure("temperature_extrapolation", "用户取消执行");
     }
 
-    // 10. 计算切线与基线曲线的交点
-    double extrapolatedTemp = 0.0;
-    double baselineMinTemp = baselineData.first().temperature;
-    double baselineMaxTemp = baselineData.last().temperature;
+    // 5. 基线拟合（优先使用现有基线，否则用 T1 之前的初始区域拟合）
+    LinearFit baseline;
+    ThermalCurve existingBaseline;
 
-    if (!calculateIntersectionWithBaseline(slope, intercept, baselineData,
-                                            baselineMinTemp, baselineMaxTemp,
-                                            extrapolatedTemp)) {
-        QString error = "未找到切线与基线的交点";
+    if (findBaselineCurve(context, existingBaseline)) {
+        // 有现有基线曲线，从基线数据拟合
+        const auto& baselineData = existingBaseline.getProcessedData();
+        if (!baselineData.isEmpty()) {
+            baseline = fitInitialBaseline(baselineData, T1, 20);
+            baseline.quality.rejectReason = "现有基线曲线";
+        }
+    }
+
+    // 如果没有现有基线或拟合失败，使用 T1 之前的初始区域拟合基线
+    if (!baseline.valid) {
+        baseline = fitInitialBaseline(curveData, T1, 20);
+        baseline.quality.rejectReason = "初始区域拟合";
+    }
+
+    if (!baseline.valid) {
+        QString error = QString("基线拟合失败: %1").arg(baseline.quality.rejectReason);
         qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
         return AlgorithmResult::failure("temperature_extrapolation", error);
     }
 
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::executeWithContext - 外推温度:" << extrapolatedTemp;
-#endif
+    reportProgress(30, "基线拟合完成");
 
-    // 11. 获取外推点的 Y 值（基线上的值）
-    double extrapolatedY = getBaselineYAtTemperature(baselineData, extrapolatedTemp);
+    // 7. 拐点检测（稳健版：滑动窗口 OLS + 前沿约束 + 百分位阈值）
+    InflectionPoint inflection = detectInflectionPointRobust(curveData, T1, T2);
+    if (!inflection.valid) {
+        QString error = QString("在范围 [%1, %2] 内未找到拐点").arg(T1).arg(T2);
+        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
+        return AlgorithmResult::failure("temperature_extrapolation", error);
+    }
 
-    // 12. 创建结果对象（混合输出：标注点 + 切线 + 数值）
+    reportProgress(50, "拐点检测完成");
+
+    // 8. 切线计算（在拐点处，y = k*x + b）
+    LinearFit tangent(inflection.slope, inflection.value - inflection.slope * inflection.temperature);
+
+
+    reportProgress(70, "切线计算完成");
+
+    // 9. 计算交点（带合理性约束）
+    double confidence = 0;
+    QString warning;
+    QPointF onsetPoint = calculateLineIntersectionConstrained(baseline, tangent, T1, T2, confidence, warning);
+
+    if (confidence == 0 || onsetPoint.isNull()) {
+        QString error = QString("交点计算失败: %1").arg(warning.isEmpty() ? "基线与切线平行" : warning);
+        qWarning() << "TemperatureExtrapolationAlgorithm::executeWithContext -" << error;
+        return AlgorithmResult::failure("temperature_extrapolation", error);
+    }
+
+    double T_onset = onsetPoint.x();
+    // Y_onset 不需要，外推温度只关心 X 坐标
+
+    // 记录警告
+    if (!warning.isEmpty()) {
+        qWarning() << "外推温度计算警告:" << warning;
+    }
+
+
+    reportProgress(80, "交点计算完成");
+
+    // 9. 创建结果对象（混合输出）
     AlgorithmResult result = AlgorithmResult::success(
         "temperature_extrapolation",
         inputCurve.id(),
         ResultType::Composite
     );
 
-    // 添加外推点标注
-    QPointF extrapolatedPoint(extrapolatedTemp, extrapolatedY);
-    result.addMarker(extrapolatedPoint, "外推点");
+    // 10. 创建辅助曲线
 
-    // 添加切线端点标注
-    result.addMarker(QPointF(tangentPoint1.temperature, tangentPoint1.value), "切线起点");
-    result.addMarker(QPointF(tangentPoint2.temperature, tangentPoint2.value), "切线终点");
+    // 10.1 切线曲线（从拐点向两侧延伸）
+    double tangentStart = qMin(inflection.temperature - 30, T_onset - 10);
+    double tangentEnd = qMax(inflection.temperature + 30, T2 + 10);
+    ThermalCurve tangentCurve = createTangentCurve(inputCurve, tangent, tangentStart, tangentEnd);
+    result.addCurve(tangentCurve);
 
-    // 添加切线的可视化（作为区域）
-    // 延长切线穿过外推点
-    double extendedTemp1 = qMin(temp1, extrapolatedTemp) - 10;
-    double extendedTemp2 = qMax(temp2, extrapolatedTemp) + 10;
+    // 10.2 基线延长线（从 T1 左侧延伸到交点）
+    double baselineStart = T1 - 30;
+    double baselineEnd = qMax(T_onset + 10, T1 + 30);
+    ThermalCurve baselineExtCurve = createBaselineExtensionCurve(inputCurve, baseline, baselineStart, baselineEnd);
+    result.addCurve(baselineExtCurve);
 
-    QPolygonF tangentLine;
-    tangentLine << QPointF(extendedTemp1, slope * extendedTemp1 + intercept);
-    tangentLine << QPointF(extendedTemp2, slope * extendedTemp2 + intercept);
-    result.addRegion(tangentLine, "切线");
+    // 11. 添加标注点
 
-    // 格式化显示文本
-    QString tempText = formatTemperatureText(extrapolatedTemp, inputCurve.instrumentType());
+    // 11.1 外推点（主要结果）
+    result.addMarker(onsetPoint, QString("外推: %1°C").arg(T_onset, 0, 'f', 1));
 
-    // 添加元数据
-    result.setMeta(MetaKeys::ExtrapolatedTemperature, extrapolatedTemp);
-    result.setMeta(MetaKeys::Slope, slope);
-    result.setMeta(MetaKeys::Intercept, intercept);
-    result.setMeta(MetaKeys::BaselineCurveId, baselineCurve.id());
-    result.setMeta(MetaKeys::BaselineCurveName, baselineCurve.name());
+    // 11.2 拐点
+    result.addMarker(QPointF(inflection.temperature, inflection.value), "拐点");
+
+    // 12. 添加元数据
+    result.setMeta(MetaKeys::ExtrapolatedTemperature, T_onset);
+    result.setMeta(MetaKeys::Slope, tangent.slope);
+    result.setMeta(MetaKeys::Intercept, tangent.intercept);
+    result.setMeta(MetaKeys::BaselineSlope, baseline.slope);
+    result.setMeta(MetaKeys::BaselineIntercept, baseline.intercept);
+    result.setMeta(MetaKeys::BaselineR2, baseline.r2);
+    result.setMeta(MetaKeys::BaselineSlopeNormalized, baseline.quality.slopeNormalized);
+    result.setMeta(MetaKeys::BaselineMethod, baseline.quality.rejectReason.isEmpty() ? "自适应拟合" : baseline.quality.rejectReason);
+    result.setMeta(MetaKeys::InflectionTemperature, inflection.temperature);
+    result.setMeta(MetaKeys::InflectionValue, inflection.value);
+    result.setMeta(MetaKeys::InflectionSlope, inflection.slope);
+    result.setMeta(MetaKeys::Confidence, confidence);
+    result.setMeta(MetaKeys::Warning, warning);
     result.setMeta(MetaKeys::InstrumentType, static_cast<int>(inputCurve.instrumentType()));
     result.setMeta(MetaKeys::MarkerColor, QColor(Qt::red));
+
+    reportProgress(100, "外推温度计算完成");
+
 
     return result;
 }
@@ -296,42 +293,21 @@ bool TemperatureExtrapolationAlgorithm::findBaselineCurve(AlgorithmContext* cont
         return false;
     }
 
-    // 从上下文获取 CurveManager
-    auto curveManagerOpt = context->get<CurveManager*>("curveManager");
-    if (!curveManagerOpt.has_value() || !curveManagerOpt.value()) {
-        qWarning() << "TemperatureExtrapolationAlgorithm::findBaselineCurve - CurveManager 未设置";
+    // 直接从上下文获取基线曲线列表（由 AlgorithmCoordinator 注入）
+    auto baselinesOpt = context->get<QVector<ThermalCurve*>>(ContextKeys::BaselineCurves);
+    if (!baselinesOpt.has_value() || baselinesOpt.value().isEmpty()) {
         return false;
     }
 
-    CurveManager* curveManager = curveManagerOpt.value();
-
-    // 获取活动曲线
-    auto activeCurveOpt = context->get<ThermalCurve>(ContextKeys::ActiveCurve);
-    if (!activeCurveOpt.has_value()) {
-        return false;
-    }
-
-    const ThermalCurve& activeCurve = activeCurveOpt.value();
-    QString parentId = activeCurve.id();
-
-    // 使用 CurveManager 的 getBaselines() 方法获取所有基线曲线
-    QVector<ThermalCurve*> baselines = curveManager->getBaselines(parentId);
-
-    if (baselines.isEmpty()) {
-        return false;
-    }
+    const QVector<ThermalCurve*>& baselines = baselinesOpt.value();
 
     // 使用第一条基线曲线（如果有多条，可以让用户选择或使用最新的）
-    baselineCurve = *baselines.first();  // 复制曲线数据
-
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::findBaselineCurve - 找到基线曲线:" << baselineCurve.name();
-    if (baselines.size() > 1) {
-        qDebug() << "  提示：找到" << baselines.size() << "条基线曲线，使用第一条";
+    if (baselines.first()) {
+        baselineCurve = *baselines.first();  // 复制曲线数据
+        return true;
     }
-#endif
 
-    return true;
+    return false;
 }
 
 double TemperatureExtrapolationAlgorithm::getBaselineYAtTemperature(
@@ -384,12 +360,6 @@ bool TemperatureExtrapolationAlgorithm::validatePeakRange(
     bool inRange = (peakTemp1 >= baselineMinTemp && peakTemp1 <= baselineMaxTemp) &&
                    (peakTemp2 >= baselineMinTemp && peakTemp2 <= baselineMaxTemp);
 
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-    qDebug() << "TemperatureExtrapolationAlgorithm::validatePeakRange:";
-    qDebug() << "  - 基线范围: [" << baselineMinTemp << "," << baselineMaxTemp << "]";
-    qDebug() << "  - 峰范围: [" << peakTemp1 << "," << peakTemp2 << "]";
-    qDebug() << "  - 验证结果:" << (inRange ? "通过" : "失败");
-#endif
 
     return inRange;
 }
@@ -431,10 +401,6 @@ bool TemperatureExtrapolationAlgorithm::calculateIntersectionWithBaseline(
         if (distance < epsilon) {
             // 找到交点
             intersectionTemp = temp;
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-            qDebug() << "TemperatureExtrapolationAlgorithm::calculateIntersectionWithBaseline - 找到交点:"
-                     << intersectionTemp << ", 误差:" << distance;
-#endif
             return true;
         }
     }
@@ -442,10 +408,6 @@ bool TemperatureExtrapolationAlgorithm::calculateIntersectionWithBaseline(
     // 如果没有找到精确交点，返回最接近的点
     if (minDistance < 0.1) {  // 允许稍大的误差
         intersectionTemp = bestTemp;
-#if DEBUG_TEMPERATURE_EXTRAPOLATION
-        qDebug() << "TemperatureExtrapolationAlgorithm::calculateIntersectionWithBaseline - 找到近似交点:"
-                 << intersectionTemp << ", 误差:" << minDistance;
-#endif
         return true;
     }
 
@@ -533,4 +495,716 @@ QString TemperatureExtrapolationAlgorithm::formatTemperatureText(
     QString valueStr = QString::number(temperature, 'f', 2);
 
     return QString("外推温度 = %1 °C").arg(valueStr);
+}
+
+// ==================== 新增：标准外推法核心函数实现 ====================
+
+LinearFit TemperatureExtrapolationAlgorithm::fitInitialBaseline(
+    const QVector<ThermalDataPoint>& data,
+    double T_end,
+    int pointCount) const
+{
+    if (data.isEmpty() || pointCount < 2) {
+        return LinearFit();
+    }
+
+    // 找到 T_end 对应的索引
+    int endIdx = -1;
+    for (int i = 0; i < data.size(); ++i) {
+        if (data[i].temperature >= T_end) {
+            endIdx = i;
+            break;
+        }
+    }
+
+    if (endIdx < 0) {
+        endIdx = data.size() - 1;
+    }
+
+    // 从 endIdx 向左取 pointCount 个点
+    int startIdx = qMax(0, endIdx - pointCount);
+    int actualCount = endIdx - startIdx;
+
+    if (actualCount < 2) {
+        return LinearFit();
+    }
+
+    // 最小二乘法拟合
+    double sumX = 0.0, sumY = 0.0, sumXY = 0.0, sumX2 = 0.0;
+
+    for (int i = startIdx; i < endIdx; ++i) {
+        double x = data[i].temperature;
+        double y = data[i].value;
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumX2 += x * x;
+    }
+
+    double n = actualCount;
+    double denominator = n * sumX2 - sumX * sumX;
+
+    if (qAbs(denominator) < 1e-10) {
+        return LinearFit();
+    }
+
+    double slope = (n * sumXY - sumX * sumY) / denominator;
+    double intercept = (sumY - slope * sumX) / n;
+
+    // 计算 R²
+    double meanY = sumY / n;
+    double ssTotal = 0.0, ssResidual = 0.0;
+
+    for (int i = startIdx; i < endIdx; ++i) {
+        double y = data[i].value;
+        double yPred = slope * data[i].temperature + intercept;
+        ssTotal += (y - meanY) * (y - meanY);
+        ssResidual += (y - yPred) * (y - yPred);
+    }
+
+    double r2 = (ssTotal > 0) ? (1.0 - ssResidual / ssTotal) : 1.0;
+
+
+    return LinearFit(slope, intercept, r2);
+}
+
+InflectionPoint TemperatureExtrapolationAlgorithm::detectInflectionPoint(
+    const QVector<ThermalDataPoint>& data,
+    double T_start,
+    double T_end) const
+{
+    if (data.size() < 3) {
+        return InflectionPoint();
+    }
+
+    // 找到搜索范围的索引
+    int startIdx = -1, endIdx = -1;
+
+    for (int i = 0; i < data.size(); ++i) {
+        if (startIdx < 0 && data[i].temperature >= T_start) {
+            startIdx = i;
+        }
+        if (data[i].temperature <= T_end) {
+            endIdx = i;
+        }
+    }
+
+    if (startIdx < 0 || endIdx < 0 || startIdx >= endIdx - 1) {
+        return InflectionPoint();
+    }
+
+    // 确保有足够的点进行中心差分
+    startIdx = qMax(startIdx, 1);
+    endIdx = qMin(endIdx, data.size() - 2);
+
+    InflectionPoint result;
+    double maxAbsSlope = 0.0;
+
+    for (int i = startIdx; i <= endIdx; ++i) {
+        // 中心差分计算斜率
+        double dx = data[i + 1].temperature - data[i - 1].temperature;
+        double dy = data[i + 1].value - data[i - 1].value;
+
+        if (qAbs(dx) < 1e-10) {
+            continue;
+        }
+
+        double slope = dy / dx;
+        double absSlope = qAbs(slope);
+
+        if (absSlope > maxAbsSlope) {
+            maxAbsSlope = absSlope;
+            result.index = i;
+            result.temperature = data[i].temperature;
+            result.value = data[i].value;
+            result.slope = slope;
+            result.valid = true;
+        }
+    }
+
+
+    return result;
+}
+
+QPointF TemperatureExtrapolationAlgorithm::calculateLineIntersection(
+    const LinearFit& line1,
+    const LinearFit& line2) const
+{
+    if (!line1.valid || !line2.valid) {
+        return QPointF();
+    }
+
+    // 解方程: a1*x + b1 = a2*x + b2
+    // x = (b2 - b1) / (a1 - a2)
+    double a1 = line1.slope;
+    double b1 = line1.intercept;
+    double a2 = line2.slope;
+    double b2 = line2.intercept;
+
+    double denominator = a1 - a2;
+
+    if (qAbs(denominator) < 1e-10) {
+        return QPointF();
+    }
+
+    double x = (b2 - b1) / denominator;
+    double y = a1 * x + b1;
+
+
+    return QPointF(x, y);
+}
+
+LinearFit TemperatureExtrapolationAlgorithm::getBaselineWithHybridStrategy(
+    AlgorithmContext* context,
+    const QVector<ThermalDataPoint>& curveData,
+    double T1,
+    int fallbackPointCount) const
+{
+    // 策略1: 优先搜索现有基线曲线
+    ThermalCurve baselineCurve;
+    if (findBaselineCurve(context, baselineCurve)) {
+        const auto& baselineData = baselineCurve.getProcessedData();
+        if (!baselineData.isEmpty()) {
+            // 检查基线是否覆盖 T1
+            double minTemp = baselineData.first().temperature;
+            double maxTemp = baselineData.last().temperature;
+
+            if (T1 >= minTemp && T1 <= maxTemp) {
+                // 从基线曲线数据拟合直线
+                return fitInitialBaseline(baselineData, T1, fallbackPointCount);
+            }
+        }
+    }
+
+    // 策略2: 降级为局部拟合
+    return fitInitialBaseline(curveData, T1, fallbackPointCount);
+}
+
+ThermalCurve TemperatureExtrapolationAlgorithm::createTangentCurve(
+    const ThermalCurve& parent,
+    const LinearFit& tangent,
+    double T_start,
+    double T_end) const
+{
+    // 生成切线数据点
+    QVector<ThermalDataPoint> tangentData;
+    const int numPoints = 100;
+    double step = (T_end - T_start) / (numPoints - 1);
+
+    for (int i = 0; i < numPoints; ++i) {
+        double T = T_start + i * step;
+        double y = tangent.valueAt(T);
+
+        ThermalDataPoint pt;
+        pt.temperature = T;
+        pt.time = 0;
+        pt.value = y;
+        tangentData.append(pt);
+    }
+
+    // 创建曲线
+    ThermalCurve curve;
+    curve = ThermalCurve(
+        QUuid::createUuid().toString(QUuid::WithoutBraces),
+        parent.name() + " - 切线"
+    );
+    curve.setInstrumentType(parent.instrumentType());
+    curve.setSignalType(SignalType::Raw);
+    curve.setRawData(tangentData);
+    curve.setProcessedData(tangentData);
+
+    // 设置辅助曲线属性
+    curve.setIsAuxiliaryCurve(true);
+    curve.setIsStronglyBound(true);
+    curve.setParentId(parent.id());
+
+
+    return curve;
+}
+
+ThermalCurve TemperatureExtrapolationAlgorithm::createBaselineExtensionCurve(
+    const ThermalCurve& parent,
+    const LinearFit& baseline,
+    double T_start,
+    double T_end) const
+{
+    // 生成基线延长线数据点
+    QVector<ThermalDataPoint> baselineData;
+    const int numPoints = 100;
+    double step = (T_end - T_start) / (numPoints - 1);
+
+    for (int i = 0; i < numPoints; ++i) {
+        double T = T_start + i * step;
+        double y = baseline.valueAt(T);
+
+        ThermalDataPoint pt;
+        pt.temperature = T;
+        pt.time = 0;
+        pt.value = y;
+        baselineData.append(pt);
+    }
+
+    // 创建曲线
+    ThermalCurve curve;
+    curve = ThermalCurve(
+        QUuid::createUuid().toString(QUuid::WithoutBraces),
+        parent.name() + " - 基线"
+    );
+    curve.setInstrumentType(parent.instrumentType());
+    curve.setSignalType(SignalType::Baseline);
+    curve.setRawData(baselineData);
+    curve.setProcessedData(baselineData);
+
+    // 设置辅助曲线属性
+    curve.setIsAuxiliaryCurve(true);
+    curve.setIsStronglyBound(true);
+    curve.setParentId(parent.id());
+
+
+    return curve;
+}
+
+// ==================== Phase 2: 稳健算法函数实现 ====================
+
+LinearFit TemperatureExtrapolationAlgorithm::fitBaselineAdaptive(
+    const QVector<ThermalDataPoint>& data,
+    double T1,
+    double T2,
+    double yRange) const
+{
+    LinearFit result;
+
+    // 参数配置
+    const double deltaT_min = 5.0;   // 最小温度窗 (K)
+    const double deltaT_max = 30.0;  // 最大温度窗 (K)
+    const int minPoints = 20;        // 最少拟合点数
+    const double r2Threshold = 0.95; // R² 门槛
+    const double slopeThreshold = 0.005; // 归一化斜率门槛
+
+    // 1. 确定搜索范围 [T1 - deltaT_max, T1 - deltaT_min]
+    double searchStart = T1 - deltaT_max;
+    double searchEnd = T1 - deltaT_min;
+
+    // 2. 找到搜索范围内的数据点索引
+    int searchStartIdx = -1, searchEndIdx = -1;
+    for (int i = 0; i < data.size(); ++i) {
+        if (searchStartIdx < 0 && data[i].temperature >= searchStart) {
+            searchStartIdx = i;
+        }
+        if (data[i].temperature <= searchEnd) {
+            searchEndIdx = i;
+        }
+    }
+
+    // 检查是否有足够的数据点
+    if (searchStartIdx < 0 || searchEndIdx < 0 || searchEndIdx - searchStartIdx < minPoints) {
+        return fitBaselineTwoPoint(data, T1, T2);
+    }
+
+    // 3. 滑动窗口搜索最佳基线段
+    double bestVariance = std::numeric_limits<double>::max();
+    int bestWindowStart = -1;
+    int bestWindowEnd = -1;
+
+    const int windowSize = qMin(minPoints, searchEndIdx - searchStartIdx);
+
+    for (int start = searchStartIdx; start + windowSize <= searchEndIdx; ++start) {
+        double variance = calculateDerivativeVariance(data, start, start + windowSize);
+
+        if (variance < bestVariance) {
+            bestVariance = variance;
+            bestWindowStart = start;
+            bestWindowEnd = start + windowSize;
+        }
+    }
+
+    // 4. 对最佳窗口做 OLS 拟合
+    if (bestWindowStart >= 0) {
+        result = fitLinear(data, bestWindowStart, bestWindowEnd);
+
+        // 5. 质量评估
+        result.quality.r2 = result.r2;
+        result.quality.slopeNormalized = qAbs(result.slope) / (yRange > 0 ? yRange : 1.0);
+        result.quality.varianceRatio = bestVariance;
+
+        // 6. 质量门槛检查
+        if (result.r2 < r2Threshold) {
+            result.quality.isAcceptable = false;
+            result.quality.rejectReason = QString("R² = %1 < %2").arg(result.r2, 0, 'f', 3).arg(r2Threshold);
+        } else if (result.quality.slopeNormalized > slopeThreshold) {
+            result.quality.isAcceptable = false;
+            result.quality.rejectReason = QString("归一化斜率 = %1 > %2")
+                .arg(result.quality.slopeNormalized, 0, 'f', 4).arg(slopeThreshold);
+        } else {
+            result.quality.isAcceptable = true;
+            result.quality.rejectReason.clear();
+        }
+
+        result.valid = result.quality.isAcceptable;
+
+    }
+
+    // 7. 如果质量不达标，尝试兜底方案
+    if (!result.valid || !result.quality.isAcceptable) {
+        LinearFit fallback = fitBaselineTwoPoint(data, T1, T2);
+        if (fallback.valid) {
+            return fallback;
+        }
+    }
+
+    return result;
+}
+
+LinearFit TemperatureExtrapolationAlgorithm::fitBaselineTwoPoint(
+    const QVector<ThermalDataPoint>& data,
+    double T1,
+    double T2) const
+{
+    LinearFit result;
+
+    // 找到最接近 T1 和 T2 的数据点
+    int idx1 = -1, idx2 = -1;
+    double minDist1 = std::numeric_limits<double>::max();
+    double minDist2 = std::numeric_limits<double>::max();
+
+    for (int i = 0; i < data.size(); ++i) {
+        double dist1 = qAbs(data[i].temperature - T1);
+        double dist2 = qAbs(data[i].temperature - T2);
+
+        if (dist1 < minDist1) {
+            minDist1 = dist1;
+            idx1 = i;
+        }
+        if (dist2 < minDist2) {
+            minDist2 = dist2;
+            idx2 = i;
+        }
+    }
+
+    if (idx1 < 0 || idx2 < 0 || idx1 == idx2) {
+        result.valid = false;
+        result.quality.rejectReason = "无法找到两点基线的数据点";
+        return result;
+    }
+
+    // 计算两点连线
+    double x1 = data[idx1].temperature;
+    double y1 = data[idx1].value;
+    double x2 = data[idx2].temperature;
+    double y2 = data[idx2].value;
+
+    double dx = x2 - x1;
+    if (qAbs(dx) < 1e-9) {
+        result.valid = false;
+        result.quality.rejectReason = "两点温度相同";
+        return result;
+    }
+
+    result.slope = (y2 - y1) / dx;
+    result.intercept = y1 - result.slope * x1;
+    result.r2 = 1.0;  // 两点拟合 R² 恒为 1
+    result.valid = true;
+
+    // 质量评估：两点基线标记为兜底方案
+    result.quality.r2 = 1.0;
+    result.quality.isAcceptable = true;
+    result.quality.rejectReason = "两点基线（兜底方案）";
+
+
+    return result;
+}
+
+double TemperatureExtrapolationAlgorithm::calculateDerivativeVariance(
+    const QVector<ThermalDataPoint>& data,
+    int startIdx,
+    int endIdx) const
+{
+    if (endIdx - startIdx < 3) {
+        return std::numeric_limits<double>::max();
+    }
+
+    QVector<double> derivatives;
+    for (int i = startIdx + 1; i < endIdx; ++i) {
+        double dx = data[i].temperature - data[i-1].temperature;
+        if (qAbs(dx) > 1e-9) {
+            double dy = data[i].value - data[i-1].value;
+            derivatives.append(dy / dx);
+        }
+    }
+
+    if (derivatives.isEmpty()) {
+        return std::numeric_limits<double>::max();
+    }
+
+    // 计算方差
+    double mean = 0;
+    for (double d : derivatives) {
+        mean += d;
+    }
+    mean /= derivatives.size();
+
+    double variance = 0;
+    for (double d : derivatives) {
+        variance += (d - mean) * (d - mean);
+    }
+    variance /= derivatives.size();
+
+    return variance;
+}
+
+LinearFit TemperatureExtrapolationAlgorithm::fitLinear(
+    const QVector<ThermalDataPoint>& data,
+    int startIdx,
+    int endIdx) const
+{
+    LinearFit result;
+
+    int n = endIdx - startIdx;
+    if (n < 2) {
+        return result;
+    }
+
+    // 最小二乘法拟合
+    double sumX = 0.0, sumY = 0.0, sumXY = 0.0, sumX2 = 0.0;
+
+    for (int i = startIdx; i < endIdx; ++i) {
+        double x = data[i].temperature;
+        double y = data[i].value;
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumX2 += x * x;
+    }
+
+    double denominator = n * sumX2 - sumX * sumX;
+    if (qAbs(denominator) < 1e-10) {
+        return result;
+    }
+
+    result.slope = (n * sumXY - sumX * sumY) / denominator;
+    result.intercept = (sumY - result.slope * sumX) / n;
+
+    // 计算 R²
+    double meanY = sumY / n;
+    double ssTotal = 0.0, ssResidual = 0.0;
+
+    for (int i = startIdx; i < endIdx; ++i) {
+        double y = data[i].value;
+        double yPred = result.slope * data[i].temperature + result.intercept;
+        ssTotal += (y - meanY) * (y - meanY);
+        ssResidual += (y - yPred) * (y - yPred);
+    }
+
+    result.r2 = (ssTotal > 0) ? (1.0 - ssResidual / ssTotal) : 1.0;
+    result.valid = true;
+
+    return result;
+}
+
+InflectionPoint TemperatureExtrapolationAlgorithm::detectInflectionPointRobust(
+    const QVector<ThermalDataPoint>& data,
+    double T1,
+    double T2) const
+{
+    InflectionPoint result;
+
+    // 参数配置
+    const int slopeWindowSize = 11;  // 斜率估计窗口（奇数）
+    const double percentileThreshold = 0.80;  // 斜率需超过 80 百分位
+    const bool searchLeadingHalfOnly = true;  // 只搜索前沿
+
+    // 1. 确定搜索范围
+    double searchEnd = searchLeadingHalfOnly ? (T1 + T2) / 2.0 : T2;
+
+    // 找到范围内的数据点
+    int startIdx = -1, endIdx = -1;
+    for (int i = 0; i < data.size(); ++i) {
+        if (startIdx < 0 && data[i].temperature >= T1) {
+            startIdx = i;
+        }
+        if (data[i].temperature <= searchEnd) {
+            endIdx = i;
+        }
+    }
+
+    if (startIdx < 0 || endIdx < 0 || endIdx - startIdx < slopeWindowSize) {
+        return detectInflectionPoint(data, T1, T2);
+    }
+
+    // 2. 计算平滑斜率（滑动窗口 OLS）
+    QVector<double> smoothSlopes;
+    QVector<int> slopeIndices;
+
+    int halfWin = slopeWindowSize / 2;
+    for (int i = startIdx + halfWin; i <= endIdx - halfWin; ++i) {
+        double slope = calculateLocalSlope(data, i - halfWin, i + halfWin);
+        smoothSlopes.append(qAbs(slope));
+        slopeIndices.append(i);
+    }
+
+    if (smoothSlopes.isEmpty()) {
+        return detectInflectionPoint(data, T1, T2);
+    }
+
+    // 3. 计算斜率阈值（百分位）
+    QVector<double> sortedSlopes = smoothSlopes;
+    std::sort(sortedSlopes.begin(), sortedSlopes.end());
+    int thresholdIdx = static_cast<int>(sortedSlopes.size() * percentileThreshold);
+    thresholdIdx = qMin(thresholdIdx, sortedSlopes.size() - 1);
+    double slopeThreshold = sortedSlopes[thresholdIdx];
+
+    // 4. 找到超过阈值的最大斜率点
+    double maxSlope = 0;
+    int maxSlopeIdx = -1;
+
+    for (int i = 0; i < smoothSlopes.size(); ++i) {
+        if (smoothSlopes[i] >= slopeThreshold && smoothSlopes[i] > maxSlope) {
+            maxSlope = smoothSlopes[i];
+            maxSlopeIdx = slopeIndices[i];
+        }
+    }
+
+    if (maxSlopeIdx < 0) {
+        return detectInflectionPoint(data, T1, T2);
+    }
+
+    // 5. 二阶导过零确认（可选）
+    bool hasZeroCrossing = checkSecondDerivativeZeroCrossing(data, maxSlopeIdx, halfWin);
+    if (!hasZeroCrossing) {
+    }
+
+    // 6. 填充结果
+    result.index = maxSlopeIdx;
+    result.temperature = data[maxSlopeIdx].temperature;
+    result.value = data[maxSlopeIdx].value;
+    result.slope = calculateLocalSlope(data, maxSlopeIdx - halfWin, maxSlopeIdx + halfWin);
+    result.valid = true;
+
+
+    return result;
+}
+
+double TemperatureExtrapolationAlgorithm::calculateLocalSlope(
+    const QVector<ThermalDataPoint>& data,
+    int startIdx,
+    int endIdx) const
+{
+    // 简单线性回归
+    double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    int n = endIdx - startIdx + 1;
+
+    if (n < 2) return 0;
+
+    for (int i = startIdx; i <= endIdx; ++i) {
+        double x = data[i].temperature;
+        double y = data[i].value;
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumX2 += x * x;
+    }
+
+    double denom = n * sumX2 - sumX * sumX;
+    if (qAbs(denom) < 1e-12) return 0;
+
+    return (n * sumXY - sumX * sumY) / denom;
+}
+
+bool TemperatureExtrapolationAlgorithm::checkSecondDerivativeZeroCrossing(
+    const QVector<ThermalDataPoint>& data,
+    int centerIdx,
+    int halfWindow) const
+{
+    if (centerIdx - halfWindow < 1 || centerIdx + halfWindow >= data.size() - 1) {
+        return true;  // 边界情况，假设通过
+    }
+
+    // 计算二阶导（用有限差分近似）
+    auto secondDeriv = [&](int i) {
+        double h1 = data[i].temperature - data[i-1].temperature;
+        double h2 = data[i+1].temperature - data[i].temperature;
+        if (qAbs(h1) < 1e-9 || qAbs(h2) < 1e-9) return 0.0;
+
+        double d1 = (data[i].value - data[i-1].value) / h1;
+        double d2 = (data[i+1].value - data[i].value) / h2;
+        return (d2 - d1) / ((h1 + h2) / 2);
+    };
+
+    int beforeIdx = centerIdx - halfWindow / 2;
+    int afterIdx = centerIdx + halfWindow / 2;
+
+    beforeIdx = qMax(1, beforeIdx);
+    afterIdx = qMin(data.size() - 2, afterIdx);
+
+    double d2_before = secondDeriv(beforeIdx);
+    double d2_after = secondDeriv(afterIdx);
+
+    // 检查符号变化
+    return (d2_before * d2_after <= 0);
+}
+
+QPointF TemperatureExtrapolationAlgorithm::calculateLineIntersectionConstrained(
+    const LinearFit& baseline,
+    const LinearFit& tangent,
+    double T1,
+    double T2,
+    double& outConfidence,
+    QString& outWarning) const
+{
+    outConfidence = 1.0;
+    outWarning.clear();
+
+    // 1. 基本有效性检查
+    if (!baseline.valid || !tangent.valid) {
+        outConfidence = 0;
+        outWarning = "基线或切线无效";
+        return QPointF();
+    }
+
+    // 2. 平行检查
+    double slopeDiff = qAbs(tangent.slope - baseline.slope);
+    if (slopeDiff < 1e-9) {
+        outConfidence = 0;
+        outWarning = "切线与基线平行，无法计算交点";
+        return QPointF();
+    }
+
+    // 3. 夹角约束
+    double angle1 = qAtan(baseline.slope);
+    double angle2 = qAtan(tangent.slope);
+    double angleDiff = qAbs(angle1 - angle2) * 180.0 / M_PI;  // 转为度
+
+    const double minAngle = 5.0;  // 最小夹角（度）
+    if (angleDiff < minAngle) {
+        outConfidence *= 0.5;
+        outWarning = QString("切线与基线夹角过小 (%1°)，结果可能不准确")
+            .arg(angleDiff, 0, 'f', 1);
+    }
+
+    // 4. 计算交点
+    double x = (baseline.intercept - tangent.intercept) / (tangent.slope - baseline.slope);
+    double y = tangent.slope * x + tangent.intercept;
+
+    // 5. 位置约束
+    const double tolerance = 20.0;  // 允许的温度偏差 (K)
+    if (x < T1 - tolerance || x > T2 + tolerance) {
+        outConfidence *= 0.3;
+        QString posWarning = QString("交点温度 (%1) 远离选择范围 [%2, %3]")
+            .arg(x, 0, 'f', 1).arg(T1, 0, 'f', 1).arg(T2, 0, 'f', 1);
+        if (outWarning.isEmpty()) {
+            outWarning = posWarning;
+        } else {
+            outWarning += "；" + posWarning;
+        }
+    }
+
+    // 6. 极端值检查
+    if (x < T1 - 100 || x > T2 + 100) {
+        outConfidence = 0;
+        outWarning = QString("交点温度异常 (%1 K)，基线或切线可能存在严重偏差")
+            .arg(x, 0, 'f', 1);
+    }
+
+
+    return QPointF(x, y);
 }

@@ -51,7 +51,7 @@ AlgorithmDescriptor IntegrationAlgorithm::descriptor() const
 
     // 依赖声明（工作流支持）
     desc.prerequisites.append(ContextKeys::ActiveCurve);
-    desc.produces.append("curve");
+    desc.produces.append(ProducesKeys::Curve);
 
     return desc;
 }
@@ -187,8 +187,8 @@ AlgorithmResult IntegrationAlgorithm::executeWithContext(AlgorithmContext* conte
 
     // 填充结果
     result.setCurve(outputCurve);
-    result.setMeta("method", "Trapezoidal");
-    result.setMeta("label", "积分曲线");
+    result.setMeta(MetaKeys::Method, "Trapezoidal");
+    result.setMeta(MetaKeys::Label, "积分曲线");
 
     return result;
 }

@@ -45,40 +45,12 @@ AlgorithmDescriptor DifferentiationAlgorithm::descriptor() const
     desc.name = name();
     desc.displayName = displayName();
     desc.category = category();
-    desc.needsParameters = false;  // 简单算法，无需强制参数对话框
+    desc.needsParameters = false;
     desc.needsPointSelection = false;
-
-    // Qt 5.14.2 不支持 QList 的初始化列表赋值，需要逐个添加
-    // 这些是可选的调试参数（needsParameters=false，所以不会自动弹窗）
-    AlgorithmParameterDefinition halfWinParam;
-    halfWinParam.key = "halfWin";
-    halfWinParam.label = "半窗口";
-    halfWinParam.valueType = QVariant::Int;
-    halfWinParam.defaultValue = m_halfWin;
-    halfWinParam.required = false;
-    halfWinParam.constraints["min"] = 1;
-    desc.parameters.append(halfWinParam);
-
-    AlgorithmParameterDefinition dtParam;
-    dtParam.key = "dt";
-    dtParam.label = "时间步长";
-    dtParam.valueType = QVariant::Double;
-    dtParam.defaultValue = m_dt;
-    dtParam.required = false;
-    dtParam.constraints["min"] = 1e-6;
-    desc.parameters.append(dtParam);
-
-    AlgorithmParameterDefinition debugParam;
-    debugParam.key = "enableDebug";
-    debugParam.label = "启用调试";
-    debugParam.valueType = QVariant::Bool;
-    debugParam.defaultValue = m_enableDebug;
-    debugParam.required = false;
-    desc.parameters.append(debugParam);
 
     // 依赖声明（工作流支持）
     desc.prerequisites.append(ContextKeys::ActiveCurve);
-    desc.produces.append("curve");
+    desc.produces.append(ProducesKeys::Curve);
 
     return desc;
 }
@@ -262,11 +234,11 @@ AlgorithmResult DifferentiationAlgorithm::executeWithContext(AlgorithmContext* c
     // 填充结果
     result.setCurve(outputCurve);
     result.setSignalType(SignalType::Derivative);
-    result.setMeta("unit", "mg/min");
-    result.setMeta("label", "DTG");
-    result.setMeta("windowSize", halfWin * 2 + 1);
-    result.setMeta("halfWin", halfWin);
-    result.setMeta("dt", dt);
+    result.setMeta(MetaKeys::Unit, "mg/min");
+    result.setMeta(MetaKeys::Label, "DTG");
+    result.setMeta(MetaKeys::WindowSize, halfWin * 2 + 1);
+    result.setMeta(MetaKeys::HalfWin, halfWin);
+    result.setMeta(MetaKeys::Dt, dt);
 
     return result;
 }
