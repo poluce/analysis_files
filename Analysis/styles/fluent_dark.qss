@@ -315,6 +315,7 @@ QListView::item {
     padding: 4px 6px;
     margin: 1px;
     border-radius: 6px;
+    outline: none;
 }
 
 QTreeView::item:hover:!selected,
