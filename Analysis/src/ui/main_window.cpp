@@ -4,9 +4,11 @@
 #include "project_explorer_view.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QComboBox>
 #include <QDebug>
 #include <QDockWidget>
+#include <QFile>
 #include <QFormLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -209,6 +211,12 @@ QToolBar* MainWindow::createViewToolBar()
     QAction* resetLayoutAction = toolbar->addAction(QIcon("../../icons/reset_layout.svg"), tr("恢复布局"));
     connect(resetLayoutAction, &QAction::triggered, this, &MainWindow::onResetLayoutRequested);
 
+    toolbar->addSeparator();
+
+    // 主题切换按钮
+    QAction* themeAction = toolbar->addAction(style()->standardIcon(QStyle::SP_DesktopIcon), tr("切换主题"));
+    connect(themeAction, &QAction::triggered, this, &MainWindow::onThemeToggleRequested);
+
     toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     return toolbar;
 }
@@ -335,4 +343,27 @@ void MainWindow::onResetLayoutRequested()
     m_propertiesDock->setFloating(false);
 
     statusBar()->showMessage(tr("布局已恢复"), 2000);
+}
+
+void MainWindow::onThemeToggleRequested()
+{
+    // 切换主题状态
+    m_isDarkTheme = !m_isDarkTheme;
+
+    // 选择对应的样式表文件
+    QString stylePath = m_isDarkTheme ? "../../styles/fluent_dark.qss" : "../../styles/fluent_light.qss";
+
+    QFile styleFile(stylePath);
+    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
+        QString styleSheet = styleFile.readAll();
+        qApp->setStyleSheet(styleSheet);
+        styleFile.close();
+
+        QString themeName = m_isDarkTheme ? tr("暗色主题") : tr("亮色主题");
+        statusBar()->showMessage(tr("已切换到 %1").arg(themeName), 2000);
+        qDebug() << "MainWindow::onThemeToggleRequested - 切换到" << themeName;
+    } else {
+        qWarning() << "无法加载样式表文件:" << stylePath;
+        statusBar()->showMessage(tr("无法加载主题文件"), 2000);
+    }
 }

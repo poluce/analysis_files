@@ -142,6 +142,11 @@ private slots:
      */
     void onResetLayoutRequested();
 
+    /**
+     * @brief 切换主题（明/暗模式）
+     */
+    void onThemeToggleRequested();
+
 private:
     // 初始化函数
     /**
@@ -220,5 +225,8 @@ private:
 
     // --- 服务与控制器 ---
     HistoryManager* m_historyManager { nullptr };
+
+    // --- 主题状态 ---
+    bool m_isDarkTheme { false };
 };
 #endif // MAINWINDOW_H
