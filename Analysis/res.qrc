@@ -1,0 +1,26 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/baseline_correction.svg</file>
+        <file>icons/differentiation.svg</file>
+        <file>icons/export.svg</file>
+        <file>icons/fit_view.svg</file>
+        <file>icons/import.svg</file>
+        <file>icons/integration.svg</file>
+        <file>icons/mass_loss.svg</file>
+        <file>icons/moving_average.svg</file>
+        <file>icons/new_file.svg</file>
+        <file>icons/open_folder.svg</file>
+        <file>icons/peak_area.svg</file>
+        <file>icons/redo.svg</file>
+        <file>icons/reset_layout.svg</file>
+        <file>icons/save.svg</file>
+        <file>icons/temperature_extrapolation.svg</file>
+        <file>icons/toggle_project.svg</file>
+        <file>icons/toggle_properties.svg</file>
+        <file>icons/undo.svg</file>
+        <file>icons/zoom_in.svg</file>
+        <file>icons/zoom_out.svg</file>
+        <file>styles/fluent_dark.qss</file>
+        <file>styles/fluent_light.qss</file>
+    </qresource>
+</RCC>
