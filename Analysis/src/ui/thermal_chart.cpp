@@ -657,16 +657,29 @@ void ThermalChart::setXAxisMode(XAxisMode mode)
 
     // 重新加载所有曲线数据
     const auto& allCurves = m_curveManager->getAllCurves();
+    qDebug() << "ThermalChart::setXAxisMode - 曲线数量:" << allCurves.size();
+
     for (const ThermalCurve& curve : allCurves) {
         QXYSeries* series = seriesForCurveId(curve.id());
         if (series) {
-            QSignalBlocker blocker(series);
-            series->replace(buildSeriesPoints(curve));
+            QList<QPointF> newPoints = buildSeriesPoints(curve);
+            qDebug() << "ThermalChart::setXAxisMode - 曲线" << curve.id()
+                     << "点数:" << newPoints.size();
+            if (!newPoints.isEmpty()) {
+                qDebug() << "  首点: (" << newPoints.first().x() << "," << newPoints.first().y() << ")"
+                         << "末点: (" << newPoints.last().x() << "," << newPoints.last().y() << ")";
+            }
+            series->replace(newPoints);
+        } else {
+            qDebug() << "ThermalChart::setXAxisMode - 未找到曲线" << curve.id() << "的series";
         }
     }
 
     // 重新缩放坐标轴以适应新数据范围
     rescaleAxes();
+
+    // 强制更新图表
+    update();
 
     qDebug() << "ThermalChart::setXAxisMode - 已完成横轴切换和曲线重绘";
 
