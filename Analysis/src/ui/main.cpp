@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
     QApplication a(argc, argv);
 
     // 加载样式表
-    QFile styleFile("../../styles/fluent_light.qss");
+    QFile styleFile(":/styles/fluent_light.qss");
     if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
         QString styleSheet = styleFile.readAll();
         a.setStyleSheet(styleSheet);
